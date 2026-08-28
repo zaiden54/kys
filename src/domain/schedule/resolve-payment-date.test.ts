@@ -10,8 +10,11 @@ describe("resolvePaymentDate", () => {
     expect(isoDate(resolvePaymentDate(2026, 3, 31))).toBe("2026-04-30");
   });
 
-  it("clamps day 31 in February of a non-leap year to the 28th", () => {
-    expect(isoDate(resolvePaymentDate(2026, 1, 31))).toBe("2026-02-28");
+  it("clamps day 31 in February of a non-leap year to the 28th, then applies D-02 since 2026-02-28 is a Saturday", () => {
+    // D-03 clamps 31 -> 28 first; 2026-02-28 is itself a Saturday, so D-02's
+    // weekend shift then walks it back one further day to Friday the 27th —
+    // the composite function correctly chains both rules, not clamping alone.
+    expect(isoDate(resolvePaymentDate(2026, 1, 31))).toBe("2026-02-27");
   });
 
   it("clamps day 31 in February of a leap year to the 29th", () => {
