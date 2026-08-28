@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Аккаунты и синхронизация
 
-- [ ] **AUTH-01**: Пользователь может зарегистрироваться и войти в аккаунт
+- [x] **AUTH-01**: Пользователь может зарегистрироваться и войти в аккаунт
 - [ ] **AUTH-02**: Данные пользователя синхронизируются между устройствами через облако
 
 ### Оклад и график выплат
@@ -83,7 +83,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Pending |
 | SAL-01 | Phase 1 | Pending |
 | SAL-02 | Phase 1 | Pending |
@@ -100,6 +100,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PWA-01 | Phase 4 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 15 total
 - Mapped to phases: 15
 - Unmapped: 0 ✓
