@@ -1,0 +1,1 @@
+{"content":"Better Auth Drizzle adapter: npm install @better-auth/drizzle-adapter (split from core in recent versions); drizzleAdapter(db, {provider: pg}); schema generated via npx auth generate (CLI renamed from deprecated @better-auth/cli).","source":"web","provider":"webfetch","confidence":"MEDIUM","fetched_at":"2026-08-28T15:12:37.964Z","ttl":86400000,"kind":"docs"}

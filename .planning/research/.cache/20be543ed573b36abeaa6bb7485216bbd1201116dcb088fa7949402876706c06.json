@@ -1,0 +1,1 @@
+{"content":"Better Auth session config: session.expiresIn (seconds, default 7d), session.updateAge (default 1d, sliding window refresh). For 30+ day sessions: expiresIn: 60*60*24*30, updateAge: 60*60*24*7.","source":"web","provider":"webfetch","confidence":"MEDIUM","fetched_at":"2026-08-28T15:12:38.142Z","ttl":86400000,"kind":"docs"}

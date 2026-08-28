@@ -1,0 +1,1 @@
+{"content":"Neon+Drizzle: drizzle-orm/neon-http for simple queries (drizzle(process.env.DATABASE_URL)); drizzle-orm/neon-serverless + ws for websocket/transactions in Node runtime.","source":"web","provider":"webfetch","confidence":"MEDIUM","fetched_at":"2026-08-28T15:12:38.321Z","ttl":86400000,"kind":"docs"}
