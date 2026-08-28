@@ -189,3 +189,10 @@ None - `.env.local` (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`) wa
 ---
 *Phase: 01-core-payroll-loop*
 *Completed: 2026-08-28*
+
+## Self-Check: PASSED
+
+- All 9 code files + this SUMMARY.md verified present on disk with `[ -f ]`.
+- All 3 task commit hashes (`bd9faec`, `db14032`) plus the summary commit (`957f8ee`) verified present via `git log --oneline --all`.
+- Plan-level `<verification>` re-run: live schema query confirms all 7 tables present; `npx tsc --noEmit` exits 0; `npm run build` exits 0 (re-run twice during execution); `scripts/verify-auth-flow.mjs` exits 0 against a running dev server (re-run twice, including after the `auth.ts` fix and the `(app)/page.tsx` grep-safe comment edit).
+- Manual UAT (Task 3 `<human-check>`, in particular the two-browser AUTH-02 check) was not performed by a human in this session — flagged in `coverage.D4` and "Next Phase Readiness" for follow-up via `/gsd-verify-work`.
