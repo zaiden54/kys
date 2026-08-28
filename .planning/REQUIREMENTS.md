@@ -83,27 +83,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | TBD | Pending |
-| AUTH-02 | TBD | Pending |
-| SAL-01 | TBD | Pending |
-| SAL-02 | TBD | Pending |
-| SAL-03 | TBD | Pending |
-| TAX-01 | TBD | Pending |
-| TAX-02 | TBD | Pending |
-| BON-01 | TBD | Pending |
-| BON-02 | TBD | Pending |
-| VAC-01 | TBD | Pending |
-| VAC-02 | TBD | Pending |
-| VAC-03 | TBD | Pending |
-| HOME-01 | TBD | Pending |
-| HOME-02 | TBD | Pending |
-| PWA-01 | TBD | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| SAL-01 | Phase 1 | Pending |
+| SAL-02 | Phase 1 | Pending |
+| SAL-03 | Phase 1 | Pending |
+| TAX-01 | Phase 1 | Pending |
+| TAX-02 | Phase 1 | Pending |
+| BON-01 | Phase 2 | Pending |
+| BON-02 | Phase 2 | Pending |
+| VAC-01 | Phase 3 | Pending |
+| VAC-02 | Phase 3 | Pending |
+| VAC-03 | Phase 3 | Pending |
+| HOME-01 | Phase 1 | Pending |
+| HOME-02 | Phase 4 | Pending |
+| PWA-01 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15 ⚠️ (roadmap creation pending)
+- Mapped to phases: 15
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-08-28*
-*Last updated: 2026-08-28 after initial definition*
+*Last updated: 2026-08-28 after roadmap creation*
