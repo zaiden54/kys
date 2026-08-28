@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 current_phase: 01
 current_phase_name: Core Payroll Loop
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-08-28T15:50:18.896Z"
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-08-28T16:28:21.992Z"
 last_activity: 2026-08-28
-last_activity_desc: Roadmap created, requirements mapped to 4 phases
-state_head: 530ab0da156e5d6b861835d5c4beb380658290b7
+last_activity_desc: Phase 01 execution started
+state_head: 92e9354e5ec1b435f03366b171f3c33fb6f565c9
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 5
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-28)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** Phase 1 - Core Payroll Loop
+**Current focus:** Phase 01 — Core Payroll Loop
 
 ## Current Position
 
-Phase: 01 (Core Payroll Loop) — READY TO EXECUTE
-Plan: 0 of TBD in current phase
+Phase: 01 (Core Payroll Loop) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-08-28 — Roadmap created, requirements mapped to 4 phases
+Last activity: 2026-08-28 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -54,6 +54,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 40 min | 2 tasks | 30 files |
 
 ## Accumulated Context
 
@@ -64,6 +69,8 @@ Recent decisions affecting current work:
 
 - Roadmap: Progressive НДФЛ engine and vacation-pay engine must be built correctness-first (pure, isolated, heavily unit-tested) but delivered as part of end-to-end vertical slices (Vertical MVP mode) rather than as a standalone horizontal "engine phase"
 - Roadmap: Annual overview (HOME-02) deferred to Phase 4 since it requires the full income picture (salary + bonuses + vacation) from Phases 1-3 to reconcile correctly
+- [Phase 01]: Pinned typescript to exact 6.0.3 (no caret) and used --legacy-peer-deps for a benign @hookform/resolvers/@typeschema optional-peer conflict with zod 4 — Matches CLAUDE.md's locked stack and typescript-eslint compatibility constraint; the peer conflict was on an unused optional adapter path, not a real incompatibility
+- [Phase 01]: Amended .gitignore's blanket .env* pattern with !.env.example so the placeholder env file stays trackable — create-next-app's default .gitignore silently excluded .env.example, contradicting the plan's explicit intent to commit it
 
 ### Pending Todos
 
@@ -85,6 +92,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-28T14:58:31.598Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-core-payroll-loop/01-CONTEXT.md
+Last session: 2026-08-28T16:28:21.961Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None
