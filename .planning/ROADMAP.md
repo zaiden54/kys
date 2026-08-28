@@ -42,7 +42,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. On first use, user can optionally enter their accumulated year-to-date income, or sees an explicit warning that the calculation assumes zero income since January 1 if they skip it (SAL-03)
   5. The home screen shows the amount and date of the next upcoming payment, taxed via the progressive НДФЛ scale (13/15/18/20/22%) applied to cumulative year-to-date income, with avans and salary treated as independent taxable payment events (TAX-01, TAX-02, HOME-01)
 
-**Plans**: 2/5 plans executed
+**Plans**: 5/5 plans executed
 
 Plans:
 **Wave 1**
@@ -60,7 +60,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 01-05-PLAN.md — Next-payment forecast and home screen with the persistent estimated-baseline banner (wave 4)
+- [x] 01-05-PLAN.md — Next-payment forecast and home screen with the persistent estimated-baseline banner (wave 4)
 
 **UI hint**: yes
 
@@ -118,7 +118,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Payroll Loop | 2/5 | In Progress|  |
+| 1. Core Payroll Loop | 5/5 | In Progress|  |
 | 2. Bonuses & One-off Payments | 0/TBD | Not started | - |
 | 3. Vacation Pay | 0/TBD | Not started | - |
 | 4. Annual Overview & PWA Installability | 0/TBD | Not started | - |

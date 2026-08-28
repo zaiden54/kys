@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 current_phase: 01
 current_phase_name: Core Payroll Loop
-status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-08-28T20:46:01.575Z"
+status: verifying
+stopped_at: Completed 01-05-PLAN.md — Phase 01 (Core Payroll Loop) all 5 plans complete
+last_updated: "2026-08-28T21:00:10.608Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 01 execution started
-state_head: 5e3c5faaf140601a6a2f0e36658bf0ff0f0cbb41
+state_head: 3b6d59b00f5421e062f9f6c67c6c0c3eacd7ae6e
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 Phase: 01 (Core Payroll Loop) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-28 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 35 min | 3 tasks | 11 files |
 | Phase 01-core-payroll-loop P03 | 35min | 2 tasks | 8 files |
 | Phase 01-core-payroll-loop P04 | 45min | 3 tasks | 9 files |
+| Phase 01 P05 | 12min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 01]: [Phase 01-02]: Deleted create-next-app's default src/app/page.tsx — Collided with the new src/app/(app)/page.tsx route for '/' since route groups add no URL segment
 - [Phase 01]: [Phase 01-02]: verify-auth-flow.mjs sends an explicit Origin header on POST /api/auth/* — Better Auth's CSRF check rejects requests without an Origin header, which Node's fetch does not send automatically like a browser does
 - [Phase 01]: Corrected two plan-authored test expectations in resolve-payment-date.test.ts to match the actually-installed date-holidays@3.36.0 RU calendar data (2026-02-28 Feb clamp case is a real Saturday requiring an extra D-02 shift; the New Year holiday chain example was moved from dayOfMonth=10 to dayOfMonth=3 since Jan 9 2026 is a genuine working Friday in the library's fixed rule set) — no implementation logic changed, only the test's asserted dates — Verified directly by inspecting date-holidays.isHoliday() output day-by-day; ensures the domain engine's test suite reflects real library behavior rather than an unverified illustrative example
+- [Phase 01]: Phase 01: Monthly gross oklad splits 50/50 across avans and salary payments (Task 1, resumed checkpoint) — no schema change, each payment taxed independently at its own date
+- [Phase 01]: Phase 01-05: forecastNextPayment returns a distinct not-configured branch naming exactly what is missing (salary or schedule), never a computed-against-zero forecast
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-28T20:46:01.549Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-08-28T21:00:10.581Z
+Stopped at: Completed 01-05-PLAN.md — Phase 01 (Core Payroll Loop) all 5 plans complete
 Resume file: None
