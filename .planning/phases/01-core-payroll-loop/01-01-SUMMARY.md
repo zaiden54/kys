@@ -1,0 +1,219 @@
+---
+phase: 01-core-payroll-loop
+plan: 01
+subsystem: database
+tags: [nextjs, drizzle, neon, better-auth, typescript, env-validation]
+
+# Dependency graph
+requires: []
+provides:
+  - "Next.js 16 App Router project scaffold at the repo root, TypeScript pinned to 6.0.3"
+  - "src/env.ts: boot-validated DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL"
+  - "src/lib/db/index.ts: Drizzle client bound to Neon via drizzle-orm/neon-http"
+  - "src/lib/db/schema.ts: salary_history, payment_schedule, ytd_baseline (bigint kopeck money columns, cascade-delete ownership FKs, unique/check constraints)"
+  - "src/lib/db/auth-schema.ts: generated Better Auth tables (user, session, account, verification)"
+  - "src/lib/auth.ts: Better Auth server config (email+password, 30-day rolling session)"
+  - "drizzle.config.ts, vitest.config.ts tool configs"
+affects: [01-02, 01-04, 01-05]
+
+# Actuals (#2632)
+actuals:
+  tokens: 4600
+  tasks: 2
+  commits: 2
+
+# Tech tracking
+tech-stack:
+  added: [next@16.3.3, react@19.2.8, typescript@6.0.3, drizzle-orm@0.45.2, drizzle-kit@0.31.10, "@neondatabase/serverless", drizzle-zod, zod, date-fns, date-holidays, "better-auth@1.7.2", "@better-auth/drizzle-adapter@1.7.2", react-hook-form, "@hookform/resolvers", "@t3-oss/env-nextjs", vitest]
+  patterns: ["boot-validated env via @t3-oss/env-nextjs (env.ts never bypassed for raw process.env)", "money stored as bigint({mode:'number'}) kopecks, never integer", "every app-owned table carries a not-null user_id FK to Better Auth's user table with ON DELETE CASCADE", "Better Auth Drizzle tables are generated (npx auth generate), never hand-authored"]
+
+key-files:
+  created:
+    - package.json
+    - tsconfig.json
+    - .gitignore
+    - .env.example
+    - README.md
+    - src/env.ts
+    - drizzle.config.ts
+    - vitest.config.ts
+    - src/lib/db/index.ts
+    - src/lib/db/schema.ts
+    - src/lib/auth.ts
+    - src/lib/db/auth-schema.ts
+  modified: []
+
+key-decisions:
+  - "TypeScript pinned to the exact string 6.0.3 (no caret) per CLAUDE.md's typescript-eslint compatibility constraint"
+  - "package.json name set to na-ruki (create-next-app's temp-directory workaround left it as the scaffold placeholder name)"
+  - ".gitignore's blanket .env* pattern amended with an explicit !.env.example negation so the placeholder file is trackable while .env.local stays ignored"
+  - "npm install run with --legacy-peer-deps to resolve an ERESOLVE conflict from @hookform/resolvers' optional @typeschema/main peer chain wanting zod@^3 while the project uses zod@4 — @hookform/resolvers' own declared peer range (^3.25.0 || ^4.0.0) already supports zod@4, and the project uses its zodResolver import path directly, not the typeschema path"
+
+patterns-established:
+  - "Domain isolation is set up for later plans: src/lib/db and src/lib/auth are the only I/O-touching modules created so far; src/domain/** (pure tax/schedule engines) is deliberately not started in this plan"
+  - "Effective-dated facts pattern: salary_history's unique (user_id, effective_from) index makes an exact-date backdated collision a single-row replace, not a duplicate (D-14)"
+
+requirements-completed: [AUTH-01, AUTH-02, SAL-01, SAL-02, SAL-03]
+
+coverage:
+  - id: D1
+    description: "Next.js 16 App Router project builds cleanly at the repo root with TypeScript pinned to exactly 6.0.3 and the full Phase 1 dependency set installed"
+    requirement: "AUTH-01"
+    verification:
+      - kind: other
+        ref: "npx tsc --noEmit && npm run build && node dep-check script (Task 2 <verify>)"
+        status: pass
+    human_judgment: false
+  - id: D2
+    description: "src/env.ts validates DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL at boot via @t3-oss/env-nextjs, exporting env"
+    requirement: "AUTH-02"
+    verification:
+      - kind: other
+        ref: "grep -c DATABASE_URL/BETTER_AUTH_SECRET/BETTER_AUTH_URL src/env.ts (Task 2 acceptance_criteria)"
+        status: pass
+    human_judgment: false
+  - id: D3
+    description: "src/lib/db/index.ts wires a Drizzle client to the real Neon database via drizzle-orm/neon-http, resolving the connection string only through env"
+    requirement: "AUTH-02"
+    verification:
+      - kind: integration
+        ref: "manual node script executing `select 1` through @neondatabase/serverless against the live Neon DATABASE_URL — returned { ok: 1 }"
+        status: pass
+    human_judgment: false
+  - id: D4
+    description: "src/lib/db/schema.ts defines salary_history, payment_schedule, ytd_baseline with bigint kopeck money columns, the (user_id, effective_from) unique index, cascade-delete ownership FKs, and 1..31 day-of-month check constraints"
+    requirement: "SAL-01"
+    verification:
+      - kind: other
+        ref: "Task 3 <verify> node script (table names, bigint count, unique index name, cascade count, check constraint names)"
+        status: pass
+    human_judgment: false
+  - id: D5
+    description: "src/lib/db/auth-schema.ts (user, session, account, verification) generated by npx auth generate, not hand-authored"
+    requirement: "AUTH-01"
+    verification:
+      - kind: other
+        ref: "Task 3 <verify> node script asserting all four table names present in the generated file"
+        status: pass
+    human_judgment: false
+  - id: D6
+    description: "src/lib/auth.ts configures Better Auth with email+password enabled, email verification disabled (D-06), and a 30-day rolling session (D-07), with no OAuth provider and no password-reset flow (D-05, D-08 deferrals honoured)"
+    requirement: "AUTH-01"
+    verification:
+      - kind: other
+        ref: "Task 3 <verify> regex checks on src/lib/auth.ts (requireEmailVerification:false, 60*60*24*30) plus grep -c for socialProviders/forgetPassword/resetPassword returning 0"
+        status: pass
+    human_judgment: false
+
+# Metrics
+duration: 40min
+completed: 2026-08-28
+status: complete
+---
+
+# Phase 1 Plan 1: Core Payroll Loop Scaffold Summary
+
+**Next.js 16 App Router scaffold with TypeScript pinned to 6.0.3, a boot-validated env module, a Neon-backed Drizzle client, the three app-owned money/schedule/YTD tables, and a generated Better Auth (email+password, 30-day session) schema — no live database push yet.**
+
+## Performance
+
+- **Duration:** ~40 min (resumed from a precondition-blocked checkpoint; Task 1's package-legitimacy checkpoint was pre-approved before this session)
+- **Started:** 2026-08-28T19:11:00Z (create-next-app scaffold)
+- **Completed:** 2026-08-28T19:25:46Z
+- **Tasks:** 2 (Task 1 was a pre-approved human-verify checkpoint carried over from the prior session; Tasks 2-3 executed and committed here)
+- **Files modified:** 30 (27 in Task 2's scaffold commit, 3 in Task 3's schema/auth commit)
+
+## Accomplishments
+- Scaffolded a real, buildable Next.js 16.3.3 App Router project (TypeScript, ESLint, Tailwind, Turbopack, `src/` dir, `@/*` import alias) into the pre-existing `.planning`/`.claude` repo root via the documented temp-directory-then-move technique
+- Installed and pinned the full Phase 1 dependency set, with TypeScript locked to the exact string `6.0.3`
+- `src/env.ts` fails the boot loudly (via `@t3-oss/env-nextjs`) if `DATABASE_URL`, `BETTER_AUTH_SECRET`, or `BETTER_AUTH_URL` are missing or malformed
+- `src/lib/db/index.ts` connects to the real Neon database (verified with a live `select 1` round trip against the pooled connection string)
+- `src/lib/db/schema.ts` defines `salary_history`, `payment_schedule`, `ytd_baseline` with `bigint` kopeck money columns, the exact-date collision unique index (D-14), cascade-delete ownership FKs on every table (T-01-01), and 1..31 day-of-month check constraints
+- `src/lib/auth.ts` configures Better Auth (email+password, no verification requirement, 30-day rolling session) and `src/lib/db/auth-schema.ts` was generated (not hand-written) via `npx auth generate`, producing `user`/`session`/`account`/`verification`
+
+## Task Commits
+
+Each task was committed atomically:
+
+1. **Task 1: Verify package legitimacy before the first install** - checkpoint, pre-approved ("approved") in the prior session; no commit (nothing built yet)
+2. **Task 2: Scaffold Next.js 16, pin the toolchain, validate env, wire the Neon Drizzle client** - `f102c3a` (feat)
+3. **Task 3: Define the app-owned Drizzle schema and Better Auth config, then generate the auth tables** - `17d7b4a` (feat)
+
+**Plan metadata:** commit created immediately after this file (see below)
+
+## Files Created/Modified
+- `package.json`, `package-lock.json` - Next.js 16 project manifest; Phase 1 runtime/dev dependencies; `db:push`/`db:studio`/`test` scripts
+- `tsconfig.json` - TypeScript config with `@/*` path alias
+- `.gitignore` - amended to keep `.env.example` trackable despite the blanket `.env*` pattern
+- `.env.example` - placeholder env template (committed); `.env.local` created but gitignored (real Neon credentials, never committed)
+- `README.md` - `## Running locally` section documenting the full-stack dev run command
+- `src/env.ts` - boot-validated env module (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`)
+- `drizzle.config.ts` - drizzle-kit config pointing at both schema files
+- `vitest.config.ts` - Vitest runner config with the `@` -> `./src` alias
+- `src/lib/db/index.ts` - Drizzle client bound to Neon (`neon-http` driver)
+- `src/lib/db/schema.ts` - `salaryHistory`, `paymentSchedule`, `ytdBaseline` Drizzle tables
+- `src/lib/auth.ts` - Better Auth server config
+- `src/lib/db/auth-schema.ts` - generated Better Auth Drizzle tables
+- `AGENTS.md`, `CLAUDE.md` (root), `eslint.config.mjs`, `next.config.ts`, `postcss.config.mjs`, `public/*.svg`, `src/app/*` - unmodified create-next-app scaffold defaults, committed as-is
+
+## Decisions Made
+- Pinned `typescript` to the exact string `6.0.3` (no caret) — matches CLAUDE.md's locked stack and avoids `typescript-eslint` breakage on TS 7.x
+- Set `package.json`'s `name` to `na-ruki` (create-next-app's temp-dir workaround left the scaffold's placeholder directory name)
+- Amended `.gitignore` so `.env.example` is committed while `.env.local` stays ignored, matching the plan's explicit intent ("commit only `.env.example`")
+- Ran `npm install` with `--legacy-peer-deps` to resolve an npm ERESOLVE conflict introduced by `@hookform/resolvers`' optional `@typeschema/main` -> `@typeschema/zod` peer chain, which wants `zod@^3.23.8` even though `@hookform/resolvers` itself declares `zod: "^3.25.0 || ^4.0.0"` as a direct peer and the project only ever imports its `zodResolver` entry point (never `@typeschema/*`)
+
+## Deviations from Plan
+
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] `.gitignore`'s blanket `.env*` pattern silently excluded `.env.example`**
+- **Found during:** Task 2 (creating `.env.example`)
+- **Issue:** create-next-app's default `.gitignore` ignores `.env*` with no exception, which would have made `git add .env.example` a silent no-op — directly contradicting the plan's explicit instruction to "commit only `.env.example`"
+- **Fix:** Added `!.env.example` immediately after the `.env*` line
+- **Files modified:** `.gitignore`
+- **Verification:** `git check-ignore -v .env.example` returns nothing (not ignored); `git ls-files .env.example` lists it as tracked
+- **Committed in:** `f102c3a` (Task 2 commit)
+
+**2. [Rule 3 - Blocking] npm ERESOLVE peer-dependency conflict on `@hookform/resolvers` install**
+- **Found during:** Task 2 (dependency install)
+- **Issue:** `npm install ... @hookform/resolvers ...` failed with `ERESOLVE` — `@hookform/resolvers`' optional `@typeschema/main` dependency has its own optional peer on `@typeschema/zod@0.14.0`, which wants `zod@^3.23.8`, conflicting with the project's `zod@4.4.3`
+- **Fix:** Re-ran the install with `--legacy-peer-deps`. Confirmed safe: `@hookform/resolvers`' own declared peer range is `zod: "^3.25.0 || ^4.0.0"` (zod 4 is fully supported), and this project imports `zodResolver` directly rather than going through the optional `@typeschema` adapter path
+- **Files modified:** `package.json`, `package-lock.json`
+- **Verification:** `npm ls typescript` and dependency-presence checks pass; `npx tsc --noEmit` and `npm run build` both exit 0
+- **Committed in:** `f102c3a` (Task 2 commit)
+
+**3. [Rule 3 - Blocking] `typescript` resolved with a caret range instead of the exact pin**
+- **Found during:** Task 2 (post-install `package.json` review)
+- **Issue:** `npm install -D typescript@6.0.3` wrote `"typescript": "^6.0.3"` to `package.json` (npm's default range-insertion behavior), violating the plan's "exact string `6.0.3`, no caret" requirement
+- **Fix:** Manually edited `package.json` to `"typescript": "6.0.3"`, then re-ran `npm install` to re-sync `package-lock.json`'s root-package requirement
+- **Files modified:** `package.json`, `package-lock.json`
+- **Verification:** `node -e "..."` dependency-check script (Task 2 `<verify>`) confirms `d.typescript === '6.0.3'`; `node_modules/typescript/package.json` version is `6.0.3`
+- **Committed in:** `f102c3a` (Task 2 commit)
+
+---
+
+**Total deviations:** 3 auto-fixed (1 bug, 2 blocking)
+**Impact on plan:** All three were necessary corrections to match the plan's explicit requirements (env-file trackability, exact TypeScript pin) or to unblock a legitimate, non-security dependency-resolution conflict. No scope creep — no packages were added, removed, or substituted beyond what the plan specified.
+
+## Issues Encountered
+- The first `npx auth generate` invocation appeared to hang with no output for several minutes. Investigation traced this to the CLI's on-demand `npm install` of the `auth` package taking a long time over this environment's local network proxy (many concurrent registry connections), not an actual infinite hang — live Neon DB connectivity was separately confirmed reachable and fast (`select 1` round-trip succeeded in well under a second). The process was killed prematurely on the first attempt, which corrupted the partially-installed npx cache entry (`ERR_MODULE_NOT_FOUND` for `rc9` on retry). Cleared the corrupted npx cache directory and `npm cache clean --force`, then re-ran `npx auth generate` in the background to completion (exit code 0, schema generated successfully). No plan or code changes resulted from this — it was purely an environment/tooling timing issue, resolved without altering the generated output.
+
+## User Setup Required
+
+None — `01-USER-SETUP.md` (generated by the prior session before the Neon credentials were available) is now fully satisfied: `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL` are present in `.env.local` (gitignored), and `git check-ignore -q .env.local` exits 0. No further manual configuration is required for this plan's scope.
+
+## Next Phase Readiness
+- The Next.js 16 + Drizzle + Neon + Better Auth foundation is in place and builds cleanly; `src/lib/db/schema.ts` and `src/lib/db/auth-schema.ts` are ready for Plan 01-02 to apply via `npm run db:push` (deliberately not run in this plan)
+- `src/domain/**` (pure tax and schedule-date engines) has not been started — this plan's scope was scaffolding only, per its `files_modified` list
+- Auth pages, Server Actions, and the home-screen forecast RSC do not exist yet — those are Plan 01-02 (auth wiring + live DB push) and Plan 01-04/01-05 (salary/schedule/YTD input, forecast) territory
+- No blockers identified for Plan 01-02
+
+---
+*Phase: 01-core-payroll-loop*
+*Completed: 2026-08-28*
+
+## Self-Check: PASSED
+
+- All 12 files listed in `key-files.created` verified present on disk with `[ -f ]`.
+- Both task commit hashes (`f102c3a`, `17d7b4a`) verified present via `git log --oneline --all`.
+- Plan-level `<verification>` re-run: `npx tsc --noEmit` exits 0; `npm run build` exits 0; `git check-ignore -q .env.local` exits 0 and `.env.example` is tracked; Task 2's dependency-assertion script passes; Task 3's schema/auth-assertion script passes.
