@@ -56,7 +56,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-04-PLAN.md — Salary, schedule, and YTD entry: validated Server Actions + onboarding/settings UI (wave 3)
+- [x] 01-04-PLAN.md — Salary, schedule, and YTD entry: validated Server Actions + onboarding/settings UI (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
