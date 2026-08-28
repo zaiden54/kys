@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 current_phase: 01
 current_phase_name: Core Payroll Loop
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-08-28T20:13:30.921Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-08-28T20:26:11.164Z"
 last_activity: 2026-08-28
 last_activity_desc: Phase 01 execution started
-state_head: 6e87342c10d4706effb08cd665e7f6351ea4ae9a
+state_head: f043159ab721bb02d3fcadf29066f50d2e6a2bea
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 5
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 ## Current Position
 
 Phase: 01 (Core Payroll Loop) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-08-28 — Phase 01 execution started
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 40 min | 2 tasks | 30 files |
 | Phase 01 P02 | 35 min | 3 tasks | 11 files |
+| Phase 01-core-payroll-loop P03 | 35min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,7 @@ Recent decisions affecting current work:
 - [Phase 01]: [Phase 01-02]: No new npm packages installed — server-only guard implemented as a runtime window-check equivalent, avoiding a package-legitimacy checkpoint — Matches the plan's explicit "server-only guard or an equivalent" language; any new package install requires a human-verify checkpoint per executor deviation rules
 - [Phase 01]: [Phase 01-02]: Deleted create-next-app's default src/app/page.tsx — Collided with the new src/app/(app)/page.tsx route for '/' since route groups add no URL segment
 - [Phase 01]: [Phase 01-02]: verify-auth-flow.mjs sends an explicit Origin header on POST /api/auth/* — Better Auth's CSRF check rejects requests without an Origin header, which Node's fetch does not send automatically like a browser does
+- [Phase 01]: Corrected two plan-authored test expectations in resolve-payment-date.test.ts to match the actually-installed date-holidays@3.36.0 RU calendar data (2026-02-28 Feb clamp case is a real Saturday requiring an extra D-02 shift; the New Year holiday chain example was moved from dayOfMonth=10 to dayOfMonth=3 since Jan 9 2026 is a genuine working Friday in the library's fixed rule set) — no implementation logic changed, only the test's asserted dates — Verified directly by inspecting date-holidays.isHoliday() output day-by-day; ensures the domain engine's test suite reflects real library behavior rather than an unverified illustrative example
 
 ### Pending Todos
 
@@ -86,6 +88,7 @@ None yet.
 - Research flag (Phase 1): unresolved product decision on mid-year onboarding UX (SAL-03) — no authoritative source, needs explicit design during plan-phase
 - Research flag (Phase 4): iOS PWA install/storage-jar behavior must be verified on a real iPhone device, not emulator, before considered done
 - Manual UAT pending for Plan 01-02 Task 3: two-real-browser cross-device check (AUTH-02) plus visual confirmation of D-06 (no verification step) and D-08 (no forgot-password link). Flagged in 01-02-SUMMARY.md coverage.D4 (human_judgment: true). Recommended before /gsd-verify-work on this phase.
+- Task 1 human-check (confirming 2025 НДФЛ brackets against primary НК РФ ст.224 statute text) could not be performed — no live web access in this execution sandbox (curl to consultant.ru and pravo.gov.ru both failed to connect)
 
 ## Deferred Items
 
@@ -97,6 +100,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-28T20:13:30.892Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-08-28T20:26:11.140Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None

@@ -52,7 +52,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 01-02-PLAN.md — Apply schema to Neon, then the register → login → protected home tracer (wave 2)
-- [ ] 01-03-PLAN.md — Pure НДФЛ engine and payment-date resolver, exhaustively unit-tested (wave 2)
+- [x] 01-03-PLAN.md — Pure НДФЛ engine and payment-date resolver, exhaustively unit-tested (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
