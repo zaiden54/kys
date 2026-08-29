@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-current_phase: 01
-current_phase_name: Core Payroll Loop
-status: executing
-stopped_at: Completed 01-11-PLAN.md
-last_updated: "2026-08-29T16:41:58.274Z"
+current_phase: 2
+current_phase_name: Bonuses & One-off Payments
+status: planning
+stopped_at: Phase 01 complete, ready to plan Phase 2
+last_updated: "2026-08-29T19:31:05.109Z"
 last_activity: 2026-08-29
-last_activity_desc: Phase 01 execution started
-state_head: 272b9bec8f0ed5a9b646e233a38a9e9210709905
+last_activity_desc: Phase 01 complete, transitioned to Phase 2
+state_head: a01509761975e5d926fa83b6ad66ac122666dc6e
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 12
   completed_plans: 12
-  percent: 0
+  percent: 25
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-28)
+See: .planning/PROJECT.md (updated 2026-08-29)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** Phase 01 — Core Payroll Loop
+**Current focus:** Phase 2 — Bonuses & One-off Payments
 
 ## Current Position
 
-Phase: 01 (Core Payroll Loop) — EXECUTING
-Plan: 4 of 12
-Status: Ready to execute
-Last activity: 2026-08-29 — Phase 01 execution started
+Phase: 2 — Bonuses & One-off Payments
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-29 — Phase 01 complete, transitioned to Phase 2
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -38,7 +38,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 0
+- Total plans completed: 12
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -46,7 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01 | 12 | - | - |
 
 **Recent Trend:**
 
@@ -108,8 +108,8 @@ None yet.
 - Research flag (Phase 1): confirm exact 2025 НДФЛ bracket thresholds and the ст.139 ТК РФ 29.3 divisor against primary НК РФ/ТК РФ legal text before implementing the tax/vacation engines — see research/PITFALLS.md and research/SUMMARY.md
 - Research flag (Phase 1): unresolved product decision on mid-year onboarding UX (SAL-03) — no authoritative source, needs explicit design during plan-phase
 - Research flag (Phase 4): iOS PWA install/storage-jar behavior must be verified on a real iPhone device, not emulator, before considered done
-- Manual UAT pending for Plan 01-02 Task 3: two-real-browser cross-device check (AUTH-02) plus visual confirmation of D-06 (no verification step) and D-08 (no forgot-password link). Flagged in 01-02-SUMMARY.md coverage.D4 (human_judgment: true). Recommended before /gsd-verify-work on this phase.
-- Task 1 human-check (confirming 2025 НДФЛ brackets against primary НК РФ ст.224 statute text) could not be performed — no live web access in this execution sandbox (curl to consultant.ru and pravo.gov.ru both failed to connect)
+- [Phase 1, resolved 2026-08-29] Manual UAT for cross-device convergence and confirmation-prompt snapshot behavior completed via 01-UAT.md — 3/3 passed.
+- [Phase 1] Statute verification still outstanding: 2025 НДФЛ bracket thresholds (НК РФ ст.224) have not been confirmed against primary legal text — no live web access in this execution sandbox (curl to consultant.ru and pravo.gov.ru both failed to connect). NDFL_SCALES ordering/values are code-verified but not statute-cross-checked (see T-01-08-04 in 01-SECURITY.md). Confirm before relying on exact bracket numbers in production.
 
 ## Deferred Items
 
@@ -121,6 +121,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-29T16:41:58.226Z
-Stopped at: Completed 01-11-PLAN.md
+Last session: 2026-08-29
+Stopped at: Phase 01 complete (UAT + security verified), ready to plan Phase 2
 Resume file: None
