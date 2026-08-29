@@ -102,12 +102,12 @@ Plans:
   2. The bonus amount is added to cumulative year-to-date income and taxed through the same progressive НДФЛ mechanism as regular salary, correctly changing the take-home amount for that payment (BON-02)
   3. If the bonus lands on the next upcoming payment date, the home screen's next-payment amount reflects it
 
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Tracer: bonus creation flows through the cumulative НДФЛ engine into the next-payment forecast (wave 1)
+- [x] 02-01-PLAN.md — Tracer: bonus creation flows through the cumulative НДФЛ engine into the next-payment forecast (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -155,6 +155,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Payroll Loop | 12/12 | Complete    | 2026-08-29 |
-| 2. Bonuses & One-off Payments | 0/2 | Not started | - |
+| 2. Bonuses & One-off Payments | 1/2 | In Progress|  |
 | 3. Vacation Pay | 0/TBD | Not started | - |
 | 4. Annual Overview & PWA Installability | 0/TBD | Not started | - |
