@@ -143,37 +143,31 @@ export async function getSchedule(userId: string): Promise<PaymentScheduleRow | 
 /**
  * Writes the single current payment_schedule row for `userId` (D-01: no
  * schedule history is retained, unlike salary_history).
+ *
+ * Persists via a single `INSERT ... ON CONFLICT (user_id) DO UPDATE`
+ * statement targeting the table's own primary key, so the write is atomic
+ * without a transaction wrapper. Concurrent submissions from two devices
+ * resolve as upserts rather than one caller observing "no existing row" and
+ * colliding with the other's insert as an opaque primary-key violation
+ * (WR-01).
  */
 export async function upsertSchedule(
   userId: string,
   avansDay: number,
   salaryDay: number,
 ): Promise<PaymentScheduleRow> {
-  const existing = await db
-    .select()
-    .from(paymentSchedule)
-    .where(eq(paymentSchedule.userId, userId))
-    .limit(1);
+  const upserted = await db
+    .insert(paymentSchedule)
+    .values({ userId, avansDay, salaryDay })
+    .onConflictDoUpdate({
+      target: paymentSchedule.userId,
+      set: { avansDay, salaryDay, updatedAt: new Date() },
+    })
+    .returning();
 
-  if (existing.length > 0) {
-    const updated = await db
-      .update(paymentSchedule)
-      .set({ avansDay, salaryDay, updatedAt: new Date() })
-      .where(eq(paymentSchedule.userId, userId))
-      .returning();
-
-    const row = updated[0];
-    if (!row) {
-      throw new Error("upsertSchedule: update to payment_schedule returned no row");
-    }
-    return row;
-  }
-
-  const inserted = await db.insert(paymentSchedule).values({ userId, avansDay, salaryDay }).returning();
-
-  const row = inserted[0];
+  const row = upserted[0];
   if (!row) {
-    throw new Error("upsertSchedule: insert into payment_schedule returned no row");
+    throw new Error("upsertSchedule: upsert into payment_schedule returned no row");
   }
   return row;
 }
@@ -214,6 +208,13 @@ export async function getYtdBaseline(userId: string): Promise<YtdBaselineRow> {
  * Writes the single mutable ytd_baseline row for `userId`. D-10: editing
  * this and re-reading the forecast reflects the new value immediately,
  * since nothing else caches a derived cumulative-income figure.
+ *
+ * Persists via a single `INSERT ... ON CONFLICT (user_id) DO UPDATE`
+ * statement targeting the table's own primary key, so the write is atomic
+ * without a transaction wrapper. Concurrent submissions from two devices
+ * resolve as upserts rather than one caller observing "no existing row" and
+ * colliding with the other's insert as an opaque primary-key violation
+ * (WR-01).
  */
 export async function upsertYtdBaseline(
   userId: string,
@@ -221,34 +222,18 @@ export async function upsertYtdBaseline(
   asOfDate: string,
   isEstimated: boolean,
 ): Promise<YtdBaselineRow> {
-  const existing = await db
-    .select()
-    .from(ytdBaseline)
-    .where(eq(ytdBaseline.userId, userId))
-    .limit(1);
-
-  if (existing.length > 0) {
-    const updated = await db
-      .update(ytdBaseline)
-      .set({ amountKopecks, asOfDate, isEstimated, updatedAt: new Date() })
-      .where(eq(ytdBaseline.userId, userId))
-      .returning();
-
-    const row = updated[0];
-    if (!row) {
-      throw new Error("upsertYtdBaseline: update to ytd_baseline returned no row");
-    }
-    return row;
-  }
-
-  const inserted = await db
+  const upserted = await db
     .insert(ytdBaseline)
     .values({ userId, amountKopecks, asOfDate, isEstimated })
+    .onConflictDoUpdate({
+      target: ytdBaseline.userId,
+      set: { amountKopecks, asOfDate, isEstimated, updatedAt: new Date() },
+    })
     .returning();
 
-  const row = inserted[0];
+  const row = upserted[0];
   if (!row) {
-    throw new Error("upsertYtdBaseline: insert into ytd_baseline returned no row");
+    throw new Error("upsertYtdBaseline: upsert into ytd_baseline returned no row");
   }
   return row;
 }
