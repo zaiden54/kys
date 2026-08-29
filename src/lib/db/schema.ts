@@ -34,6 +34,7 @@ export const salaryHistory = pgTable(
       table.userId,
       table.effectiveFrom,
     ),
+    check("salary_gross_amount_positive", sql`${table.grossAmountKopecks} > 0`),
   ],
 );
 
@@ -59,12 +60,18 @@ export const paymentSchedule = pgTable(
 // ytd_baseline: single mutable "opening balance" row per user for the
 // cumulative-income tax engine to fold forward from (D-09/D-10/D-11) — not
 // a competing ledger of events.
-export const ytdBaseline = pgTable("ytd_baseline", {
-  userId: text("user_id")
-    .primaryKey()
-    .references(() => user.id, { onDelete: "cascade" }),
-  amountKopecks: bigint("amount_kopecks", { mode: "number" }).notNull().default(0),
-  asOfDate: date("as_of_date", { mode: "string" }).notNull(),
-  isEstimated: boolean("is_estimated").notNull().default(true),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+export const ytdBaseline = pgTable(
+  "ytd_baseline",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    amountKopecks: bigint("amount_kopecks", { mode: "number" }).notNull().default(0),
+    asOfDate: date("as_of_date", { mode: "string" }).notNull(),
+    isEstimated: boolean("is_estimated").notNull().default(true),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    check("ytd_amount_nonnegative", sql`${table.amountKopecks} >= 0`),
+  ],
+);
