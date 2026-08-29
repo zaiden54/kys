@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-schema";
-import { createBonus } from "@/lib/db/bonus-repository";
+import { createBonus, updateBonus } from "@/lib/db/bonus-repository";
 import {
   findSalaryAt,
   getActiveSalaryAt,
@@ -312,6 +312,14 @@ describe("salary-repository", () => {
     await createBonus(userAId, 25_000_00, "2026-04-01", "Без графика");
     expect(await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary"))
       .toBe(775_000_00);
+  });
+
+  it("recomputes later cumulative income by the exact edited bonus delta", async () => {
+    const bonus = await createBonus(userAId, 25_000_00, "2026-04-01", "До правки");
+    const before = await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary");
+    await updateBonus(userAId, bonus.id, 40_000_00, bonus.date, "После правки");
+    const after = await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary");
+    expect(after - before).toBe(15_000_00);
   });
 
   it("a second user's schedule, salary rows and baseline never change the first user's cumulative figure", async () => {

@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-schema";
-import { createBonus, listBonuses } from "@/lib/db/bonus-repository";
+import { createBonus, deleteBonusIfFuture, listBonuses, updateBonus } from "@/lib/db/bonus-repository";
+import { todayIsoInMoscow } from "@/domain/time";
 
 async function createThrowawayUser(): Promise<string> {
   const id = randomUUID();
@@ -45,5 +46,28 @@ describe("bonus-repository", () => {
     const rows = await listBonuses(userAId);
     expect(rows.map((row) => row.date)).toEqual(["2026-12-01", "2026-01-01"]);
     expect(rows.every((row) => row.userId === userAId)).toBe(true);
+  });
+
+  it("updates amount, date and note only for the owning user", async () => {
+    const row = await createBonus(userAId, 1_000_00, "2026-01-01", "До");
+    const updated = await updateBonus(userAId, row.id, 2_000_00, "2026-02-01", "После");
+    expect(updated).toMatchObject({ amountKopecks: 2_000_00, date: "2026-02-01", note: "После" });
+    expect(await updateBonus(userBId, row.id, 9_000_00, "2026-03-01", "Чужой")).toBeNull();
+    expect((await listBonuses(userAId))[0]).toMatchObject({ amountKopecks: 2_000_00, note: "После" });
+  });
+
+  it("deletes only future bonuses and distinguishes blocked from not-found", async () => {
+    const today = todayIsoInMoscow();
+    const tomorrowDate = new Date(`${today}T00:00:00.000Z`);
+    tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
+    const tomorrow = tomorrowDate.toISOString().slice(0, 10);
+    const future = await createBonus(userAId, 1_000_00, tomorrow, "Будущий");
+    expect(await deleteBonusIfFuture(userBId, future.id)).toEqual({ status: "not-found" });
+    expect(await deleteBonusIfFuture(userAId, future.id)).toEqual({ status: "deleted" });
+    expect(await deleteBonusIfFuture(userAId, future.id)).toEqual({ status: "not-found" });
+
+    const current = await createBonus(userAId, 1_000_00, today, "Сегодня");
+    expect(await deleteBonusIfFuture(userAId, current.id)).toEqual({ status: "blocked" });
+    expect((await listBonuses(userAId)).some((row) => row.id === current.id)).toBe(true);
   });
 });
