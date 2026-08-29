@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 current_phase: 01
 current_phase_name: Core Payroll Loop
 status: executing
-stopped_at: Completed 01-05-PLAN.md — Phase 01 (Core Payroll Loop) all 5 plans complete
-last_updated: "2026-08-29T08:12:24.609Z"
-last_activity: 2026-08-28
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-08-29T08:34:08.521Z"
+last_activity: 2026-08-29
 last_activity_desc: Phase 01 execution started
-state_head: 79269756a096d9f8855eefcdf4a3f23a2fb44791
+state_head: 5cec449e3e8647a7af123d00284862a4da333352
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 ## Current Position
 
-Phase: 01 (Core Payroll Loop) — READY TO EXECUTE
-Plan: 5 of 5
+Phase: 01 (Core Payroll Loop) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-08-28 — Phase 01 execution started
+Last activity: 2026-08-29 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-core-payroll-loop P03 | 35min | 2 tasks | 8 files |
 | Phase 01-core-payroll-loop P04 | 45min | 3 tasks | 9 files |
 | Phase 01 P05 | 12min | 3 tasks | 5 files |
+| Phase 01 P06 | 20min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Corrected two plan-authored test expectations in resolve-payment-date.test.ts to match the actually-installed date-holidays@3.36.0 RU calendar data (2026-02-28 Feb clamp case is a real Saturday requiring an extra D-02 shift; the New Year holiday chain example was moved from dayOfMonth=10 to dayOfMonth=3 since Jan 9 2026 is a genuine working Friday in the library's fixed rule set) — no implementation logic changed, only the test's asserted dates — Verified directly by inspecting date-holidays.isHoliday() output day-by-day; ensures the domain engine's test suite reflects real library behavior rather than an unverified illustrative example
 - [Phase 01]: Phase 01: Monthly gross oklad splits 50/50 across avans and salary payments (Task 1, resumed checkpoint) — no schema change, each payment taxed independently at its own date
 - [Phase 01]: Phase 01-05: forecastNextPayment returns a distinct not-configured branch naming exactly what is missing (salary or schedule), never a computed-against-zero forecast
+- [Phase 01]: [Phase 01-06]: Corrected 01-PATTERNS.md's nowInMoscow() sketch from UTC-accessor to local-accessor shape before implementation — the sketch was only correct on a UTC host and silently wrong on any other host timezone, including an MSK dev machine
+- [Phase 01]: [Phase 01-06]: Found and fixed a seventh CR-01 call site beyond 01-VERIFICATION.md's five-site artifact list (pay-setup-forms.tsx YtdForm currentYearStart)
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-28T21:00:10.581Z
-Stopped at: Completed 01-05-PLAN.md — Phase 01 (Core Payroll Loop) all 5 plans complete
+Last session: 2026-08-29T08:34:08.488Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None
