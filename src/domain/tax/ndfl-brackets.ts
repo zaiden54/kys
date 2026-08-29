@@ -3,11 +3,15 @@
  *
  * Legal basis for the 2025 scale: 5-bracket progressive scale effective
  * 01.01.2025 per Federal Law 176-ФЗ (12.07.2024), amending НК РФ ст. 224.
- * Verified against garant.ru, nalog-nalog.ru, and an official ФНС regional
- * page (see .planning/phases/01-core-payroll-loop/01-RESEARCH.md
- * § "НДФЛ 2025 Bracket Correctness"), and re-confirmed against primary
- * statute text as part of this plan's task 1 human-check (closes
- * RESEARCH.md Assumption A1 / the matching STATE.md blocker).
+ * The 2025 scale was verified against the secondary sources named in
+ * .planning/phases/01-core-payroll-loop/01-RESEARCH.md
+ * § "НДФЛ 2025 Bracket Correctness" (garant.ru, nalog-nalog.ru, an official
+ * ФНС regional page). Confirmation against the primary НК РФ ст.224 statute
+ * text itself remains an OPEN item — no execution or verification sandbox
+ * used on this project has had live web access to perform that check — and
+ * is tracked in .planning/phases/01-core-payroll-loop/01-VERIFICATION.md's
+ * `human_verification` block. Do not mark that item closed in this file
+ * until it has actually been performed against the primary statute text.
  *
  * A tax year outside the registered/verified range must fail loudly rather
  * than silently return a confidently wrong number — see
@@ -60,7 +64,11 @@ export const NDFL_SCALES: Readonly<Record<number, readonly NdflBracket[]>> = {
  * The last tax year this bracket table has been human-verified for. Raising
  * this is the deliberate annual review checkpoint — do not bump without
  * re-confirming the scale is unchanged (or adding a new `NDFL_SCALES` entry
- * if it changed).
+ * if it changed). This value rests on the secondary-source verification
+ * described in the module header comment; the primary-statute confirmation
+ * is still an open item and does not block this value, since lowering it
+ * would turn every current-year forecast into a live outage over a
+ * comment-accuracy concern, not a functional regression.
  */
 export const MAX_VERIFIED_TAX_YEAR = 2026;
 
@@ -73,10 +81,31 @@ export class UnsupportedTaxYearError extends Error {
 }
 
 /**
+ * Guards `taxOnCumulative`'s bracket-selection loop (`calculate-ndfl.ts`),
+ * which walks a scale and stops at the first threshold above the cumulative
+ * income — correct only for a strictly ascending scale. Without this guard,
+ * a mis-ordered future scale (a mistyped or transposed `fromKopecks` in a
+ * new `NDFL_SCALES` entry) would silently select a lower bracket and
+ * under-tax every user, rather than fail — precisely the failure mode
+ * `UnsupportedTaxYearError` exists to prevent elsewhere in this module.
+ * Throws an `Error` naming the offending index the first time an element's
+ * `fromKopecks` is not strictly greater than its predecessor's.
+ */
+export function assertStrictlyAscending(brackets: readonly NdflBracket[]): void {
+  for (let i = 1; i < brackets.length; i++) {
+    if (brackets[i].fromKopecks <= brackets[i - 1].fromKopecks) {
+      throw new Error(`NDFL bracket scale is not strictly ascending at index ${i}`);
+    }
+  }
+}
+
+/**
  * Selects the bracket scale in force for `year`: the registered scale with
  * the greatest effective year not exceeding `year`. Throws
  * `UnsupportedTaxYearError` if `year` is below the earliest registered scale
- * or above `MAX_VERIFIED_TAX_YEAR`.
+ * or above `MAX_VERIFIED_TAX_YEAR`. The selected scale is swept by
+ * `assertStrictlyAscending` immediately before returning, so every consumer
+ * is covered at this single chokepoint.
  */
 export function bracketsForYear(year: number): readonly NdflBracket[] {
   if (year > MAX_VERIFIED_TAX_YEAR) {
@@ -93,5 +122,7 @@ export function bracketsForYear(year: number): readonly NdflBracket[] {
     throw new UnsupportedTaxYearError(year);
   }
 
-  return NDFL_SCALES[selectedYear];
+  const brackets = NDFL_SCALES[selectedYear];
+  assertStrictlyAscending(brackets);
+  return brackets;
 }
