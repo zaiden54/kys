@@ -41,6 +41,7 @@ import { format } from "date-fns";
 import type { Kopecks } from "@/domain/money";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
 import { nextPaymentOnOrAfter, type PaymentKind } from "@/domain/schedule/resolve-payment-date";
+import { halfSplitGross } from "@/domain/pay/payment-accrual";
 import { nowInMoscow } from "@/domain/time";
 import {
   getActiveSalaryAt,
@@ -69,24 +70,6 @@ export interface NextPaymentForecast {
 export type ForecastResult =
   | { configured: true; forecast: NextPaymentForecast }
   | { configured: false; missing: "salary" | "schedule" };
-
-/**
- * Splits the monthly gross oklad across the avans and salary payments
- * (Task 1 decision: half-split, resolved by the human). The avans share is
- * the floor of the half and the salary share is the remainder, so the two
- * always reconcile to exactly the monthly gross regardless of parity — and
- * the annual total across twelve months is therefore exactly `oklad * 12`.
- * Rounding each half independently (the prior implementation) let an
- * odd-kopeck gross produce two halves that summed to one kopeck MORE than
- * the gross (WR-02) — the same anti-drift discipline
- * `src/domain/tax/calculate-ndfl.ts` applies to tax rounding, applied here
- * to gross. Exported so the parity property is directly unit-testable
- * without a database fixture.
- */
-export function halfSplitGross(monthlyGrossKopecks: Kopecks, kind: PaymentKind): Kopecks {
-  const avansShareKopecks = Math.floor(monthlyGrossKopecks / 2);
-  return kind === "avans" ? avansShareKopecks : monthlyGrossKopecks - avansShareKopecks;
-}
 
 /**
  * Computes the user's next payment forecast, or reports what is not yet
@@ -120,7 +103,7 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
   const paymentGrossKopecks = halfSplitGross(activeSalary.grossAmountKopecks, paymentEvent.kind);
 
   const [cumulativeBeforeKopecks, ytdBaseline] = await Promise.all([
-    getCumulativeIncomeBeforeDate(userId, paymentDateIso),
+    getCumulativeIncomeBeforeDate(userId, paymentDateIso, paymentEvent.kind),
     getYtdBaseline(userId),
   ]);
 

@@ -40,8 +40,14 @@ export interface PaymentEvent {
   kind: PaymentKind;
 }
 
-/** Same-date tie-break rank: avans always sorts before salary. */
-const KIND_RANK: Record<PaymentKind, number> = { avans: 0, salary: 1 };
+/**
+ * Same-date tie-break rank: avans always sorts before salary. Exported as
+ * the single source of the avans-before-salary ordering (used by
+ * `generatePaymentEvents` below and by `src/domain/pay/payment-accrual.ts`'s
+ * same-resolved-date inclusion rule) so exactly one ordering constant exists
+ * in the codebase.
+ */
+export const PAYMENT_KIND_RANK: Record<PaymentKind, number> = { avans: 0, salary: 1 };
 
 function isRuPublicHoliday(date: Date): boolean {
   const result = ruHolidays.isHoliday(date);
@@ -97,7 +103,7 @@ export function generatePaymentEvents(
   return events.sort((a, b) => {
     const timeDiff = a.date.getTime() - b.date.getTime();
     if (timeDiff !== 0) return timeDiff;
-    return KIND_RANK[a.kind] - KIND_RANK[b.kind];
+    return PAYMENT_KIND_RANK[a.kind] - PAYMENT_KIND_RANK[b.kind];
   });
 }
 

@@ -29,6 +29,8 @@ import { and, desc, eq, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salaryHistory, paymentSchedule, ytdBaseline } from "@/lib/db/schema";
 import { todayIsoInMoscow } from "@/domain/time";
+import { accruedGrossBetween, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
+import type { PaymentKind } from "@/domain/schedule/resolve-payment-date";
 
 export type SalaryHistoryRow = typeof salaryHistory.$inferSelect;
 export type PaymentScheduleRow = typeof paymentSchedule.$inferSelect;
@@ -243,32 +245,63 @@ export async function upsertYtdBaseline(
 // ---------------------------------------------------------------------------
 
 /**
- * No bonus/vacation-pay event tables exist yet in Phase 1 (they ship in
- * Phase 2 and Phase 3 respectively), so the additional-income sum is always
- * zero here. Kept as an explicit function — not an inlined `0` — so
- * `getCumulativeIncomeBeforeDate`'s "baseline + sum" shape survives
- * contract-unchanged when Phase 2/3 extend it into a real UNION query
- * (01-RESEARCH.md's documented anti-pattern to avoid).
- */
-function sumAdditionalIncomeEventsBetween(afterIsoDate: string, beforeIsoDate: string): number {
-  void afterIsoDate;
-  void beforeIsoDate;
-  return 0;
-}
-
-/**
- * Cumulative gross income (in kopecks) earned strictly before `isoDate` —
- * the `cumulativeBefore` input to `taxOnCumulative`/`calculateNdfl`.
+ * Cumulative gross income (in kopecks) earned strictly before `isoDate` for
+ * a payment of the given `kind` — the `cumulativeBefore` input to
+ * `taxOnCumulative`/`calculateNdfl` (TAX-01, TAX-02). `kind` defaults to
+ * `"avans"`, the lowest `PAYMENT_KIND_RANK` — a caller that omits it
+ * (matching the pre-01-10 two-argument signature) still means "everything
+ * strictly before this date," since no event can rank lower than avans to
+ * sneak in via the same-date tie-break.
  *
- * Written as "baseline plus the sum of dated income events after
- * baseline.asOfDate and before isoDate" from day one, even though that
- * event set is empty in Phase 1.
+ * Baseline applicability (the calendar-year reset TAX-01 requires): the
+ * stored YTD baseline contributes its amount and opens the accrual window
+ * at its own `asOfDate` only when that date's year matches `isoDate`'s year
+ * AND is not after `isoDate`. Otherwise the baseline contributes nothing
+ * and the window opens at 31 December of the year preceding `isoDate` — a
+ * baseline entered in a prior calendar year must not silently carry forward
+ * into the next year's cumulative base.
+ *
+ * The real accrual is derived by the pure `accruedGrossBetween` engine over
+ * the user's own schedule and salary history, read through the existing
+ * ownership-scoped `getSchedule`/`listSalaryHistory` functions so a second
+ * user's rows can never contribute to this figure. A user with a baseline
+ * but no payment schedule gets the baseline amount alone — there is nothing
+ * to enumerate without a schedule.
  */
 export async function getCumulativeIncomeBeforeDate(
   userId: string,
   isoDate: string,
+  kind: PaymentKind = "avans",
 ): Promise<number> {
-  const baseline = await getYtdBaseline(userId);
-  const additionalIncomeKopecks = sumAdditionalIncomeEventsBetween(baseline.asOfDate, isoDate);
-  return baseline.amountKopecks + additionalIncomeKopecks;
+  const [baseline, schedule, history] = await Promise.all([
+    getYtdBaseline(userId),
+    getSchedule(userId),
+    listSalaryHistory(userId),
+  ]);
+
+  const paymentYear = isoDate.slice(0, 4);
+  const baselineApplies =
+    baseline.asOfDate.slice(0, 4) === paymentYear && baseline.asOfDate <= isoDate;
+  const baselineAmountKopecks = baselineApplies ? baseline.amountKopecks : 0;
+  const windowBoundIso = baselineApplies
+    ? baseline.asOfDate
+    : `${Number(paymentYear) - 1}-12-31`;
+
+  if (!schedule) {
+    return baselineAmountKopecks;
+  }
+
+  const salaryHistoryEntries: SalaryHistoryEntry[] = history.map((row) => ({
+    effectiveFrom: row.effectiveFrom,
+    grossAmountKopecks: row.grossAmountKopecks,
+  }));
+
+  const accruedKopecks = accruedGrossBetween(
+    { avansDay: schedule.avansDay, salaryDay: schedule.salaryDay },
+    salaryHistoryEntries,
+    windowBoundIso,
+    { dateIso: isoDate, kind },
+  );
+
+  return baselineAmountKopecks + accruedKopecks;
 }
