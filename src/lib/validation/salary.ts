@@ -35,13 +35,35 @@ export const ytdBaselineInsertSchema = createInsertSchema(ytdBaseline);
 /** Upper ceiling shared by every ruble-denominated input (T-01-15: DoS via unbounded amounts). */
 const MAX_RUBLES = 100_000_000;
 
-/** `yyyy-MM-dd` calendar-date string, validated to be a real date (not just regex-shaped). */
+/** Shape a `yyyy-MM-dd` calendar-date string must match before its calendar validity is even considered. */
+const ISO_DATE_SHAPE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * `yyyy-MM-dd` calendar-date string, validated to be a real date (not just
+ * regex-shaped). Parseability alone is not enough — JavaScript's `Date`
+ * silently normalizes an impossible day forward into the following month
+ * (e.g. 2026-02-29 in a non-leap year becomes 2026-03-01), so a shape+parse
+ * check would accept a date the user never entered. Instead, parse as a UTC
+ * instant and round-trip it back to its ISO date portion: only a string that
+ * survives the round trip unchanged names a real calendar day. UTC is used
+ * on both sides so the result cannot depend on the host process timezone.
+ *
+ * The round trip only runs once the shape regex above has already matched —
+ * a shape-invalid string (wrong digit grouping) is left to that check alone,
+ * so it still fails with the format message rather than picking up a second,
+ * misleading "impossible date" message.
+ */
 const isoDateString = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Дата должна быть в формате ГГГГ-ММ-ДД")
-  .refine((value) => !Number.isNaN(new Date(value).getTime()), {
-    message: "Указана несуществующая дата",
-  });
+  .regex(ISO_DATE_SHAPE, "Дата должна быть в формате ГГГГ-ММ-ДД")
+  .refine(
+    (value) => {
+      if (!ISO_DATE_SHAPE.test(value)) return true;
+      const parsed = new Date(`${value}T00:00:00.000Z`);
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+    },
+    { message: "Указана несуществующая дата" },
+  );
 
 /**
  * Gross salary entry. `effectiveFrom` may be in the past — D-13 explicitly
