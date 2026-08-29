@@ -111,6 +111,7 @@ export async function saveSalaryAction(formData: FormData): Promise<SalaryAction
         userId,
         grossAmountKopecks,
         effectiveFrom,
+        claim.rowId,
         claim.existingGrossAmountKopecks,
       );
       if (replacement.status === "conflict" && replacement.current) {

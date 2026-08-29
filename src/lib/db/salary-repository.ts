@@ -150,6 +150,7 @@ export async function replaceSalaryIfUnchanged(
   userId: string,
   grossAmountKopecks: number,
   effectiveFrom: string,
+  expectedRowId: string,
   expectedGrossAmountKopecks: number,
 ): Promise<SalaryWriteOutcome> {
   const replaced = await db
@@ -158,7 +159,10 @@ export async function replaceSalaryIfUnchanged(
     .onConflictDoUpdate({
       target: [salaryHistory.userId, salaryHistory.effectiveFrom],
       set: { grossAmountKopecks, createdAt: new Date() },
-      setWhere: eq(salaryHistory.grossAmountKopecks, expectedGrossAmountKopecks),
+      setWhere: and(
+        eq(salaryHistory.id, expectedRowId),
+        eq(salaryHistory.grossAmountKopecks, expectedGrossAmountKopecks),
+      ),
     })
     .returning();
   const row = replaced[0];

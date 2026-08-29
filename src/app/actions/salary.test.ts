@@ -119,6 +119,7 @@ describe("saveSalaryAction", () => {
       "user-01",
       25_000_000,
       "2026-08-29",
+      "row-01",
       20_000_000,
     );
     expect(mocks.insertSalaryIfAbsent).not.toHaveBeenCalled();

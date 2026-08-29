@@ -107,6 +107,7 @@ describe("salary-repository", () => {
       userAId,
       12_000_00,
       "2026-04-01",
+      (await findSalaryAt(userAId, "2026-04-01"))!.id,
       10_000_00,
     );
     expect(written.status).toBe("written");
@@ -115,6 +116,7 @@ describe("salary-repository", () => {
       userAId,
       14_000_00,
       "2026-04-01",
+      (await findSalaryAt(userAId, "2026-04-01"))!.id,
       10_000_00,
     );
     expect(stale.status).toBe("conflict");
@@ -131,6 +133,7 @@ describe("salary-repository", () => {
       userAId,
       12_000_00,
       "2026-04-01",
+      observed.id,
       observed.grossAmountKopecks,
     );
     expect(stale.status).toBe("conflict");
