@@ -59,13 +59,16 @@ Declared values (multiples of 4px, following 8-point grid):
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px (text-sm) | 400 (regular) | 1.5 |
-| Label | 14px (text-sm) | 500 (medium) | 1.5 |
-| Heading | 18px (text-lg) | 600 (semibold) | 1.2 |
+| Label / Heading | 14–18px (text-sm, text-lg) | 600 (semibold) | 1.2 |
 | Display | 24–32px (text-2xl, text-3xl) | 600 (semibold) | 1.2 |
+
+**Font Weight Scale (2 total):**
+- 400 (regular) — body text only
+- 600 (semibold) — all labels, headings, interactive elements, and display
 
 **Tailwind classes:**
 - Body: `text-sm` (14px), no explicit font-weight → 400 (regular)
-- Label: `text-sm font-medium` → 14px, 500 weight
+- Label: `text-sm font-semibold` → 14px, 600 weight
 - Heading: `text-lg font-semibold` → 18px, 600 weight
 - Display: `text-2xl font-semibold` (24px) or `text-3xl font-semibold` (32px), 600 weight
 
@@ -73,6 +76,7 @@ Declared values (multiples of 4px, following 8-point grid):
 - 14px body is readable on mobile (Phase 1 requirement: PWA on iPhone).
 - 1.5 line-height on body ensures readability; 1.2 on headings matches Russian typography conventions.
 - Semibold (600) used for all interactive labels and headings to create clear visual hierarchy.
+- **Weight consolidation:** Merged 500 (medium) into 600 (semibold) to enforce 2-weight maximum. All interactive elements and labels now use explicit weight-600 Tailwind classes.
 
 ---
 
@@ -146,8 +150,8 @@ Declared values (multiples of 4px, following 8-point grid):
 | Column header: Amount | Сумма |
 | Column header: Note | Заметка |
 | Column header: Actions | Действия |
-| Edit button label | Изменить |
-| Delete button label | Удалить |
+| Edit button label | Изменить бонус |
+| Delete button label | Удалить бонус |
 | Loading state | Загрузка бонусов… |
 | Error: load failed | Не удалось загрузить список бонусов |
 | Error: load retry | Попробуйте ещё раз |
@@ -171,9 +175,9 @@ Declared values (multiples of 4px, following 8-point grid):
 
 **Delete bonus confirmation flow:**
 
-1. User clicks "Удалить" button on a bonus dated in the future.
+1. User clicks "Удалить бонус" button on a bonus dated in the future.
 2. Browser confirmation dialog (or inline modal — TBD by planner): "Удалить бонус на сумму {amount} ₽ от {date}?"
-3. Options: "Отмена" / "Удалить"
+3. Options: "Отмена" / "Удалить бонус"
 4. If past-dated bonus: Action returns error (handled server-side per D-B06) → display inline error message: "Нельзя удалять бонусы из прошлого. Вы можете изменить сумму."
 
 ---
@@ -201,6 +205,7 @@ State-based design requirements for Phase 2 UI elements.
 | loading | Form submission in-flight | ✅ covered | Primary CTA text changes from "Сохранить бонус" to "Сохранение…". Button is disabled (`:disabled` state with reduced opacity). User cannot re-submit while loading. |
 | partial | Form with some fields filled | ✅ covered | Form remembers user input as they type. If user fills amount and date but leaves note empty, form submits (note is optional per D-B08). Partial form state is displayed as-is without hiding or truncating fields. |
 | long-text | Note field with unusually long text | 🧪 backstop | Note field truncates with ellipsis (`text-ellipsis` via Tailwind) if text exceeds container width. On focus, full text is visible. Full text is always stored and displayed in bonus list view. |
+| focal-point | Visual hierarchy and attention draw | ✅ covered | **Focal point:** Amount input field (top of form, largest input, required to submit). This field draws the eye first after the form title "Бонус или компенсация". The "Сохранить бонус" button is secondary (bottom of form, follows tab order). Visual flow: Title → Amount field → Date field → Note field → Save button. |
 
 #### 2. Bonus List / History
 
@@ -214,6 +219,7 @@ State-based design requirements for Phase 2 UI elements.
 | populated | Normal list with items | ✅ covered | List displays as a table or card-grid with columns: Date, Amount, Note (optional), Actions. Each row shows one bonus entry. Rows are separated by `border-b border-zinc-200`. Alternating row background color is NOT used (keep white/light bg consistent). |
 | zero-one-many | List at 0, 1, N items | ✅ covered | 0 items: empty-state card (see above). 1 item: list displays single row with same styling. N items (N ≥ 2): list displays all rows, scrollable if needed. Column headers remain sticky at top (TBD by planner: `sticky top-0 bg-white` or `position: sticky`). Copy never uses singular/plural variants; all labels are plural ("История бонусов", "Бонусы" column header). |
 | overflow | List scrolls if too tall | ✅ covered | On mobile/small screens, list scrolls vertically. On desktop, list may scroll or paginate (TBD by planner). No horizontal scroll (columns are narrow enough to fit 320px min width). Column headers remain visible on scroll. |
+| focal-point | Visual hierarchy and attention draw | ✅ covered | **Focal point:** Bonus list table itself (center of screen). The list rows are the primary content; the "Добавить бонус" button (empty state or floating action) is secondary/auxiliary. For empty state, the "Добавить бонус" CTA button becomes the focal point. Visual anchors: Date column (left), Amount column (center-right, uses semibold 600 weight for emphasis), Actions column (right, edit/delete buttons). |
 
 #### 3. Bonus Edit / Delete Actions
 
@@ -234,6 +240,7 @@ State-based design requirements for Phase 2 UI elements.
 |----------|---|--------|-----------|
 | partial | Breakdown shown only when bonus affects next payment | ✅ covered | Home screen shows breakdown only if next-payment event includes a bonus amount > 0. If next payment is a regular salary/avans with no bonus, breakdown is not shown; only total net is displayed (Phase 1 behavior). |
 | long-text | Bonus amount formatting | ✅ covered | Amount is displayed as `formatKopecks()` (e.g., "10 000 ₽"). If amount is very large (5+ digits before decimal), number uses thousands separator (space in Russian locale). No truncation; full amount is always visible. |
+| focal-point | Visual hierarchy and attention draw | ✅ covered | **Focal point:** Total net amount row (bottom of breakdown, largest value, uses `text-2xl font-semibold` styling). This anchors the visual hierarchy: "Состав выплаты:" label → Base row → Bonus row → **Total row** (emphasis via size/weight). The bonus row is supporting detail (secondary visual weight). |
 
 ### Unresolved Considerations
 
