@@ -21,8 +21,10 @@ import {
   getCumulativeIncomeBeforeDate,
   getSchedule,
   getYtdBaseline,
+  insertSalaryIfAbsent,
   listSalaryHistory,
   replaceSalaryAt,
+  replaceSalaryIfUnchanged,
   upsertSchedule,
   upsertYtdBaseline,
 } from "@/lib/db/salary-repository";
@@ -97,6 +99,65 @@ describe("salary-repository", () => {
     const matchingB = historyB.filter((row) => row.effectiveFrom === "2026-04-01");
     expect(matchingB).toHaveLength(1);
     expect(matchingB[0]?.grossAmountKopecks).toBe(99_000_00);
+  });
+
+  it("conditionally replaces only while the expected amount is current", async () => {
+    await replaceSalaryAt(userAId, 10_000_00, "2026-04-01");
+    const written = await replaceSalaryIfUnchanged(
+      userAId,
+      12_000_00,
+      "2026-04-01",
+      10_000_00,
+    );
+    expect(written.status).toBe("written");
+
+    const stale = await replaceSalaryIfUnchanged(
+      userAId,
+      14_000_00,
+      "2026-04-01",
+      10_000_00,
+    );
+    expect(stale.status).toBe("conflict");
+    if (stale.status === "conflict") {
+      expect(stale.current?.grossAmountKopecks).toBe(12_000_00);
+    }
+    expect((await findSalaryAt(userAId, "2026-04-01"))?.grossAmountKopecks).toBe(12_000_00);
+  });
+
+  it("a stale cross-request expectation cannot overwrite a newer write", async () => {
+    const observed = await replaceSalaryAt(userAId, 10_000_00, "2026-04-01");
+    await replaceSalaryAt(userAId, 11_000_00, "2026-04-01");
+    const stale = await replaceSalaryIfUnchanged(
+      userAId,
+      12_000_00,
+      "2026-04-01",
+      observed.grossAmountKopecks,
+    );
+    expect(stale.status).toBe("conflict");
+    expect((await findSalaryAt(userAId, "2026-04-01"))?.grossAmountKopecks).toBe(11_000_00);
+  });
+
+  it("conditional insert reports the raced row and preserves one exact-date row", async () => {
+    const first = await insertSalaryIfAbsent(userAId, 10_000_00, "2026-04-01");
+    expect(first.status).toBe("written");
+    const second = await insertSalaryIfAbsent(userAId, 12_000_00, "2026-04-01");
+    expect(second.status).toBe("conflict");
+    if (second.status === "conflict") {
+      expect(second.current?.grossAmountKopecks).toBe(10_000_00);
+    }
+    expect((await listSalaryHistory(userAId)).filter((row) => row.effectiveFrom === "2026-04-01"))
+      .toHaveLength(1);
+  });
+
+  it("two concurrent conditional inserts leave one winner and one disclosed conflict", async () => {
+    const outcomes = await Promise.all([
+      insertSalaryIfAbsent(userAId, 10_000_00, "2026-04-01"),
+      insertSalaryIfAbsent(userAId, 12_000_00, "2026-04-01"),
+    ]);
+    expect(outcomes.filter((outcome) => outcome.status === "written")).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.status === "conflict")).toHaveLength(1);
+    expect((await listSalaryHistory(userAId)).filter((row) => row.effectiveFrom === "2026-04-01"))
+      .toHaveLength(1);
   });
 
   it("getActiveSalaryAt returns the row effective on the queried date, not the newest row overall", async () => {
