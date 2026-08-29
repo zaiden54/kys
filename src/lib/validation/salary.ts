@@ -51,7 +51,10 @@ export const salaryInputSchema = z.object({
   grossRubles: z.coerce
     .number({ error: "Оклад должен быть числом" })
     .gt(0, "Оклад должен быть больше нуля")
-    .max(MAX_RUBLES, "Оклад превышает допустимый максимум"),
+    .max(MAX_RUBLES, "Оклад превышает допустимый максимум")
+    .refine((value) => Math.round(value * 100) > 0, {
+      message: "Оклад должен быть не меньше одной копейки",
+    }),
   effectiveFrom: isoDateString,
 });
 

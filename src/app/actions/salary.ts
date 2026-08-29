@@ -93,7 +93,14 @@ export async function saveSalaryAction(formData: FormData): Promise<SalaryAction
     };
   }
 
-  await replaceSalaryAt(userId, rublesToKopecks(grossRubles), effectiveFrom);
+  try {
+    await replaceSalaryAt(userId, rublesToKopecks(grossRubles), effectiveFrom);
+  } catch {
+    return {
+      success: false,
+      fieldErrors: { grossRubles: ["Не удалось сохранить оклад. Попробуйте ещё раз."] },
+    };
+  }
   revalidatePaySetupPaths();
   return { success: true };
 }
