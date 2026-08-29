@@ -268,7 +268,20 @@ export type YtdFormProps = {
 };
 
 export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: YtdFormProps) {
-  const currentYearStart = `${todayIsoInMoscow().slice(0, 4)}-01-01`;
+  // The as-of date is the exact boundary the accrual engine
+  // (src/domain/pay/payment-accrual.ts, via getCumulativeIncomeBeforeDate)
+  // starts counting scheduled payments from. A caller-supplied
+  // `defaultAsOfDate` is only trustworthy as the pre-fill when it reflects a
+  // real, previously-confirmed baseline (`isEstimated` false) -- both
+  // `getYtdBaseline`'s synthesized default and `skipYtdBaselineAction`
+  // always store a 1-January `asOfDate` alongside `isEstimated: true`, so
+  // pre-filling that stale start-of-year date for a user who has not yet
+  // entered a real baseline would make a mid-year amount they type in cover
+  // only through 1 January, double-counting every scheduled payment
+  // received between 1 January and today when accrual adds them back on
+  // top (SAL-03). For that case the default is today in Moscow instead.
+  const resolvedDefaultAsOfDate =
+    !isEstimated && defaultAsOfDate ? defaultAsOfDate : todayIsoInMoscow();
   const {
     register,
     handleSubmit,
@@ -278,7 +291,7 @@ export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: Y
     resolver: zodResolver(ytdBaselineInputSchema) as Resolver<YtdBaselineInput>,
     defaultValues: {
       amountRubles: defaultAmountRubles ?? 0,
-      asOfDate: defaultAsOfDate ?? currentYearStart,
+      asOfDate: resolvedDefaultAsOfDate,
     },
   });
   const [message, setMessage] = useState<string | null>(null);
@@ -347,6 +360,10 @@ export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: Y
           className="rounded border border-zinc-300 px-3 py-2"
           {...register("asOfDate")}
         />
+        <p className="text-xs text-zinc-500">
+          Сумма выше — это доход с 1 января по указанную дату включительно. Выплаты по графику
+          после этой даты добавляются автоматически.
+        </p>
         {errors.asOfDate && <p className="text-sm text-red-600">{errors.asOfDate.message}</p>}
       </div>
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}
