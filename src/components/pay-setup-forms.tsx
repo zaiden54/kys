@@ -57,7 +57,6 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
   const {
     register,
     handleSubmit,
-    getValues,
     formState: { errors, isSubmitting },
   } = useForm<SalaryInput>({
     // zod4's z.coerce.number() types its *input* as `unknown` (pre-coercion),
@@ -72,17 +71,21 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
   });
   const [pendingConfirmation, setPendingConfirmation] = useState<{
     existingAmountRubles: number;
+    submittedAmountRubles: number;
     effectiveFrom: string;
+    confirmationClaim: string;
+    snapshot: SalaryInput;
   } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
-  async function submit(values: SalaryInput, confirm: boolean) {
+  async function submit(values: SalaryInput, confirmationClaim: string | null) {
     setMessage(null);
     setServerError(null);
     try {
       const result: SalaryActionResult = await saveSalaryAction(
-        toFormData({ ...values, confirm }),
+        toFormData({ ...values, ...(confirmationClaim ? { confirmationClaim } : {}) }),
       );
       if (result.success) {
         setPendingConfirmation(null);
@@ -92,7 +95,10 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
       if (result.needsConfirmation) {
         setPendingConfirmation({
           existingAmountRubles: result.existingAmountRubles,
+          submittedAmountRubles: result.submittedAmountRubles,
           effectiveFrom: result.effectiveFrom,
+          confirmationClaim: result.confirmationClaim,
+          snapshot: { ...values },
         });
         return;
       }
@@ -103,11 +109,17 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
   }
 
   async function onSubmit(values: SalaryInput) {
-    await submit(values, false);
+    await submit(values, null);
   }
 
   async function onConfirmReplace() {
-    await submit(getValues(), true);
+    if (!pendingConfirmation) return;
+    setConfirming(true);
+    try {
+      await submit(pendingConfirmation.snapshot, pendingConfirmation.confirmationClaim);
+    } finally {
+      setConfirming(false);
+    }
   }
 
   return (
@@ -147,16 +159,16 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
         <div className="rounded border border-amber-400 bg-amber-50 p-3 text-sm">
           <p>
             На {pendingConfirmation.effectiveFrom} уже сохранён оклад{" "}
-            {pendingConfirmation.existingAmountRubles} ₽. Сохранение заменит это значение без
-            возможности восстановить его.
+            {pendingConfirmation.existingAmountRubles} ₽. Он будет безвозвратно заменён на{" "}
+            {pendingConfirmation.submittedAmountRubles} ₽.
           </p>
           <button
             type="button"
             onClick={onConfirmReplace}
-            disabled={isSubmitting}
+            disabled={confirming}
             className="mt-2 rounded bg-black px-3 py-1.5 text-white disabled:opacity-50"
           >
-            Подтвердить и заменить
+            {confirming ? "Заменяем…" : "Подтвердить и заменить"}
           </button>
         </div>
       )}

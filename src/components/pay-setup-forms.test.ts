@@ -89,4 +89,32 @@ describe("SalaryForm rejected Server Action contract", () => {
     });
     expect(visibleErrorBranch).toBe(true);
   });
+
+  it("confirms the stored snapshot and claim without reading live form values", () => {
+    const salaryForm = descendants(
+      sourceFile,
+      (node): node is ts.FunctionDeclaration =>
+        ts.isFunctionDeclaration(node) && node.name?.text === "SalaryForm",
+    )[0];
+    expect(salaryForm).toBeDefined();
+    const confirmHandler = descendants(
+      salaryForm,
+      (node): node is ts.FunctionDeclaration =>
+        ts.isFunctionDeclaration(node) && node.name?.text === "onConfirmReplace",
+    )[0];
+    const text = confirmHandler.getText(sourceFile);
+    expect(text).not.toContain("getValues");
+    expect(text).toContain("pendingConfirmation.snapshot");
+    expect(text).toContain("pendingConfirmation.confirmationClaim");
+    expect(text).toContain("setConfirming(true)");
+    expect(text).toContain("finally");
+
+    const formText = salaryForm.getText(sourceFile);
+    expect(formText).not.toContain("getValues");
+    expect(formText).toContain("submittedAmountRubles");
+    expect(formText).toContain("existingAmountRubles");
+    expect(formText).toContain("confirmationClaim");
+    expect(formText).toContain("snapshot: { ...values }");
+    expect(formText).toMatch(/disabled=\{confirming\}/);
+  });
 });
