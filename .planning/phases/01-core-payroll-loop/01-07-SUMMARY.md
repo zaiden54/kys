@@ -181,3 +181,7 @@ The following 01-VERIFICATION.md `human_verification` items remain **OPEN** and 
 ---
 *Phase: 01-core-payroll-loop*
 *Completed: 2026-08-29*
+
+## Self-Check: PASSED
+
+All modified files verified present on disk (`src/lib/db/salary-repository.ts`, `src/lib/db/salary-repository.test.ts`, `src/app/actions/salary.ts`, this SUMMARY.md). All five commits verified present in git history: `fc40e27` (RED, CR-02), `59058ea` (GREEN, CR-02), `7a553e6` (RED, WR-01), `40ecc6d` (GREEN, WR-01), `3db9349` (docs, SUMMARY.md).
