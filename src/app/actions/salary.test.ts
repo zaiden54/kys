@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireUserId: vi.fn(),
-  findSalaryAt: vi.fn(),
-  replaceSalaryAt: vi.fn(),
+  insertSalaryIfAbsent: vi.fn(),
+  replaceSalaryIfUnchanged: vi.fn(),
   upsertSchedule: vi.fn(),
   upsertYtdBaseline: vi.fn(),
   revalidatePath: vi.fn(),
@@ -11,20 +11,24 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/session", () => ({ requireUserId: mocks.requireUserId }));
 vi.mock("@/lib/db/salary-repository", () => ({
-  findSalaryAt: mocks.findSalaryAt,
-  replaceSalaryAt: mocks.replaceSalaryAt,
+  insertSalaryIfAbsent: mocks.insertSalaryIfAbsent,
+  replaceSalaryIfUnchanged: mocks.replaceSalaryIfUnchanged,
   upsertSchedule: mocks.upsertSchedule,
   upsertYtdBaseline: mocks.upsertYtdBaseline,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("@/env", () => ({ env: { BETTER_AUTH_SECRET: "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGH" } }));
 
 import { saveSalaryAction } from "@/app/actions/salary";
+import { signSalaryReplacementToken } from "@/lib/salary-confirmation-token";
 
-function salaryFormData(grossRubles: string, confirm = true): FormData {
+const testSecret = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGH";
+
+function salaryFormData(grossRubles: string, confirmationClaim?: string): FormData {
   const formData = new FormData();
   formData.set("grossRubles", grossRubles);
   formData.set("effectiveFrom", "2026-08-29");
-  formData.set("confirm", String(confirm));
+  if (confirmationClaim) formData.set("confirmationClaim", confirmationClaim);
   return formData;
 }
 
@@ -32,8 +36,8 @@ describe("saveSalaryAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireUserId.mockResolvedValue("user-01");
-    mocks.findSalaryAt.mockResolvedValue(null);
-    mocks.replaceSalaryAt.mockResolvedValue(undefined);
+    mocks.insertSalaryIfAbsent.mockResolvedValue({ status: "written", row: {} });
+    mocks.replaceSalaryIfUnchanged.mockResolvedValue({ status: "written", row: {} });
   });
 
   it("rejects a sub-half-kopeck salary before any repository access or revalidation", async () => {
@@ -43,14 +47,14 @@ describe("saveSalaryAction", () => {
     expect(result).toMatchObject({
       fieldErrors: { grossRubles: ["Оклад должен быть не меньше одной копейки"] },
     });
-    expect(mocks.findSalaryAt).not.toHaveBeenCalled();
-    expect(mocks.replaceSalaryAt).not.toHaveBeenCalled();
+    expect(mocks.insertSalaryIfAbsent).not.toHaveBeenCalled();
+    expect(mocks.replaceSalaryIfUnchanged).not.toHaveBeenCalled();
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
   it("converts a repository rejection to a generic non-sensitive field error", async () => {
     const fakeDatabaseError = "constraint salary_gross_amount_positive leaked-secret";
-    mocks.replaceSalaryAt.mockRejectedValue(new Error(fakeDatabaseError));
+    mocks.insertSalaryIfAbsent.mockRejectedValue(new Error(fakeDatabaseError));
 
     const result = await saveSalaryAction(salaryFormData("123456.78"));
     const serialized = JSON.stringify(result);
@@ -68,7 +72,7 @@ describe("saveSalaryAction", () => {
     const result = await saveSalaryAction(salaryFormData("250000"));
 
     expect(result).toEqual({ success: true });
-    expect(mocks.replaceSalaryAt).toHaveBeenCalledWith("user-01", 25_000_000, "2026-08-29");
+    expect(mocks.insertSalaryIfAbsent).toHaveBeenCalledWith("user-01", 25_000_000, "2026-08-29");
     expect(mocks.revalidatePath.mock.calls).toEqual([
       ["/"],
       ["/onboarding"],
@@ -77,17 +81,90 @@ describe("saveSalaryAction", () => {
   });
 
   it("keeps D-14 confirmation behavior without writing or revalidating", async () => {
-    mocks.findSalaryAt.mockResolvedValue({ grossAmountKopecks: 20_000_000 });
+    mocks.insertSalaryIfAbsent.mockResolvedValue({
+      status: "conflict",
+      current: { id: "row-01", grossAmountKopecks: 20_000_000 },
+    });
 
-    const result = await saveSalaryAction(salaryFormData("250000", false));
+    const result = await saveSalaryAction(salaryFormData("250000"));
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       success: false,
       needsConfirmation: true,
       existingAmountRubles: 200_000,
+      submittedAmountRubles: 250_000,
       effectiveFrom: "2026-08-29",
     });
-    expect(mocks.replaceSalaryAt).not.toHaveBeenCalled();
+    expect(result).toHaveProperty("confirmationClaim");
+    expect(mocks.replaceSalaryIfUnchanged).not.toHaveBeenCalled();
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("conditionally replaces when a valid claim still matches", async () => {
+    const confirmationClaim = signSalaryReplacementToken(
+      {
+        userId: "user-01",
+        effectiveFrom: "2026-08-29",
+        rowId: "row-01",
+        existingGrossAmountKopecks: 20_000_000,
+        issuedAtMs: Date.now(),
+      },
+      testSecret,
+    );
+
+    expect(await saveSalaryAction(salaryFormData("250000", confirmationClaim))).toEqual({
+      success: true,
+    });
+    expect(mocks.replaceSalaryIfUnchanged).toHaveBeenCalledWith(
+      "user-01",
+      25_000_000,
+      "2026-08-29",
+      20_000_000,
+    );
+    expect(mocks.insertSalaryIfAbsent).not.toHaveBeenCalled();
+  });
+
+  it("re-prompts without an insert when a valid claim is stale", async () => {
+    const confirmationClaim = signSalaryReplacementToken(
+      {
+        userId: "user-01",
+        effectiveFrom: "2026-08-29",
+        rowId: "row-01",
+        existingGrossAmountKopecks: 20_000_000,
+        issuedAtMs: Date.now(),
+      },
+      testSecret,
+    );
+    mocks.replaceSalaryIfUnchanged.mockResolvedValue({
+      status: "conflict",
+      current: { id: "row-01", grossAmountKopecks: 21_000_000 },
+    });
+
+    const result = await saveSalaryAction(salaryFormData("250000", confirmationClaim));
+    expect(result).toMatchObject({ needsConfirmation: true, existingAmountRubles: 210_000 });
+    expect(mocks.insertSalaryIfAbsent).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("treats a foreign-user claim as unconfirmed and never conditionally replaces", async () => {
+    const confirmationClaim = signSalaryReplacementToken(
+      {
+        userId: "other-user",
+        effectiveFrom: "2026-08-29",
+        rowId: "row-01",
+        existingGrossAmountKopecks: 20_000_000,
+        issuedAtMs: Date.now(),
+      },
+      testSecret,
+    );
+    mocks.insertSalaryIfAbsent.mockResolvedValue({
+      status: "conflict",
+      current: { id: "row-01", grossAmountKopecks: 20_000_000 },
+    });
+
+    expect(await saveSalaryAction(salaryFormData("250000", confirmationClaim))).toMatchObject({
+      needsConfirmation: true,
+    });
+    expect(mocks.replaceSalaryIfUnchanged).not.toHaveBeenCalled();
   });
 });

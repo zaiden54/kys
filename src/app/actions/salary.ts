@@ -18,6 +18,7 @@ import { revalidatePath } from "next/cache";
 import { requireUserId } from "@/lib/session";
 import { rublesToKopecks, kopecksToRubles } from "@/domain/money";
 import { todayIsoInMoscow } from "@/domain/time";
+import { env } from "@/env";
 import { exceedsMaxPayGap } from "@/domain/schedule/pay-gap";
 import {
   salaryInputSchema,
@@ -25,11 +26,17 @@ import {
   ytdBaselineInputSchema,
 } from "@/lib/validation/salary";
 import {
-  findSalaryAt,
-  replaceSalaryAt,
+  insertSalaryIfAbsent,
+  replaceSalaryIfUnchanged,
   upsertSchedule,
   upsertYtdBaseline,
+  type SalaryHistoryRow,
 } from "@/lib/db/salary-repository";
+import {
+  signSalaryReplacementToken,
+  verifySalaryReplacementToken,
+  type SalaryReplacementClaim,
+} from "@/lib/salary-confirmation-token";
 
 const PAY_SETUP_PATHS = ["/", "/onboarding", "/settings/salary"] as const;
 
@@ -45,28 +52,20 @@ export type SalaryActionResult =
       success: false;
       needsConfirmation: true;
       existingAmountRubles: number;
+      submittedAmountRubles: number;
       effectiveFrom: string;
+      confirmationClaim: string;
     }
   | { success: false; needsConfirmation?: false; fieldErrors: Record<string, string[]> };
 
 /**
  * Validates and writes a gross salary entry. D-13 permits a past
  * `effectiveFrom`. D-14 keeps no audit trail for an exact-date collision, so
- * when a row already exists for the submitted date and the form did not
- * carry a `confirm` flag, this returns a confirmation request (including the
- * existing amount) instead of writing — the caller must resubmit with
- * `confirm=true` to proceed.
- *
- * The `findSalaryAt` read below is advisory only: it exists purely to drive
- * the D-14 confirmation prompt's UX (showing the user the existing amount
- * before they confirm an overwrite) and can never itself be made race-free —
- * two near-simultaneous submissions can both observe "no existing row." That
- * is fine, because durability no longer depends on this read: `replaceSalaryAt`
- * persists through a single conflict-handling statement, so whichever write
- * reaches the database last is the one that survives and exactly one row
- * exists afterward. No app-level lock, resubmission loop, or transaction
- * wrapper is needed or added here — the atomicity guarantee lives entirely
- * in the repository layer (CR-02 / SAL-02).
+ * when a row already exists for the submitted date, the action returns a
+ * signed claim bound to that exact stored amount. A resubmission can replace
+ * only while the stored amount still matches the verified claim; otherwise
+ * the caller receives a fresh prompt. Both insert and replacement atomicity
+ * live in single conflict-handling repository statements (CR-02 / SAL-02).
  */
 export async function saveSalaryAction(formData: FormData): Promise<SalaryActionResult> {
   const userId = await requireUserId();
@@ -81,20 +80,58 @@ export async function saveSalaryAction(formData: FormData): Promise<SalaryAction
   }
 
   const { grossRubles, effectiveFrom } = parsed.data;
-  const confirmed = formData.get("confirm") === "true";
+  const grossAmountKopecks = rublesToKopecks(grossRubles);
+  const rawClaim = formData.get("confirmationClaim");
+  const claim =
+    typeof rawClaim === "string"
+      ? verifySalaryReplacementToken(rawClaim, env.BETTER_AUTH_SECRET, Date.now())
+      : null;
 
-  const existing = await findSalaryAt(userId, effectiveFrom);
-  if (existing && !confirmed) {
+  function confirmation(current: SalaryHistoryRow): SalaryActionResult {
+    const nextClaim: SalaryReplacementClaim = {
+      userId,
+      effectiveFrom,
+      rowId: current.id,
+      existingGrossAmountKopecks: current.grossAmountKopecks,
+      issuedAtMs: Date.now(),
+    };
     return {
       success: false,
       needsConfirmation: true,
-      existingAmountRubles: kopecksToRubles(existing.grossAmountKopecks),
+      existingAmountRubles: kopecksToRubles(current.grossAmountKopecks),
+      submittedAmountRubles: grossRubles,
       effectiveFrom,
+      confirmationClaim: signSalaryReplacementToken(nextClaim, env.BETTER_AUTH_SECRET),
     };
   }
 
   try {
-    await replaceSalaryAt(userId, rublesToKopecks(grossRubles), effectiveFrom);
+    if (claim && claim.userId === userId && claim.effectiveFrom === effectiveFrom) {
+      const replacement = await replaceSalaryIfUnchanged(
+        userId,
+        grossAmountKopecks,
+        effectiveFrom,
+        claim.existingGrossAmountKopecks,
+      );
+      if (replacement.status === "conflict" && replacement.current) {
+        return confirmation(replacement.current);
+      }
+      if (replacement.status === "conflict") {
+        const retry = await insertSalaryIfAbsent(userId, grossAmountKopecks, effectiveFrom);
+        if (retry.status === "conflict" && retry.current) return confirmation(retry.current);
+        if (retry.status === "conflict") throw new Error("salary write conflict without current row");
+      }
+    } else {
+      const insertion = await insertSalaryIfAbsent(userId, grossAmountKopecks, effectiveFrom);
+      if (insertion.status === "conflict" && insertion.current) {
+        return confirmation(insertion.current);
+      }
+      if (insertion.status === "conflict") {
+        const retry = await insertSalaryIfAbsent(userId, grossAmountKopecks, effectiveFrom);
+        if (retry.status === "conflict" && retry.current) return confirmation(retry.current);
+        if (retry.status === "conflict") throw new Error("salary write conflict without current row");
+      }
+    }
   } catch {
     return {
       success: false,

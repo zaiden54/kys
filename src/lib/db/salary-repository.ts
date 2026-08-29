@@ -33,6 +33,9 @@ import { accruedGrossBetween, type SalaryHistoryEntry } from "@/domain/pay/payme
 import type { PaymentKind } from "@/domain/schedule/resolve-payment-date";
 
 export type SalaryHistoryRow = typeof salaryHistory.$inferSelect;
+export type SalaryWriteOutcome =
+  | { status: "written"; row: SalaryHistoryRow }
+  | { status: "conflict"; current: SalaryHistoryRow | null };
 export type PaymentScheduleRow = typeof paymentSchedule.$inferSelect;
 export type YtdBaselineRow = typeof ytdBaseline.$inferSelect;
 
@@ -125,6 +128,43 @@ export async function replaceSalaryAt(
     throw new Error("replaceSalaryAt: upsert into salary_history returned no row");
   }
   return row;
+}
+
+export async function insertSalaryIfAbsent(
+  userId: string,
+  grossAmountKopecks: number,
+  effectiveFrom: string,
+): Promise<SalaryWriteOutcome> {
+  const inserted = await db
+    .insert(salaryHistory)
+    .values({ userId, grossAmountKopecks, effectiveFrom })
+    .onConflictDoNothing({ target: [salaryHistory.userId, salaryHistory.effectiveFrom] })
+    .returning();
+  const row = inserted[0];
+  return row
+    ? { status: "written", row }
+    : { status: "conflict", current: await findSalaryAt(userId, effectiveFrom) };
+}
+
+export async function replaceSalaryIfUnchanged(
+  userId: string,
+  grossAmountKopecks: number,
+  effectiveFrom: string,
+  expectedGrossAmountKopecks: number,
+): Promise<SalaryWriteOutcome> {
+  const replaced = await db
+    .insert(salaryHistory)
+    .values({ userId, grossAmountKopecks, effectiveFrom })
+    .onConflictDoUpdate({
+      target: [salaryHistory.userId, salaryHistory.effectiveFrom],
+      set: { grossAmountKopecks, createdAt: new Date() },
+      setWhere: eq(salaryHistory.grossAmountKopecks, expectedGrossAmountKopecks),
+    })
+    .returning();
+  const row = replaced[0];
+  return row
+    ? { status: "written", row }
+    : { status: "conflict", current: await findSalaryAt(userId, effectiveFrom) };
 }
 
 // ---------------------------------------------------------------------------
