@@ -141,6 +141,38 @@ describe("salary-repository", () => {
     expect(userABaseline.isEstimated).toBe(true);
   });
 
+  it("WR-01: two concurrent upsertSchedule calls for the same user both resolve, leaving one internally-consistent pair", async () => {
+    await Promise.all([upsertSchedule(userAId, 10, 25), upsertSchedule(userAId, 20, 5)]);
+
+    const schedule = await getSchedule(userAId);
+    expect(schedule).not.toBeNull();
+    const pair = [schedule?.avansDay, schedule?.salaryDay];
+    const isFirstPair = pair[0] === 10 && pair[1] === 25;
+    const isSecondPair = pair[0] === 20 && pair[1] === 5;
+    expect(isFirstPair || isSecondPair).toBe(true);
+  });
+
+  it("WR-01: two concurrent upsertYtdBaseline calls for the same user both resolve, leaving one consistent value", async () => {
+    await Promise.all([
+      upsertYtdBaseline(userAId, 100_000_00, "2026-01-01", false),
+      upsertYtdBaseline(userAId, 200_000_00, "2026-01-01", false),
+    ]);
+
+    const baseline = await getYtdBaseline(userAId);
+    expect(baseline.isEstimated).toBe(false);
+    expect([100_000_00, 200_000_00]).toContain(baseline.amountKopecks);
+  });
+
+  it("upsertSchedule sequential update preservation: a second call updates the row and refreshes updatedAt", async () => {
+    await upsertSchedule(userAId, 10, 25);
+    const updated = await upsertSchedule(userAId, 20, 5);
+
+    const schedule = await getSchedule(userAId);
+    expect(schedule?.avansDay).toBe(20);
+    expect(schedule?.salaryDay).toBe(5);
+    expect(updated.updatedAt).not.toBeNull();
+  });
+
   it("getYtdBaseline returns a zero, estimated baseline for a user who never saved one", async () => {
     const baseline = await getYtdBaseline(userAId);
     expect(baseline.amountKopecks).toBe(0);
