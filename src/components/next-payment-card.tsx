@@ -15,6 +15,7 @@ import type { NextPaymentForecast } from "@/app/actions/forecast";
 const KIND_LABELS: Record<NextPaymentForecast["kind"], string> = {
   avans: "Аванс",
   salary: "Зарплата",
+  bonus: "Бонус или компенсация",
 };
 
 function formatPaymentDate(isoDate: string): string {
@@ -42,12 +43,26 @@ export function NextPaymentCard({ forecast }: { forecast: NextPaymentForecast })
       </p>
       <p className="mt-1 text-sm text-zinc-500">придёт на руки</p>
 
-      <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-zinc-600">
-        <dt>Начислено (грязными)</dt>
-        <dd className="text-right">{formatKopecks(forecast.grossKopecks)}</dd>
-        <dt>Удержан НДФЛ</dt>
-        <dd className="text-right">{formatKopecks(forecast.taxKopecks)}</dd>
-      </dl>
+      {forecast.breakdown ? (
+        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-zinc-600">
+          <dt className="col-span-2 font-medium">Состав выплаты:</dt>
+          <dt>Оклад / Аванс</dt>
+          <dd className="text-right">{formatKopecks(forecast.breakdown.salaryOrAvansKopecks)}</dd>
+          <dt>Бонус</dt>
+          <dd className="text-right">{formatKopecks(forecast.breakdown.bonusKopecks)}</dd>
+          <dt className="font-semibold text-zinc-900">Итого (грязными)</dt>
+          <dd className="text-right font-semibold text-zinc-900">{formatKopecks(forecast.grossKopecks)}</dd>
+          <dt>Удержан НДФЛ</dt>
+          <dd className="text-right">{formatKopecks(forecast.taxKopecks)}</dd>
+        </dl>
+      ) : (
+        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-zinc-600">
+          <dt>Начислено (грязными)</dt>
+          <dd className="text-right">{formatKopecks(forecast.grossKopecks)}</dd>
+          <dt>Удержан НДФЛ</dt>
+          <dd className="text-right">{formatKopecks(forecast.taxKopecks)}</dd>
+        </dl>
+      )}
 
       <p className="mt-4 text-xs text-zinc-400">
         Это плановый расчёт для планирования бюджета — не официальная и не гарантированная сумма.

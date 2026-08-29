@@ -28,6 +28,7 @@ import { saveBonusAction } from "@/app/actions/bonus";
 import { requireUserId } from "@/lib/session";
 
 vi.mock("@/lib/session", () => ({ requireUserId: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 async function createThrowawayUser(): Promise<string> {
   const id = randomUUID();
@@ -329,7 +330,7 @@ describe("forecastNextPayment", () => {
       for (const id of [userAId, userBId]) {
         await replaceSalaryAt(id, 600_000_00, "2026-01-01");
         await upsertSchedule(id, 20, 5);
-        await upsertYtdBaseline(id, 2_350_000_00, "2026-08-01", false);
+        await upsertYtdBaseline(id, 1_700_000_00, "2026-08-01", false);
       }
       await createBonus(userBId, 100_000_00, "2026-08-15", "Прошлый");
       const withoutBonus = await forecastNextPayment(userAId);

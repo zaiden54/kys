@@ -42,7 +42,8 @@ import type { Kopecks } from "@/domain/money";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
 import { nextPaymentOnOrAfter, type PaymentKind } from "@/domain/schedule/resolve-payment-date";
 import { halfSplitGross } from "@/domain/pay/payment-accrual";
-import { nowInMoscow } from "@/domain/time";
+import { nowInMoscow, todayIsoInMoscow } from "@/domain/time";
+import { listBonuses } from "@/lib/db/bonus-repository";
 import {
   getActiveSalaryAt,
   getCumulativeIncomeBeforeDate,
@@ -54,12 +55,13 @@ import {
 export interface NextPaymentForecast {
   /** `yyyy-MM-dd`, local calendar date — matches salary_history's date column format. */
   date: string;
-  kind: PaymentKind;
+  kind: PaymentKind | "bonus";
   grossKopecks: Kopecks;
   taxKopecks: Kopecks;
   netKopecks: Kopecks;
   /** True while the YTD baseline is a synthesized zero (D-11) rather than a user-entered figure. */
   baselineIsEstimated: boolean;
+  breakdown?: { salaryOrAvansKopecks: Kopecks; bonusKopecks: Kopecks };
 }
 
 /**
@@ -71,39 +73,63 @@ export type ForecastResult =
   | { configured: true; forecast: NextPaymentForecast }
   | { configured: false; missing: "salary" | "schedule" };
 
+export function selectNextPaymentEvent(
+  scheduleEvent: { dateIso: string; kind: PaymentKind } | null,
+  futureBonusDatesAscending: readonly string[],
+): { dateIso: string; kind: PaymentKind | "bonus" } | null {
+  const bonusDate = futureBonusDatesAscending[0];
+  if (!scheduleEvent) return bonusDate ? { dateIso: bonusDate, kind: "bonus" } : null;
+  if (!bonusDate || scheduleEvent.dateIso <= bonusDate) return scheduleEvent;
+  return { dateIso: bonusDate, kind: "bonus" };
+}
+
 /**
  * Computes the user's next payment forecast, or reports what is not yet
  * configured. See the module doc comment for the exact ordering this
  * implements.
  */
 export async function forecastNextPayment(userId: string): Promise<ForecastResult> {
-  const schedule = await getSchedule(userId);
-  if (!schedule) {
+  const [schedule, bonusRows] = await Promise.all([getSchedule(userId), listBonuses(userId)]);
+  const paymentEvent = schedule
+    ? nextPaymentOnOrAfter(
+        { avansDay: schedule.avansDay, salaryDay: schedule.salaryDay },
+        nowInMoscow(),
+      )
+    : null;
+  const scheduleEvent = paymentEvent
+    ? { dateIso: format(paymentEvent.date, "yyyy-MM-dd"), kind: paymentEvent.kind }
+    : null;
+  const futureBonusDatesAscending = bonusRows
+    .map((bonus) => bonus.date)
+    .filter((date) => date >= todayIsoInMoscow())
+    .sort();
+  const resolvedEvent = selectNextPaymentEvent(scheduleEvent, futureBonusDatesAscending);
+  if (!resolvedEvent) {
     return { configured: false, missing: "schedule" };
   }
-
-  const paymentEvent = nextPaymentOnOrAfter(
-    { avansDay: schedule.avansDay, salaryDay: schedule.salaryDay },
-    nowInMoscow(),
-  );
-  if (!paymentEvent) {
-    return { configured: false, missing: "schedule" };
-  }
-
-  const paymentDateIso = format(paymentEvent.date, "yyyy-MM-dd");
+  const paymentDateIso = resolvedEvent.dateIso;
+  const bonusKopecksOnDate = bonusRows
+    .filter((bonus) => bonus.date === paymentDateIso)
+    .reduce((sum, bonus) => sum + bonus.amountKopecks, 0);
 
   // The salary effective ON the payment's own date — never the newest row
   // overall and never today's date. This is D-15: a future-dated salary
   // change simply has no effect until a payment actually falls on/after it.
-  const activeSalary = await getActiveSalaryAt(userId, paymentDateIso);
-  if (!activeSalary) {
-    return { configured: false, missing: "salary" };
-  }
-
-  const paymentGrossKopecks = halfSplitGross(activeSalary.grossAmountKopecks, paymentEvent.kind);
+  const activeSalary = resolvedEvent.kind === "bonus"
+    ? null
+    : await getActiveSalaryAt(userId, paymentDateIso);
+  if (resolvedEvent.kind !== "bonus" && !activeSalary) return { configured: false, missing: "salary" };
+  const baseGrossKopecks = resolvedEvent.kind === "bonus"
+    ? 0
+    : halfSplitGross(activeSalary!.grossAmountKopecks, resolvedEvent.kind);
+  const paymentGrossKopecks = baseGrossKopecks + bonusKopecksOnDate;
 
   const [cumulativeBeforeKopecks, ytdBaseline] = await Promise.all([
-    getCumulativeIncomeBeforeDate(userId, paymentDateIso, paymentEvent.kind),
+    getCumulativeIncomeBeforeDate(
+      userId,
+      paymentDateIso,
+      resolvedEvent.kind === "bonus" ? "avans" : resolvedEvent.kind,
+    ),
     getYtdBaseline(userId),
   ]);
 
@@ -111,18 +137,21 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
   // December-resolved payment and a January one belong to different
   // cumulative bases. UnsupportedTaxYearError is intentionally NOT caught
   // here; it must propagate as a visible failure (T-01-10).
-  const taxYear = paymentEvent.date.getFullYear();
+  const taxYear = Number(paymentDateIso.slice(0, 4));
   const { taxKopecks, netKopecks } = calculateNdfl(cumulativeBeforeKopecks, paymentGrossKopecks, taxYear);
 
   return {
     configured: true,
     forecast: {
       date: paymentDateIso,
-      kind: paymentEvent.kind,
+      kind: resolvedEvent.kind,
       grossKopecks: paymentGrossKopecks,
       taxKopecks,
       netKopecks,
       baselineIsEstimated: ytdBaseline.isEstimated,
+      breakdown: resolvedEvent.kind !== "bonus" && bonusKopecksOnDate > 0
+        ? { salaryOrAvansKopecks: baseGrossKopecks, bonusKopecks: bonusKopecksOnDate }
+        : undefined,
     },
   };
 }
