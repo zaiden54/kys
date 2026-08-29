@@ -1,37 +1,25 @@
 ---
 phase: 01-core-payroll-loop
-reviewed: 2026-08-28T21:06:56Z
+reviewed: 2026-08-29T09:04:06Z
 depth: standard
-files_reviewed: 49
+files_reviewed: 43
 files_reviewed_list:
-  - AGENTS.md
-  - CLAUDE.md
-  - drizzle.config.ts
   - .env.example
-  - eslint.config.mjs
   - .gitignore
-  - next.config.ts
-  - package.json
-  - postcss.config.mjs
-  - public/file.svg
-  - public/globe.svg
-  - public/next.svg
-  - public/vercel.svg
-  - public/window.svg
   - README.md
+  - drizzle.config.ts
+  - package.json
   - scripts/verify-auth-flow.mjs
-  - src/app/actions/forecast.test.ts
-  - src/app/actions/forecast.ts
-  - src/app/actions/salary.ts
-  - src/app/api/auth/[...all]/route.ts
   - src/app/(app)/layout.tsx
   - src/app/(app)/onboarding/page.tsx
   - src/app/(app)/page.tsx
   - src/app/(app)/settings/salary/page.tsx
   - src/app/(auth)/login/page.tsx
   - src/app/(auth)/register/page.tsx
-  - src/app/favicon.ico
-  - src/app/globals.css
+  - src/app/actions/forecast.test.ts
+  - src/app/actions/forecast.ts
+  - src/app/actions/salary.ts
+  - src/app/api/auth/[...all]/route.ts
   - src/app/layout.tsx
   - src/components/next-payment-card.tsx
   - src/components/pay-setup-forms.tsx
@@ -44,7 +32,10 @@ files_reviewed_list:
   - src/domain/schedule/resolve-payment-date.ts
   - src/domain/tax/calculate-ndfl.test.ts
   - src/domain/tax/calculate-ndfl.ts
+  - src/domain/tax/ndfl-brackets.test.ts
   - src/domain/tax/ndfl-brackets.ts
+  - src/domain/time.test.ts
+  - src/domain/time.ts
   - src/env.ts
   - src/lib/auth-client.ts
   - src/lib/auth.ts
@@ -52,177 +43,178 @@ files_reviewed_list:
   - src/lib/db/index.ts
   - src/lib/db/salary-repository.test.ts
   - src/lib/db/salary-repository.ts
+  - src/lib/db/schema.test.ts
   - src/lib/db/schema.ts
   - src/lib/session.ts
   - src/lib/validation/salary.ts
   - tsconfig.json
   - vitest.config.ts
 findings:
-  critical: 2
-  warning: 5
-  info: 3
+  critical: 1
+  warning: 4
+  info: 5
   total: 10
 status: issues_found
 ---
 
 # Phase 01: Code Review Report
 
-**Reviewed:** 2026-08-28T21:06:56Z
+**Reviewed:** 2026-08-29T09:04:06Z
 **Depth:** standard
-**Files Reviewed:** 49 (scaffold-default files — `public/*.svg`, `favicon.ico`, `eslint.config.mjs`, `postcss.config.mjs`, `next.config.ts`, `AGENTS.md` — were spot-checked only, per reviewer instructions)
+**Files Reviewed:** 43
 **Status:** issues_found
 
 ## Summary
 
-The core domain engines (`src/domain/tax`, `src/domain/schedule`) are well-designed, thoroughly tested, and carefully documented — the progressive НДФЛ cumulative-rounding logic and the payment-date resolver both correctly implement the tricky rules they describe, and their test suites exercise real edge cases (bracket boundaries, holiday chaining, D-day clamping) rather than happy-path-only assertions.
+This is a fresh, independent pass over all 43 files, including the three gap-closure plans (01-06, 01-07, 01-08) that landed since the prior review. The prior review's tracked items check out as genuinely fixed:
 
-The weak points are at the seams: (1) the app never establishes an explicit Europe/Moscow anchor for "today," and mixes `toISOString()` (always UTC) with bare `new Date()` (server-local, effectively undefined on typical serverless deployments) to compute the date that drives the app's single core value proposition — the next payment's date and amount; and (2) the salary-history write path is a non-atomic check-then-delete-then-insert sequence that can lose a user's data on partial failure, a real risk given the module's own comment acknowledges the underlying driver has no transaction support. Several smaller robustness and consistency gaps round out the findings below.
+- **CR-01 (timezone anchoring):** `src/domain/time.ts` correctly derives Moscow wall-clock fields via a fixed UTC+3 shift and local-accessor round-trip, `forecastNextPayment` now sources "today" from `nowInMoscow()`, and `forecast.test.ts`'s test 7 concretely proves divergence from an unanchored UTC read across the 21:00–24:00 UTC gap window. Verified correct.
+- **CR-02 / WR-01 (atomic upserts):** `replaceSalaryAt`, `upsertSchedule`, and `upsertYtdBaseline` all now use single-statement `INSERT ... ON CONFLICT ... DO UPDATE` against the correct unique targets, and are exercised by concurrent-write tests in `salary-repository.test.ts`. Verified correct.
+- **WR-02 (gross-split reconciliation):** `halfSplitGross` floors the avans half and gives the remainder to salary, verified by a dedicated property-style test suite in `forecast.test.ts`. Verified correct.
+- **WR-03 (DB check constraints):** `salary_gross_amount_positive` and `ytd_amount_nonnegative` exist and are proven live against Postgres by `schema.test.ts`. Verified correct, but incomplete — see WR-01/WR-02 below, a materially similar gap the same gap-closure plan did not cover.
+- **WR-04 (bracket ordering assertion):** `assertStrictlyAscending` is implemented, wired into `bracketsForYear`'s chokepoint, and unit-tested including the "transposed pair" case. Verified correct.
+- **WR-05 (product metadata):** `src/app/layout.tsx` carries real title/description metadata. Verified correct.
+
+New issues found during this pass, independent of the prior review: one input-validation gap that lets ordinary form input trigger an unhandled server exception instead of a graceful validation message (Critical), and four quality/robustness gaps in the DB schema and repository layer that partially undercut the very defense-in-depth pattern WR-03 established.
 
 ## Critical Issues
 
-### CR-01: No explicit timezone anchor — "today" is computed inconsistently and can be off by a calendar day near midnight in Russia
+### CR-01: Sub-half-kopeck gross salary input passes Zod validation but violates the DB check constraint, crashing the Server Action
 
-**File:** `src/app/actions/forecast.ts:98`
-**Also affects:** `src/app/(app)/onboarding/page.tsx:13`, `src/app/(app)/settings/salary/page.tsx:16`, `src/components/pay-setup-forms.tsx:55`, `src/app/actions/salary.ts:151`, `src/lib/db/salary-repository.ts:181`
+**File:** `src/lib/validation/salary.ts:50-56`, `src/app/actions/salary.ts:71-99`, `src/lib/db/schema.ts:37`
 
-**Issue:** This is a RU-only PWA (per CLAUDE.md: "Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты") whose single most important number is "the date and amount of the next payment," yet no file anywhere in the reviewed set anchors "today" to `Europe/Moscow`. Two distinct incorrect patterns are used interchangeably:
+**Issue:** `salaryInputSchema.grossRubles` only requires `gt(0, ...)` at ruble precision. `rublesToKopecks` (`src/domain/money.ts:21-23`) converts via `Math.round(rubles * 100)`. Any value in the open interval `(0, 0.005)` rubles — e.g. a user typing `0.001` — passes the `gt(0)` check but rounds to **0 kopecks** (`Math.round(0.1) === 0`). Because both `SalaryForm` and `ScheduleForm`/`YtdForm` render their `<form>` with `noValidate`, the browser's native `type="number" step="0.01"` constraint is explicitly disabled, so nothing stops this value from reaching `saveSalaryAction`.
 
-1. `forecast.ts:98` passes a bare `new Date()` into `nextPaymentOnOrAfter`, which then reads `getFullYear()/getMonth()/getDate()` off it (`resolve-payment-date.ts:85-91,113-119`). Those accessors return the **server process's local timezone**, which is unset/undefined on typical serverless (Vercel) deployments and defaults to UTC. Moscow is UTC+3, so for the first ~3 hours of every Moscow calendar day, the server still believes it is "yesterday" — a payment scheduled for "today" (MSK) will not yet be considered due, and a payment that was actually paid yesterday (MSK) may still be reported as the upcoming one.
-2. `onboarding/page.tsx:13`, `settings/salary/page.tsx:16`, and `pay-setup-forms.tsx:55` all compute `new Date().toISOString().slice(0, 10)`. `toISOString()` is **always UTC**, regardless of server configuration — this is wrong on every deployment, not just misconfigured ones. Near midnight MSK (21:00–24:00 UTC = 00:00–03:00 MSK the next day), this yields **yesterday's** date, so `getActiveSalaryAt(userId, today)` on the settings page can show the previous salary as "active" and the salary-entry date picker defaults to the wrong day, for the first three hours of every new day in Russia.
+`saveSalaryAction` then calls `replaceSalaryAt(userId, 0, effectiveFrom)` with no `try/catch`. The `salary_history` table's `salary_gross_amount_positive` check constraint (`grossAmountKopecks > 0`) rejects the insert at the database, and Postgres throws. That exception propagates uncaught out of the Server Action.
 
-Compounding this: `skipYtdBaselineAction` (`salary.ts:151`) and `defaultYtdBaseline` (`salary-repository.ts:181`) both use `new Date().getFullYear()`, which is subject to the same class of bug at the Dec 31/Jan 1 boundary — a user skipping YTD entry at 23:30 MSK on Dec 31 (20:30 UTC, still "this year" in UTC) gets a baseline dated to the correct year, but the same call at 00:30 MSK on Jan 1 (21:30 UTC Dec 31, still "last year" in UTC) would date the baseline to the *previous* year, mis-seeding the cumulative-tax baseline for the new tax year.
+On the client, `pay-setup-forms.tsx`'s `submit()` (`src/components/pay-setup-forms.tsx:80-99`) also has no `try/catch` around `await saveSalaryAction(...)`, so the rejection surfaces as an unhandled promise rejection inside react-hook-form's `handleSubmit` wrapper instead of the intended `setServerError(...)` field-level message. The net effect: a plausible, non-malicious user input (a typo like `0.001` instead of `1000`) produces a hard, ungraceful failure instead of "Оклад должен быть больше нуля" or similar — exactly the failure mode the DB constraint (WR-03) and the Zod schema were both meant to prevent gracefully.
 
-**Fix:** Introduce a single `today()`/`nowInMoscow()` helper (e.g. via `date-fns-tz`'s `toZonedTime(new Date(), "Europe/Moscow")`, or a hand-rolled UTC+3 offset since Russia does not observe DST) and route every "what is today" computation in the app through it, replacing both the `toISOString().slice(0,10)` pattern and the bare `new Date()` passed to `nextPaymentOnOrAfter`.
-
+**Fix:** Align the validation boundary with the actual persisted precision — reject values that round to zero kopecks, and/or add a `try/catch` around the repository call so a constraint violation degrades to a field error instead of an unhandled throw:
 ```ts
-// src/domain/moscow-time.ts (new)
-import { toZonedTime, format as formatTz } from "date-fns-tz";
-
-const MOSCOW_TZ = "Europe/Moscow";
-
-export function nowInMoscow(): Date {
-  return toZonedTime(new Date(), MOSCOW_TZ);
-}
-
-export function todayIsoInMoscow(): string {
-  return formatTz(nowInMoscow(), "yyyy-MM-dd", { timeZone: MOSCOW_TZ });
-}
+// src/lib/validation/salary.ts
+export const salaryInputSchema = z.object({
+  grossRubles: z.coerce
+    .number({ error: "Оклад должен быть числом" })
+    .gt(0, "Оклад должен быть больше нуля")
+    .max(MAX_RUBLES, "Оклад превышает допустимый максимум")
+    .refine((v) => Math.round(v * 100) > 0, {
+      message: "Оклад должен быть не меньше одной копейки",
+    }),
+  effectiveFrom: isoDateString,
+});
 ```
-
----
-
-### CR-02: `replaceSalaryAt` can permanently lose a user's salary row on partial failure (non-atomic delete-then-insert)
-
-**File:** `src/lib/db/salary-repository.ts:101-120`
-**Also affects:** `src/app/actions/salary.ts:74-84` (check-then-write race)
-
-**Issue:** `replaceSalaryAt` deletes the existing row for `(userId, effectiveFrom)` and then inserts the replacement as two sequential, non-transactional statements (the comment at lines 96-99 explicitly acknowledges the Neon HTTP driver doesn't support interactive transactions). If the `delete` succeeds and the subsequent `insert` throws for any reason — a dropped connection, a transient Neon error, a future DB-level constraint the app-level Zod validation didn't anticipate — the user's previously-saved salary row for that date is gone and nothing is written in its place. The thrown error propagates to `saveSalaryAction` uncaught, so the user sees a generic failure with no indication their data was just deleted. This is a genuine, unrecoverable data-loss path, not merely a theoretical concurrency edge case — Neon's HTTP driver is documented to be more failure-prone across network boundaries than a persistent connection, which is exactly the situation this two-step write runs under on every call.
-
-This compounds with the check-then-write race in `saveSalaryAction`: `findSalaryAt` (existence check) and `replaceSalaryAt` (delete+insert) are two separate round trips with no locking between them, so two near-simultaneous submissions (double-click, or the same user editing from two devices — explicitly a supported scenario per this project's "cloud sync between devices" core constraint) can both observe "no existing row," both proceed to write, and the confirmation-required UX (D-14) never fires for either, silently discarding whichever write lands second.
-
-**Fix:** At minimum, wrap the delete+insert in a single `INSERT ... ON CONFLICT (user_id, effective_from) DO UPDATE SET gross_amount_kopecks = excluded.gross_amount_kopecks` using the existing `salary_history_user_effective_from_uq` unique index — this makes the replace atomic and removes the partial-failure window entirely, without requiring interactive-transaction support:
-
 ```ts
-export async function replaceSalaryAt(
-  userId: string,
-  grossAmountKopecks: number,
-  effectiveFrom: string,
-): Promise<SalaryHistoryRow> {
-  const [row] = await db
-    .insert(salaryHistory)
-    .values({ userId, grossAmountKopecks, effectiveFrom })
-    .onConflictDoUpdate({
-      target: [salaryHistory.userId, salaryHistory.effectiveFrom],
-      set: { grossAmountKopecks },
-    })
-    .returning();
-  if (!row) throw new Error("replaceSalaryAt: upsert returned no row");
-  return row;
+// src/app/actions/salary.ts — defense in depth in case of any other future bypass
+try {
+  await replaceSalaryAt(userId, rublesToKopecks(grossRubles), effectiveFrom);
+} catch (err) {
+  return { success: false, fieldErrors: { grossRubles: ["Не удалось сохранить оклад."] } };
 }
 ```
 
 ## Warnings
 
-### WR-01: `upsertSchedule` / `upsertYtdBaseline` use a select-then-branch pattern that races under concurrent writes
+### WR-01: `payment_schedule` has no DB-level constraint enforcing `avansDay !== salaryDay`
 
-**File:** `src/lib/db/salary-repository.ts:141-173, 212-248`
-**Issue:** Both functions `SELECT` to check for an existing row, then conditionally `UPDATE` or `INSERT` based on that result — two round trips with no locking. Two concurrent calls for the same `userId` (e.g. the same user submitting the schedule form from two open tabs/devices, which is explicitly this app's target usage pattern per the "cloud sync between devices" core constraint) can both see "no existing row" and both attempt `INSERT`, and the second insert throws a primary-key violation that propagates uncaught to the Server Action caller as an opaque 500-style failure instead of the intended "just save my current value" upsert behavior.
-**Fix:** Use Drizzle's `onConflictDoUpdate` against the primary key, matching the pattern suggested in CR-02:
+**File:** `src/lib/db/schema.ts:44-58`
+
+**Issue:** `scheduleInputSchema` (`src/lib/validation/salary.ts:62-78`) refines that `avansDay !== salaryDay`, but this invariant exists only at the Zod layer. `schema.ts`'s `paymentSchedule` table only checks each day is in `[1, 31]` independently — there is no `CHECK (avans_day <> salary_day)`. `schema.test.ts` already demonstrates, for the sibling positive/non-negative constraints, that a writer can and does bypass the Server Action / Zod layer entirely and write straight through Drizzle. Under that same bypass, a degenerate single-day schedule (`avansDay === salaryDay`) can be persisted, silently defeating the avans/salary split the rest of the domain logic (`resolve-payment-date.ts`, `pay-gap.ts`) assumes is meaningful.
+
+**Fix:** Add the same style of check constraint used for `salary_gross_amount_positive`/`ytd_amount_nonnegative`:
 ```ts
-const [row] = await db
-  .insert(paymentSchedule)
-  .values({ userId, avansDay, salaryDay })
-  .onConflictDoUpdate({ target: paymentSchedule.userId, set: { avansDay, salaryDay, updatedAt: new Date() } })
-  .returning();
+(table) => [
+  check("avans_day_range", sql`${table.avansDay} >= 1 AND ${table.avansDay} <= 31`),
+  check("salary_day_range", sql`${table.salaryDay} >= 1 AND ${table.salaryDay} <= 31`),
+  check("avans_salary_day_distinct", sql`${table.avansDay} <> ${table.salaryDay}`),
+],
 ```
 
-### WR-02: `halfSplitGross` rounds each half independently, so avans + salary don't always reconcile to the monthly gross
+### WR-02: bigint "number"-mode money columns have no upper-bound check, unlike their lower-bound siblings
 
-**File:** `src/app/actions/forecast.ts:74-83`
-**Issue:** The doc comment claims "the annual total across twelve months is always `oklad * 12`," but `halfSplitGross` computes `Math.round(monthlyGrossKopecks / 2)` independently for whichever payment is being forecast — it is not told "this is the first half" vs "this is the second half." For a gross amount with an odd kopeck count (fully reachable: the salary form accepts two decimal places, e.g. `100000.01` ₽ → `10_000_001` kopecks), `Math.round(10_000_001 / 2) = Math.round(5_000_000.5) = 5_000_001` — both the avans and the salary payment independently round to `5_000_001`, summing to `10_000_002`, one kopeck more than the actual monthly gross of `10_000_001`. This is the exact class of drift the tax engine's own doc comments elsewhere (`calculate-ndfl.ts:6-11`) go out of their way to warn against ("never round each payment's tax independently, which would compound rounding drift"), applied here to gross instead of tax.
-**Fix:** Make the split explicit and reconciling — e.g. avans gets `Math.floor(gross / 2)` and salary gets `gross - Math.floor(gross / 2)` (or vice versa, consistently), so the two halves always sum to exactly `gross` regardless of parity:
+**File:** `src/lib/db/schema.ts:28`, `:69`
+
+**Issue:** `grossAmountKopecks` and `amountKopecks` are declared `bigint(..., { mode: "number" })`. Drizzle's `mode: "number"` decodes the Postgres `bigint` value into a native JS `number`, which silently loses precision above `Number.MAX_SAFE_INTEGER` (2^53 − 1) rather than erroring. The application-level ceiling (`MAX_RUBLES = 100_000_000` in `src/lib/validation/salary.ts:36`) only bounds writes that go through the Zod-validated Server Actions. `schema.test.ts`'s own module comment states the check constraints exist specifically "to protect against future writers that never pass through a Server Action" — but only the lower bound got that protection. A write that bypasses Zod (exactly the pattern `schema.test.ts` itself exercises) can insert a `bigint` value beyond safe-integer range and get it silently corrupted on every subsequent read.
+
+**Fix:** Add a matching upper-bound check, mirroring the app's own ceiling:
 ```ts
-function halfSplitGross(monthlyGrossKopecks: Kopecks, kind: PaymentKind): Kopecks {
-  const avansShare = Math.floor(monthlyGrossKopecks / 2);
-  return kind === "avans" ? avansShare : monthlyGrossKopecks - avansShare;
-}
+check("salary_gross_amount_bounded", sql`${table.grossAmountKopecks} <= 10000000000`), // 100,000,000 RUB in kopecks
+```
+(and similarly for `ytd_baseline.amount_kopecks`).
+
+### WR-03: `replaceSalaryAt` overwrites `created_at` on every conflict-update, destroying the row's true creation time
+
+**File:** `src/lib/db/salary-repository.ts:107-126`
+
+**Issue:** `replaceSalaryAt`'s `onConflictDoUpdate` sets `{ grossAmountKopecks, createdAt: new Date() }`. Unlike `payment_schedule` and `ytd_baseline`, `salary_history` has no separate `updatedAt` column (`src/lib/db/schema.ts:19-39`) — `createdAt` is the only timestamp, and this code repurposes it as a de-facto "last written at" on every D-14 overwrite. That means the column's name no longer matches its semantics: after two writes to the same `(user, effectiveFrom)`, `createdAt` reflects the second write's time, not when the row was first created. This isn't used by any current query, but it is a real latent-data-integrity/naming defect that will confuse anyone using this column for audit or debugging later (and is inconsistent with the `updatedAt` pattern used everywhere else in this same file for the exact same "record when a write happened" need).
+
+**Fix:** Either add a real `updatedAt` column to `salary_history` and stop touching `createdAt` on update, or explicitly omit `createdAt` from the `set` clause so it's only assigned by `defaultNow()` on the original insert:
+```ts
+.onConflictDoUpdate({
+  target: [salaryHistory.userId, salaryHistory.effectiveFrom],
+  set: { grossAmountKopecks }, // do not touch createdAt on update
+})
 ```
 
-### WR-03: `salary_history.gross_amount_kopecks` and `ytd_baseline.amount_kopecks` have no DB-level positivity check, unlike `payment_schedule`
+### WR-04: `effectiveFrom`/`asOfDate` are never bounded relative to "today", so a future-dated YTD baseline silently produces a nonsensical cumulative figure once Phase 2/3 add dated income events
 
-**File:** `src/lib/db/schema.ts:19-38, 62-70` (contrast with the `check(...)` constraints at `43-57`)
-**Issue:** `payment_schedule` enforces `avans_day`/`salary_day` in `[1, 31]` at the database layer via `check()`. `salary_history.grossAmountKopecks` and `ytd_baseline.amountKopecks` have no equivalent constraint (e.g. `> 0` and `>= 0` respectively), relying entirely on the Zod schemas in `src/lib/validation/salary.ts` to keep bad values out. Since the app's own module docs explicitly worry about defense-in-depth for money values (see the "ownership predicate stays uniform" reasoning in `salary-repository.ts:19-21`), the same reasoning applies to value bounds — any future code path that writes to these tables outside `saveSalaryAction`/`saveYtdBaselineAction` (a migration script, an admin tool, a Phase 2/3 feature) has no backstop against a negative or nonsensical amount reaching the tax engine.
-**Fix:** Add matching `check()` constraints, e.g. `check("gross_amount_positive", sql`${table.grossAmountKopecks} > 0`)` and `check("ytd_amount_nonnegative", sql`${table.amountKopecks} >= 0`)`.
+**File:** `src/lib/validation/salary.ts:39-44, 84-90`, `src/lib/db/salary-repository.ts:267-274`
 
-### WR-04: НДФЛ bracket selection assumes `NDFL_SCALES` entries are ascending-sorted with no runtime assertion
+**Issue:** `isoDateString` only validates format and calendar-validity, not ordering relative to "today". Nothing stops a user from saving a YTD baseline `asOfDate` in the future (e.g. next year). Currently this is inert because `getCumulativeIncomeBeforeDate`'s `sumAdditionalIncomeEventsBetween` is hardcoded to `0` (Phase 1 has no dated income events yet), so the `isoDate`/`asOfDate` relationship is never actually checked against anything. But the function's own doc comment explicitly plans for Phase 2/3 to turn this into a real `baseline.asOfDate < event.date <= isoDate` window query — at that point, an unvalidated future `asOfDate` (or a `asOfDate` that ends up after a resolved payment's date) will produce either double-counted or negative-window income sums with no error, since nothing today establishes the invariant "`asOfDate` must be on or before the date it's used as a baseline for."
 
-**File:** `src/domain/tax/calculate-ndfl.ts:45-62`, `src/domain/tax/ndfl-brackets.ts:41-57`
-**Issue:** `taxOnCumulative`'s bracket-selection loop (`for (const candidate of brackets) { if (cumulative >= candidate.fromKopecks) bracket = candidate; else break; }`) is only correct if `brackets` is sorted ascending by `fromKopecks` — true today by construction of the single hand-written `NDFL_SCALE_2025` array, but nothing enforces it. This codebase is otherwise unusually careful about failing loudly instead of silently computing a wrong number (`UnsupportedTaxYearError`'s entire reason for existing, per `ndfl-brackets.ts:12-14`); a future annual bracket update that appends an out-of-order or mistyped threshold to a new `NDFL_SCALES` entry would silently select the wrong bracket rather than throw, exactly the failure mode this module otherwise goes to lengths to avoid.
-**Fix:** Assert sortedness once, e.g. in `bracketsForYear` after lookup, or in a module-level self-check over `NDFL_SCALES`:
+**Fix:** Bound `asOfDate` (and arguably `effectiveFrom`, though D-13 explicitly wants past dates permitted there) to not exceed `todayIsoInMoscow()`:
 ```ts
-function assertAscending(brackets: readonly NdflBracket[]): void {
-  for (let i = 1; i < brackets.length; i++) {
-    if (brackets[i].fromKopecks <= brackets[i - 1].fromKopecks) {
-      throw new Error(`NDFL bracket scale is not strictly ascending at index ${i}`);
-    }
-  }
-}
-```
-
-### WR-05: Root layout still ships `create-next-app`'s scaffold metadata in production
-
-**File:** `src/app/layout.tsx:15-18`
-**Issue:** `metadata.title` is `"Create Next App"` and `metadata.description` is `"Generated by create next app"` — this is the unmodified `create-next-app` scaffold, not the product's actual name ("НаРуки"). This is user-visible in the browser tab, in social/link previews, and (once a PWA manifest and `apple-mobile-web-app-title` are wired up per the stack's Serwist plan) as the name shown when a user adds the app to their iPhone home screen — a core requirement of this project per CLAUDE.md's PWA constraint.
-**Fix:**
-```ts
-export const metadata: Metadata = {
-  title: "НаРуки",
-  description: "Расчёт и прогноз зарплаты «на руки» с учётом НДФЛ",
-};
+export const ytdBaselineInputSchema = z.object({
+  amountRubles: z.coerce.number(...).min(0, ...).max(MAX_RUBLES, ...),
+  asOfDate: isoDateString.refine((v) => v <= todayIsoInMoscow(), {
+    message: "Дата не может быть в будущем",
+  }),
+});
 ```
 
 ## Info
 
-### IN-01: `NEXT_PUBLIC_BETTER_AUTH_URL` is read via raw `process.env`, undocumented and unvalidated
+### IN-01: `formatKopecks` rounding strategy is inconsistent with the codebase's own documented ст.52 rounding rule
 
-**File:** `src/lib/auth-client.ts:7`, `.env.example:1-3`
-**Issue:** `authClient` reads `process.env.NEXT_PUBLIC_BETTER_AUTH_URL` directly rather than through `src/env.ts`'s `@t3-oss/env-nextjs` schema (which only declares `DATABASE_URL`/`BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`, all server-only). This variable also isn't listed in `.env.example`, so a deployment that needs a client baseURL different from same-origin (e.g. a separate API subdomain) has no discoverable place to configure it, and a typo'd value would fail silently rather than at startup like the other three env vars.
-**Fix:** Add a `client` block to `createEnv` in `src/env.ts` declaring `NEXT_PUBLIC_BETTER_AUTH_URL` as optional, and document it in `.env.example` with a comment noting the same-origin fallback.
+**File:** `src/domain/money.ts:35-42`
 
-### IN-02: `bigint(... mode: "number")` kopeck columns have no runtime bound against `Number.MAX_SAFE_INTEGER`
+**Issue:** `roundToRuble` in `calculate-ndfl.ts` deliberately implements a specific "add 50, integer-divide" half-up rounding rule to match ст.52 НК РФ and to avoid floating-point tie-break ambiguity. `formatKopecks`, however, formats arbitrary (non-ruble-exact) figures like `forecast.grossKopecks`/`forecast.netKopecks` (which are not always multiples of 100 — see `halfSplitGross`'s odd-kopeck remainder) via `Intl.NumberFormat(..., { maximumFractionDigits: 0 })`, whose rounding behavior is engine/locale-defined and not guaranteed to match `roundToRuble`'s explicit rule. The discrepancy is at most half a kopeck and currently unlikely to be visible, but it's a latent inconsistency between the two money-rounding code paths in the same app.
 
-**File:** `src/lib/db/schema.ts:28, 66`
-**Issue:** `grossAmountKopecks` and `ytdBaseline.amountKopecks` are stored as Postgres `bigint` (correctly sized to avoid the 32-bit overflow the comment calls out) but read back into JS as `mode: "number"`. Currently safe because `MAX_RUBLES = 100_000_000` in `src/lib/validation/salary.ts` caps every write well under `Number.MAX_SAFE_INTEGER`, but there is no assertion tying that cap to the column's safe range — if `MAX_RUBLES` is ever raised without revisiting this, values could silently lose precision on read instead of failing loudly.
-**Fix:** A code comment cross-referencing `MAX_RUBLES` in `schema.ts`, or a shared constant, would keep the two in sync; not urgent given the current cap.
+**Fix:** Route `formatKopecks`'s input through `roundToRuble` before formatting, so both display and tax rounding follow one rule.
 
-### IN-03: Hardcoded test credential in a dev-only script
+### IN-02: `SalaryForm.onConfirmReplace` bypasses `handleSubmit`/Zod validation and can act on a stale confirmation banner
 
-**File:** `scripts/verify-auth-flow.mjs:53`
-**Issue:** `const password = "correct-horse-battery-staple-1";` is a hardcoded plaintext credential. Low risk since this script is not shipped to production and only exercises throwaway, randomly-suffixed email accounts against a dev/test database, but flagging per standard hygiene — hardcoded credentials are easy to accidentally reuse or copy-paste into a context where they matter.
-**Fix:** Generate the password alongside the unique email (`` `pw-${randomUUID()}` ``) for defense-in-depth, though not blocking.
+**File:** `src/components/pay-setup-forms.tsx:105-107, 142-158`
+
+**Issue:** `onConfirmReplace` calls `submit(getValues(), true)` directly instead of going through `handleSubmit`, so if the user edits `grossRubles`/`effectiveFrom` after the confirmation banner appears (without resubmitting normally first), the edited-but-unvalidated values are sent straight to the server. The server does re-validate via Zod, so no bad data reaches the DB, but client-side field errors are skipped for that path, and the visible `pendingConfirmation` text (which existing amount/date triggered the prompt) can be stale relative to what's actually about to be written.
+
+**Fix:** Re-run `handleSubmit((values) => submit(values, true))()` from the confirm button instead of reading `getValues()` directly, so the same validation path applies on both submit routes.
+
+### IN-03: No redirect-away for an already-authenticated user visiting `/login` or `/register`
+
+**File:** `src/app/(auth)/login/page.tsx`, `src/app/(auth)/register/page.tsx`
+
+**Issue:** `(app)/layout.tsx` redirects an unauthenticated user away from the app to `/login`, but there is no equivalent guard the other direction — a signed-in user who navigates to `/login`/`/register` (e.g. via a stale bookmark or back-button) simply sees the auth forms again with no automatic redirect to `/`.
+
+**Fix:** Add a lightweight session check at the top of both pages (or a small `(auth)/layout.tsx`) that redirects to `/` when `getSessionUser()` already returns a user.
+
+### IN-04: `NEXT_PUBLIC_BETTER_AUTH_URL` is read via raw `process.env` outside the `@t3-oss/env-nextjs` schema
+
+**File:** `src/lib/auth-client.ts:7`
+
+**Issue:** `src/env.ts` validates `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL` via `createEnv`, specifically to catch a missing/malformed env var at build/boot time rather than at first use. `auth-client.ts` reads `process.env.NEXT_PUBLIC_BETTER_AUTH_URL` directly, bypassing that safety net entirely — a typo in the variable name would silently fall back to `undefined` (and then to the current origin) with no validation error, exactly the class of bug `@t3-oss/env-nextjs` was added to prevent.
+
+**Fix:** Add a `client` block to `src/env.ts` for `NEXT_PUBLIC_BETTER_AUTH_URL` (optional, `z.string().url().optional()`) and import `env.NEXT_PUBLIC_BETTER_AUTH_URL` in `auth-client.ts` instead of touching `process.env` directly.
+
+### IN-05: `forecast.test.ts` tests 1–6 compare against a live (non-frozen) `nowInMoscow()`, creating a rare midnight-boundary flake risk
+
+**File:** `src/app/actions/forecast.test.ts:75-177`
+
+**Issue:** Only test 7 freezes the clock (`vi.useFakeTimers()`); tests 1–6 call `nextPaymentOnOrAfter(schedule, nowInMoscow())` as the "expected" value at assertion time, separately from whatever instant `forecastNextPayment` itself observed a few lines earlier. If a run happens to straddle a Moscow-midnight (or a payment-date) boundary between the two calls, the two independently-computed "today"s could disagree, producing a rare, timing-dependent test failure unrelated to any actual code defect.
+
+**Fix:** Freeze the clock in these tests too (matching the convention `time.test.ts` and `forecast.test.ts` test 7 already establish), so the "expected" and "actual" computations are guaranteed to observe the same instant.
 
 ---
 
-_Reviewed: 2026-08-28T21:06:56Z_
+_Reviewed: 2026-08-29T09:04:06Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
