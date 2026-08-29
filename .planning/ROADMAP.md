@@ -21,7 +21,7 @@ built by phases 1-3.
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Core Payroll Loop** - User registers, enters salary and payment schedule, and sees a correctly-taxed next-payment amount on the home screen
+- [x] **Phase 1: Core Payroll Loop** - User registers, enters salary and payment schedule, and sees a correctly-taxed next-payment amount on the home screen (completed 2026-08-29)
 - [ ] **Phase 2: Bonuses & One-off Payments** - User adds a one-off premium/compensation that is taxed through the same cumulative НДФЛ engine
 - [ ] **Phase 3: Vacation Pay** - User enters vacation dates and sees auto-calculated отпускные per ст.139 ТК РФ
 - [ ] **Phase 4: Annual Overview & PWA Installability** - User sees the full-year gross/tax/net pie chart and can install the app to their iPhone home screen
@@ -102,7 +102,17 @@ Plans:
   2. The bonus amount is added to cumulative year-to-date income and taxed through the same progressive НДФЛ mechanism as regular salary, correctly changing the take-home amount for that payment (BON-02)
   3. If the bonus lands on the next upcoming payment date, the home screen's next-payment amount reflects it
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — Tracer: bonus creation flows through the cumulative НДФЛ engine into the next-payment forecast (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 02-02-PLAN.md — Edit/delete a bonus (D-B04/D-B06) and the full UI-SPEC-compliant history list (wave 2)
+
 **UI hint**: yes
 
 ### Phase 3: Vacation Pay
@@ -144,7 +154,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Payroll Loop | 12/12 | In Progress|  |
-| 2. Bonuses & One-off Payments | 0/TBD | Not started | - |
+| 1. Core Payroll Loop | 12/12 | Complete    | 2026-08-29 |
+| 2. Bonuses & One-off Payments | 0/2 | Not started | - |
 | 3. Vacation Pay | 0/TBD | Not started | - |
 | 4. Annual Overview & PWA Installability | 0/TBD | Not started | - |
