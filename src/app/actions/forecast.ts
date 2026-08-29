@@ -41,6 +41,7 @@ import { format } from "date-fns";
 import type { Kopecks } from "@/domain/money";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
 import { nextPaymentOnOrAfter, type PaymentKind } from "@/domain/schedule/resolve-payment-date";
+import { nowInMoscow } from "@/domain/time";
 import {
   getActiveSalaryAt,
   getCumulativeIncomeBeforeDate,
@@ -95,7 +96,7 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
 
   const paymentEvent = nextPaymentOnOrAfter(
     { avansDay: schedule.avansDay, salaryDay: schedule.salaryDay },
-    new Date(),
+    nowInMoscow(),
   );
   if (!paymentEvent) {
     return { configured: false, missing: "schedule" };

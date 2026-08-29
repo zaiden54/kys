@@ -9,7 +9,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { format } from "date-fns";
 import { db } from "@/lib/db";
@@ -21,6 +21,7 @@ import {
 } from "@/lib/db/salary-repository";
 import { nextPaymentOnOrAfter } from "@/domain/schedule/resolve-payment-date";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
+import { nowInMoscow } from "@/domain/time";
 import { forecastNextPayment } from "@/app/actions/forecast";
 
 async function createThrowawayUser(): Promise<string> {
@@ -56,7 +57,7 @@ describe("forecastNextPayment", () => {
     expect(result.configured).toBe(true);
     if (!result.configured) throw new Error("expected a configured result");
 
-    const expectedEvent = nextPaymentOnOrAfter({ avansDay: 10, salaryDay: 25 }, new Date());
+    const expectedEvent = nextPaymentOnOrAfter({ avansDay: 10, salaryDay: 25 }, nowInMoscow());
     expect(expectedEvent).not.toBeNull();
     const expectedDateIso = format(expectedEvent!.date, "yyyy-MM-dd");
     expect(result.forecast.date).toBe(expectedDateIso);
@@ -99,7 +100,7 @@ describe("forecastNextPayment", () => {
     if (!result.configured) throw new Error("expected a configured result");
     expect(result.forecast.baselineIsEstimated).toBe(true);
 
-    const expectedEvent = nextPaymentOnOrAfter({ avansDay: 10, salaryDay: 25 }, new Date());
+    const expectedEvent = nextPaymentOnOrAfter({ avansDay: 10, salaryDay: 25 }, nowInMoscow());
     const expectedGrossKopecks = Math.round(100_000_00 / 2);
     const expectedTax = calculateNdfl(0, expectedGrossKopecks, expectedEvent!.date.getFullYear()).taxKopecks;
     expect(result.forecast.taxKopecks).toBe(expectedTax);
@@ -149,5 +150,50 @@ describe("forecastNextPayment", () => {
     if (!result.configured) throw new Error("expected a configured result");
 
     expect(result.forecast.grossKopecks).toBe(Math.round(80_000_00 / 2));
+  });
+
+  it("(7) with the clock frozen inside the 21:00-24:00 UTC gap window, the forecast resolves against the Moscow calendar day, not an unanchored one (closes 01-VERIFICATION.md gap 2 / CR-01)", async () => {
+    // 2026-06-15T22:00:00Z is 2026-06-16 01:00 in Moscow (UTC+3): Moscow has
+    // already turned the calendar page while an unanchored UTC-host read
+    // would still say "today is the 15th."
+    const frozenInstant = new Date("2026-06-15T22:00:00Z");
+    const schedule = { avansDay: 15, salaryDay: 16 };
+    const originalTz = process.env.TZ;
+
+    vi.useFakeTimers();
+    vi.setSystemTime(frozenInstant);
+    try {
+      await replaceSalaryAt(userAId, 100_000_00, "2020-01-01");
+      await upsertSchedule(userAId, schedule.avansDay, schedule.salaryDay);
+      await upsertYtdBaseline(userAId, 0, "2026-01-01", false);
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected a configured result");
+
+      // Moscow-anchored answer: today is already the 16th in Moscow, so the
+      // 15th's avans is in the past and the earliest eligible event is the
+      // 16th's salary — matches nextPaymentOnOrAfter(schedule, nowInMoscow()).
+      const moscowExpected = nextPaymentOnOrAfter(schedule, nowInMoscow());
+      expect(moscowExpected).not.toBeNull();
+      expect(result.forecast.date).toBe(format(moscowExpected!.date, "yyyy-MM-dd"));
+      expect(result.forecast.date).toBe("2026-06-16");
+      expect(result.forecast.kind).toBe("salary");
+
+      // Prove this genuinely differs from what the previously unanchored
+      // current-time source would have produced on a UTC-configured host:
+      // under TZ=UTC, the frozen instant's local fields still read the 15th,
+      // so the 15th's avans would still be eligible.
+      process.env.TZ = "UTC";
+      const unanchoredEvent = nextPaymentOnOrAfter(schedule, frozenInstant);
+      expect(unanchoredEvent).not.toBeNull();
+      const unanchoredDateIso = format(unanchoredEvent!.date, "yyyy-MM-dd");
+      expect(unanchoredDateIso).toBe("2026-06-15");
+      expect(unanchoredEvent!.kind).toBe("avans");
+      expect(result.forecast.date).not.toBe(unanchoredDateIso);
+    } finally {
+      process.env.TZ = originalTz;
+      vi.useRealTimers();
+    }
   });
 });
