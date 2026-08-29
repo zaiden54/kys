@@ -182,10 +182,62 @@ describe("salary-repository", () => {
   it("getCumulativeIncomeBeforeDate equals the stored baseline amount for a user with a baseline, and zero for one without", async () => {
     await upsertYtdBaseline(userAId, 1_200_000_00, "2026-01-01", false);
 
-    const withBaseline = await getCumulativeIncomeBeforeDate(userAId, "2026-06-01");
+    const withBaseline = await getCumulativeIncomeBeforeDate(userAId, "2026-06-01", "avans");
     expect(withBaseline).toBe(1_200_000_00);
 
-    const withoutBaseline = await getCumulativeIncomeBeforeDate(userBId, "2026-06-01");
+    const withoutBaseline = await getCumulativeIncomeBeforeDate(userBId, "2026-06-01", "avans");
     expect(withoutBaseline).toBe(0);
+  });
+
+  // Task 3 (01-10): getCumulativeIncomeBeforeDate composed with the real
+  // accrual engine, database-backed. Schedule avansDay=15/salaryDay=28
+  // resolves cleanly within its own nominal month throughout 2026 and early
+  // 2027 (no weekend/holiday boundary shifting), confirmed via a throwaway
+  // Node check against date-holidays@3.36.0 (see 01-10-SUMMARY.md).
+
+  it("a mid-year confirmed baseline plus accrued events exceeds the baseline for a later date, and equals it exactly at the baseline's own as-of date", async () => {
+    await replaceSalaryAt(userAId, 600_000_00, "2025-01-01");
+    await upsertSchedule(userAId, 15, 28);
+    await upsertYtdBaseline(userAId, 1_000_000_00, "2026-06-30", false);
+
+    const atBaselineDate = await getCumulativeIncomeBeforeDate(userAId, "2026-06-30", "avans");
+    expect(atBaselineDate).toBe(1_000_000_00);
+
+    const later = await getCumulativeIncomeBeforeDate(userAId, "2026-09-04", "salary");
+    expect(later).toBeGreaterThan(1_000_000_00);
+  });
+
+  it("a target date in the following calendar year excludes the baseline entirely and accrues only that year's events", async () => {
+    await replaceSalaryAt(userAId, 600_000_00, "2025-01-01");
+    await upsertSchedule(userAId, 15, 28);
+    await upsertYtdBaseline(userAId, 1_000_000_00, "2026-06-30", false);
+
+    // 2026's baseline no longer applies once the target is in 2027: the
+    // window opens at 2026-12-31 instead, and only 2027's own January
+    // avans+salary events (one full month) accrue before 2027-02-13.
+    const nextYear = await getCumulativeIncomeBeforeDate(userAId, "2027-02-13", "avans");
+    expect(nextYear).toBe(600_000_00);
+  });
+
+  it("a baseline with no payment schedule still returns exactly the baseline amount (deliberate regression coverage)", async () => {
+    await upsertYtdBaseline(userAId, 750_000_00, "2026-03-01", false);
+
+    const result = await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary");
+    expect(result).toBe(750_000_00);
+  });
+
+  it("a second user's schedule, salary rows and baseline never change the first user's cumulative figure", async () => {
+    await replaceSalaryAt(userAId, 600_000_00, "2025-01-01");
+    await upsertSchedule(userAId, 15, 28);
+    await upsertYtdBaseline(userAId, 1_000_000_00, "2026-06-30", false);
+
+    const before = await getCumulativeIncomeBeforeDate(userAId, "2026-09-04", "salary");
+
+    await replaceSalaryAt(userBId, 5_000_000_00, "2025-01-01");
+    await upsertSchedule(userBId, 1, 16);
+    await upsertYtdBaseline(userBId, 9_000_000_00, "2026-01-01", false);
+
+    const after = await getCumulativeIncomeBeforeDate(userAId, "2026-09-04", "salary");
+    expect(after).toBe(before);
   });
 });
