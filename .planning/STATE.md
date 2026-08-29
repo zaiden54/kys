@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 current_phase: 01
 current_phase_name: Core Payroll Loop
 status: executing
-stopped_at: Completed 01-09-PLAN.md
-last_updated: "2026-08-29T13:56:49.512Z"
+stopped_at: Completed 01-10-PLAN.md
+last_updated: "2026-08-29T14:29:38.450Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 01 execution started
-state_head: d25201b76626ca52ba8de2ff559b9fd050877b0d
+state_head: dc87d788236d75c42e15877d4a9691559309206d
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 ## Current Position
 
-Phase: 01 (Core Payroll Loop) — READY TO EXECUTE
-Plan: 9 of 9
+Phase: 01 (Core Payroll Loop) — EXECUTING
+Plan: 2 of 12
 Status: Ready to execute
-Last activity: 2026-08-29 — Completed 01-09-PLAN.md
+Last activity: 2026-08-29 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -67,6 +67,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P07 | 15min | 2 tasks | 3 files |
 | Phase 01 P08 | 15min | 3 tasks | 7 files |
 | Phase 01 P09 | 18min | 2 tasks | 6 files |
+| Phase 01 P10 | 40min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work:
 - [Phase 01]: [Phase 01-08]: Added live database check() constraints (salary_gross_amount_positive, ytd_amount_nonnegative) as a second gate behind Zod; applied via drizzle-kit push after confirming zero pre-existing violating rows and a statement list containing only the two expected ADD CONSTRAINT statements
 - [Phase 01]: Phase 01-09: validate salary at persisted precision with Math.round(value * 100) > 0, preserving exact 0.005 rubles as valid
 - [Phase 01]: Phase 01-09: repository and client action failures use fixed generic Russian retry messages without inspecting or exposing caught details
+- [Phase 01]: Phase 01-10: getCumulativeIncomeBeforeDate gained an optional third kind parameter defaulting to "avans", preserving pre-01-10 two-argument call semantics while composing the applicable YTD baseline with a real accrued-event sum from the new pure payment-accrual engine
+- [Phase 01]: Phase 01-10: YtdForm's as-of default is conditioned on isEstimated (today in Moscow for an unconfirmed baseline, the stored date for a confirmed one) rather than literally following the plan's present/absent wording, since both real call sites always pass a defined but stale 1-January defaultAsOfDate for unconfirmed baselines
 
 ### Pending Todos
 
@@ -116,6 +119,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-29T11:16:51.216Z
-Stopped at: Completed 01-09-PLAN.md
+Last session: 2026-08-29T14:29:38.420Z
+Stopped at: Completed 01-10-PLAN.md
 Resume file: None

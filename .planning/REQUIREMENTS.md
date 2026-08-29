@@ -20,8 +20,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Налоговый расчёт (НДФЛ)
 
-- [ ] **TAX-01**: Система рассчитывает НДФЛ по прогрессивной шкале 2025 года (13/15/18/20/22%) нарастающим итогом с начала календарного года
-- [ ] **TAX-02**: Аванс и зарплата обрабатываются как отдельные события получения дохода, каждое облагается налогом относительно накопленной с начала года базы на момент выплаты
+- [x] **TAX-01**: Система рассчитывает НДФЛ по прогрессивной шкале 2025 года (13/15/18/20/22%) нарастающим итогом с начала календарного года
+- [x] **TAX-02**: Аванс и зарплата обрабатываются как отдельные события получения дохода, каждое облагается налогом относительно накопленной с начала года базы на момент выплаты
 
 ### Премии и компенсации
 
@@ -36,7 +36,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Главный экран
 
-- [ ] **HOME-01**: Главный экран показывает сумму и дату ближайшей выплаты
+- [x] **HOME-01**: Главный экран показывает сумму и дату ближайшей выплаты
 - [ ] **HOME-02**: Главный экран показывает годовую pie-диаграмму (грязными / налог / на руки) за текущий календарный год
 
 ### PWA
@@ -88,14 +88,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAL-01 | Phase 1 | Gaps Found |
 | SAL-02 | Phase 1 | Gaps Found |
 | SAL-03 | Phase 1 | Gaps Found |
-| TAX-01 | Phase 1 | Gaps Found |
-| TAX-02 | Phase 1 | Gaps Found |
+| TAX-01 | Phase 1 | Complete |
+| TAX-02 | Phase 1 | Complete |
 | BON-01 | Phase 2 | Pending |
 | BON-02 | Phase 2 | Pending |
 | VAC-01 | Phase 3 | Pending |
 | VAC-02 | Phase 3 | Pending |
 | VAC-03 | Phase 3 | Pending |
-| HOME-01 | Phase 1 | Gaps Found |
+| HOME-01 | Phase 1 | Complete |
 | HOME-02 | Phase 4 | Pending |
 | PWA-01 | Phase 4 | Pending |
 
