@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-schema";
+import { createBonus } from "@/lib/db/bonus-repository";
 import {
   findSalaryAt,
   getActiveSalaryAt,
@@ -288,6 +289,29 @@ describe("salary-repository", () => {
 
     const result = await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary");
     expect(result).toBe(750_000_00);
+  });
+
+  it("includes bonuses strictly before the target but excludes same-date bonuses", async () => {
+    await createBonus(userAId, 10_000_00, "2026-08-31", "До выплаты");
+    await createBonus(userAId, 99_000_00, "2026-09-01", "В день выплаты");
+    expect(await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary"))
+      .toBe(10_000_00);
+  });
+
+  it("excludes bonuses on or before the applicable baseline boundary", async () => {
+    await upsertYtdBaseline(userAId, 750_000_00, "2026-06-30", false);
+    await createBonus(userAId, 10_000_00, "2026-06-29", "Уже в базе");
+    await createBonus(userAId, 20_000_00, "2026-06-30", "Граница базы");
+    await createBonus(userAId, 30_000_00, "2026-07-01", "После базы");
+    expect(await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary"))
+      .toBe(780_000_00);
+  });
+
+  it("adds bonuses to the baseline even when no payment schedule exists", async () => {
+    await upsertYtdBaseline(userAId, 750_000_00, "2026-03-01", false);
+    await createBonus(userAId, 25_000_00, "2026-04-01", "Без графика");
+    expect(await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary"))
+      .toBe(775_000_00);
   });
 
   it("a second user's schedule, salary rows and baseline never change the first user's cumulative figure", async () => {
