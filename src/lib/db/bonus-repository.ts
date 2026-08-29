@@ -5,7 +5,8 @@ if (typeof window !== "undefined") {
 }
 
 /** Ownership-scoped bonus persistence. This module deliberately logs no money data. */
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gt } from "drizzle-orm";
+import { todayIsoInMoscow } from "@/domain/time";
 import { db } from "@/lib/db";
 import { bonuses } from "@/lib/db/schema";
 
@@ -25,4 +26,42 @@ export async function createBonus(
 
 export async function listBonuses(userId: string): Promise<BonusRow[]> {
   return db.select().from(bonuses).where(eq(bonuses.userId, userId)).orderBy(desc(bonuses.date));
+}
+
+export async function updateBonus(
+  userId: string,
+  bonusId: string,
+  amountKopecks: number,
+  date: string,
+  note: string,
+): Promise<BonusRow | null> {
+  const updated = await db
+    .update(bonuses)
+    .set({ amountKopecks, date, note, updatedAt: new Date() })
+    .where(and(eq(bonuses.id, bonusId), eq(bonuses.userId, userId)))
+    .returning();
+  return updated[0] ?? null;
+}
+
+export async function deleteBonusIfFuture(
+  userId: string,
+  bonusId: string,
+): Promise<{ status: "deleted" } | { status: "blocked" } | { status: "not-found" }> {
+  const deleted = await db
+    .delete(bonuses)
+    .where(
+      and(
+        eq(bonuses.id, bonusId),
+        eq(bonuses.userId, userId),
+        gt(bonuses.date, todayIsoInMoscow()),
+      ),
+    )
+    .returning();
+  if (deleted[0]) return { status: "deleted" };
+  const existing = await db
+    .select({ id: bonuses.id })
+    .from(bonuses)
+    .where(and(eq(bonuses.id, bonusId), eq(bonuses.userId, userId)))
+    .limit(1);
+  return existing[0] ? { status: "blocked" } : { status: "not-found" };
 }
