@@ -41,7 +41,7 @@ created: 2026-08-30
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
 | TBD | TBD | TBD | BON-01 | — | User can add a one-off bonus tied to a date | Integration | `npm test -- bonus.test.ts -t "saveBonusAction"` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | BON-02 | — | Bonus taxed through cumulative НДФЛ; affects take-home for that payment and subsequent payments | Unit + Integration | `npm test -- calculate-ndfl.test.ts -t "bonus"` + `npm test -- payment-accrual.test.ts -t "bonus"` | ❌ W0 | ⬜ pending |
+| TBD | TBD | TBD | BON-02 | — | Bonus taxed through cumulative НДФЛ; affects take-home for that payment and subsequent payments | Unit + Integration | `npm test -- calculate-ndfl.test.ts -t "bonus"` + `npm test -- salary-repository.test.ts -t "bonus"` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | HOME-01 (amended for bonuses) | — | If bonus lands on next payment, next-payment display reflects it (with breakdown per D-B09) | Integration | `npm test -- forecast.test.ts -t "nextPayment.*bonus"` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
@@ -51,7 +51,7 @@ created: 2026-08-30
 
 ## Wave 0 Requirements
 
-- [ ] `src/domain/pay/payment-accrual.test.ts` — extend existing tests to cover bonus events folded into cumulative income
+- [ ] `src/lib/db/salary-repository.test.ts` — extend existing `getCumulativeIncomeBeforeDate` tests to cover bonus events summed into cumulative income (PLAN 02-01 keeps `accruedGrossBetween` unchanged and sums bonus income directly in the repository query instead)
 - [ ] `src/lib/db/bonus-repository.test.ts` — new; CRUD operations, deletion guard, ownership scope
 - [ ] `src/app/actions/bonus.test.ts` — new; saveBonusAction validation and persistence, deleteBonusAction guard
 - [ ] `src/app/actions/forecast.test.ts` — extend existing next-payment tests to cover bonus-only dates, mixed dates, breakdown generation
