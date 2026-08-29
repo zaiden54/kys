@@ -23,6 +23,11 @@ import { nextPaymentOnOrAfter } from "@/domain/schedule/resolve-payment-date";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
 import { nowInMoscow } from "@/domain/time";
 import { forecastNextPayment } from "@/app/actions/forecast";
+import { createBonus } from "@/lib/db/bonus-repository";
+import { saveBonusAction } from "@/app/actions/bonus";
+import { requireUserId } from "@/lib/session";
+
+vi.mock("@/lib/session", () => ({ requireUserId: vi.fn() }));
 
 async function createThrowawayUser(): Promise<string> {
   const id = randomUUID();
@@ -280,5 +285,74 @@ describe("forecastNextPayment", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("(9) forecasts a standalone future bonus without salary or schedule", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-01T09:00:00Z"));
+    try {
+      await createBonus(userAId, 100_000_00, "2026-09-02", "Проект");
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected configured bonus forecast");
+      const expected = calculateNdfl(0, 100_000_00, 2026);
+      expect(result.forecast).toMatchObject({
+        date: "2026-09-02", kind: "bonus", grossKopecks: 100_000_00,
+        taxKopecks: expected.taxKopecks, netKopecks: expected.netKopecks,
+      });
+      expect(result.forecast.breakdown).toBeUndefined();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("(10) combines every same-date bonus with the scheduled payment", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-01T09:00:00Z"));
+    try {
+      await replaceSalaryAt(userAId, 600_000_00, "2026-01-01");
+      await upsertSchedule(userAId, 20, 5);
+      await createBonus(userAId, 40_000_00, "2026-09-04", "Первый");
+      await createBonus(userAId, 10_000_00, "2026-09-04", "Второй");
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected configured combined forecast");
+      expect(result.forecast.breakdown).toEqual({
+        salaryOrAvansKopecks: 300_000_00, bonusKopecks: 50_000_00,
+      });
+      expect(result.forecast.grossKopecks).toBe(350_000_00);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("(11) a past bonus increases tax on the next scheduled payment", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-01T09:00:00Z"));
+    try {
+      for (const id of [userAId, userBId]) {
+        await replaceSalaryAt(id, 600_000_00, "2026-01-01");
+        await upsertSchedule(id, 20, 5);
+        await upsertYtdBaseline(id, 2_350_000_00, "2026-08-01", false);
+      }
+      await createBonus(userBId, 100_000_00, "2026-08-15", "Прошлый");
+      const withoutBonus = await forecastNextPayment(userAId);
+      const withBonus = await forecastNextPayment(userBId);
+      if (!withoutBonus.configured || !withBonus.configured) throw new Error("expected forecasts");
+      expect(withBonus.forecast.taxKopecks).toBeGreaterThan(withoutBonus.forecast.taxKopecks);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("(12) a bonus saved through the server action appears in the forecast", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-01T09:00:00Z"));
+    try {
+      vi.mocked(requireUserId).mockResolvedValue(userAId);
+      const formData = new FormData();
+      formData.set("amountRubles", "25000");
+      formData.set("date", "2026-09-02");
+      formData.set("note", "Трассер");
+      expect(await saveBonusAction(formData)).toEqual({ success: true });
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected configured forecast");
+      expect(result.forecast).toMatchObject({ kind: "bonus", grossKopecks: 25_000_00 });
+    } finally { vi.useRealTimers(); }
   });
 });
