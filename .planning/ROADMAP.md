@@ -42,7 +42,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. On first use, user can optionally enter their accumulated year-to-date income, or sees an explicit warning that the calculation assumes zero income since January 1 if they skip it (SAL-03)
   5. The home screen shows the amount and date of the next upcoming payment, taxed via the progressive НДФЛ scale (13/15/18/20/22%) applied to cumulative year-to-date income, with avans and salary treated as independent taxable payment events (TAX-01, TAX-02, HOME-01)
 
-**Plans**: 5/5 plans executed
+**Plans**: 8 plans (5/5 original executed; 3 gap-closure plans pending)
 
 Plans:
 **Wave 1**
@@ -61,6 +61,17 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 01-05-PLAN.md — Next-payment forecast and home screen with the persistent estimated-baseline banner (wave 4)
+
+**Gap closure** *(added after 01-VERIFICATION.md returned `gaps_found`: 2/5 truths verified, SAL-02 and HOME-01 blocked)*
+
+**Gap wave 1**
+
+- [ ] 01-06-PLAN.md — Moscow-time anchor: one pure `nowInMoscow()`/`todayIsoInMoscow()` module routed through every "what is today" call site (CR-01 — TAX-01, TAX-02, HOME-01, SAL-03)
+
+**Gap wave 2** *(blocked on Gap wave 1; these two share no files and run in parallel)*
+
+- [ ] 01-07-PLAN.md — Atomic single-statement upserts for salary, schedule, and YTD baseline, pinned by live concurrency race tests (CR-02 + WR-01 — SAL-02)
+- [ ] 01-08-PLAN.md — Residual review warnings: reconciling gross split, НДФЛ bracket-order assertion, statute-comment correction, DB money constraints, product metadata (WR-02..WR-05 — TAX-01, HOME-01)
 
 **UI hint**: yes
 
