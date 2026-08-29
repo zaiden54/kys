@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   date,
+  index,
   integer,
   pgTable,
   text,
@@ -73,5 +74,26 @@ export const ytdBaseline = pgTable(
   },
   (table) => [
     check("ytd_amount_nonnegative", sql`${table.amountKopecks} >= 0`),
+  ],
+);
+
+// bonuses: individually editable one-off taxable payments. Multiple rows on
+// the same date are intentional; the forecast layer sums them into one event.
+export const bonuses = pgTable(
+  "bonuses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    amountKopecks: bigint("amount_kopecks", { mode: "number" }).notNull(),
+    date: date("date", { mode: "string" }).notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    check("bonus_amount_positive", sql`${table.amountKopecks} > 0`),
+    index("bonuses_user_id_idx").on(table.userId),
   ],
 );
