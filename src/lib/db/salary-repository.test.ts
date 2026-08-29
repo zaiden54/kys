@@ -77,6 +77,28 @@ describe("salary-repository", () => {
     expect(january?.grossAmountKopecks).toBe(9_000_00);
   });
 
+  it("CR-02: two concurrent replaceSalaryAt calls for the same (userId, effectiveFrom) both resolve, leaving exactly one row", async () => {
+    // Cross-user isolation seed: userB already has a row for the same date;
+    // the race below must never disturb it (the conflict arbiter must never
+    // reach across users).
+    await replaceSalaryAt(userBId, 99_000_00, "2026-04-01");
+
+    await Promise.all([
+      replaceSalaryAt(userAId, 10_000_00, "2026-04-01"),
+      replaceSalaryAt(userAId, 12_000_00, "2026-04-01"),
+    ]);
+
+    const historyA = await listSalaryHistory(userAId);
+    const matchingA = historyA.filter((row) => row.effectiveFrom === "2026-04-01");
+    expect(matchingA).toHaveLength(1);
+    expect([10_000_00, 12_000_00]).toContain(matchingA[0]?.grossAmountKopecks);
+
+    const historyB = await listSalaryHistory(userBId);
+    const matchingB = historyB.filter((row) => row.effectiveFrom === "2026-04-01");
+    expect(matchingB).toHaveLength(1);
+    expect(matchingB[0]?.grossAmountKopecks).toBe(99_000_00);
+  });
+
   it("getActiveSalaryAt returns the row effective on the queried date, not the newest row overall", async () => {
     await replaceSalaryAt(userAId, 10_000_00, "2026-01-01");
     await replaceSalaryAt(userAId, 15_000_00, "2026-06-01");
