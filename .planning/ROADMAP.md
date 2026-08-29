@@ -42,7 +42,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. On first use, user can optionally enter their accumulated year-to-date income, or sees an explicit warning that the calculation assumes zero income since January 1 if they skip it (SAL-03)
   5. The home screen shows the amount and date of the next upcoming payment, taxed via the progressive НДФЛ scale (13/15/18/20/22%) applied to cumulative year-to-date income, with avans and salary treated as independent taxable payment events (TAX-01, TAX-02, HOME-01)
 
-**Plans**: 11/12 plans executed (9 executed; 3 gap-closure plans added after the 2026-08-29 re-verification returned `gaps_found` at 2/5 truths)
+**Plans**: 12/12 plans executed (9 executed; 3 gap-closure plans added after the 2026-08-29 re-verification returned `gaps_found` at 2/5 truths)
 
 Plans:
 **Wave 1**
@@ -86,7 +86,7 @@ Plans:
 
 **Gap wave 5** *(blocked on Gap wave 4; shares the repository, action and form files)*
 
-- [ ] 01-11-PLAN.md — Bind D-14 replacement consent to a server-signed claim and a conditional single-statement write (SAL-02, AUTH-02)
+- [x] 01-11-PLAN.md — Bind D-14 replacement consent to a server-signed claim and a conditional single-statement write (SAL-02, AUTH-02)
 
 **UI hint**: yes
 
@@ -144,7 +144,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Payroll Loop | 11/12 | In Progress|  |
+| 1. Core Payroll Loop | 12/12 | In Progress|  |
 | 2. Bonuses & One-off Payments | 0/TBD | Not started | - |
 | 3. Vacation Pay | 0/TBD | Not started | - |
 | 4. Annual Overview & PWA Installability | 0/TBD | Not started | - |
