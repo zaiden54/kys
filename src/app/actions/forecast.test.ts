@@ -22,7 +22,31 @@ import {
 import { nextPaymentOnOrAfter } from "@/domain/schedule/resolve-payment-date";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
 import { nowInMoscow } from "@/domain/time";
-import { forecastNextPayment } from "@/app/actions/forecast";
+import { forecastNextPayment, halfSplitGross } from "@/app/actions/forecast";
+
+describe("halfSplitGross", () => {
+  it.each([1, 2, 3, 99_999_99, 10_000_001, 10_000_002, 100_000_00])(
+    "reconciles exactly for %i kopecks: avans + salary === gross",
+    (gross) => {
+      expect(halfSplitGross(gross, "avans") + halfSplitGross(gross, "salary")).toBe(gross);
+    },
+  );
+
+  it("the review's exact case: the odd remainder kopeck lands on salary, never on both", () => {
+    expect(halfSplitGross(10_000_001, "avans")).toBe(5_000_000);
+    expect(halfSplitGross(10_000_001, "salary")).toBe(5_000_001);
+  });
+
+  it("splits an even-kopeck gross evenly between the two kinds", () => {
+    expect(halfSplitGross(100_000_00, "avans")).toBe(5_000_000);
+    expect(halfSplitGross(100_000_00, "salary")).toBe(5_000_000);
+  });
+
+  it("is deterministic: identical arguments always return identical values", () => {
+    expect(halfSplitGross(10_000_001, "avans")).toBe(halfSplitGross(10_000_001, "avans"));
+    expect(halfSplitGross(10_000_001, "salary")).toBe(halfSplitGross(10_000_001, "salary"));
+  });
+});
 
 async function createThrowawayUser(): Promise<string> {
   const id = randomUUID();
