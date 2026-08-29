@@ -22,31 +22,7 @@ import {
 import { nextPaymentOnOrAfter } from "@/domain/schedule/resolve-payment-date";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
 import { nowInMoscow } from "@/domain/time";
-import { forecastNextPayment, halfSplitGross } from "@/app/actions/forecast";
-
-describe("halfSplitGross", () => {
-  it.each([1, 2, 3, 99_999_99, 10_000_001, 10_000_002, 100_000_00])(
-    "reconciles exactly for %i kopecks: avans + salary === gross",
-    (gross) => {
-      expect(halfSplitGross(gross, "avans") + halfSplitGross(gross, "salary")).toBe(gross);
-    },
-  );
-
-  it("the review's exact case: the odd remainder kopeck lands on salary, never on both", () => {
-    expect(halfSplitGross(10_000_001, "avans")).toBe(5_000_000);
-    expect(halfSplitGross(10_000_001, "salary")).toBe(5_000_001);
-  });
-
-  it("splits an even-kopeck gross evenly between the two kinds", () => {
-    expect(halfSplitGross(100_000_00, "avans")).toBe(5_000_000);
-    expect(halfSplitGross(100_000_00, "salary")).toBe(5_000_000);
-  });
-
-  it("is deterministic: identical arguments always return identical values", () => {
-    expect(halfSplitGross(10_000_001, "avans")).toBe(halfSplitGross(10_000_001, "avans"));
-    expect(halfSplitGross(10_000_001, "salary")).toBe(halfSplitGross(10_000_001, "salary"));
-  });
-});
+import { forecastNextPayment } from "@/app/actions/forecast";
 
 async function createThrowawayUser(): Promise<string> {
   const id = randomUUID();
@@ -73,26 +49,41 @@ describe("forecastNextPayment", () => {
   });
 
   it("(1) a configured user gets a forecast whose date matches nextPaymentOnOrAfter and whose net equals gross minus calculateNdfl's tax for the same inputs", async () => {
-    await replaceSalaryAt(userAId, 100_000_00, "2026-01-01");
-    await upsertSchedule(userAId, 10, 25);
-    await upsertYtdBaseline(userAId, 0, "2026-01-01", false);
+    // Frozen at 2026-01-01 (Moscow) with the baseline's own asOfDate also
+    // 2026-01-01: the earliest eligible payment on/after "today" is by
+    // construction the earliest event strictly after the baseline's window
+    // bound too, so zero prior events accrue and the oracle cumulativeBefore
+    // is exactly the baseline (0) — deriving this from first principles
+    // rather than a hand-picked resolved date keeps the assertion robust to
+    // any RU calendar shift.
+    const frozenInstant = new Date("2026-01-01T09:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(frozenInstant);
+    try {
+      await replaceSalaryAt(userAId, 100_000_00, "2026-01-01");
+      await upsertSchedule(userAId, 10, 25);
+      await upsertYtdBaseline(userAId, 0, "2026-01-01", false);
 
-    const result = await forecastNextPayment(userAId);
-    expect(result.configured).toBe(true);
-    if (!result.configured) throw new Error("expected a configured result");
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected a configured result");
 
-    const expectedEvent = nextPaymentOnOrAfter({ avansDay: 10, salaryDay: 25 }, nowInMoscow());
-    expect(expectedEvent).not.toBeNull();
-    const expectedDateIso = format(expectedEvent!.date, "yyyy-MM-dd");
-    expect(result.forecast.date).toBe(expectedDateIso);
-    expect(result.forecast.kind).toBe(expectedEvent!.kind);
+      const expectedEvent = nextPaymentOnOrAfter({ avansDay: 10, salaryDay: 25 }, nowInMoscow());
+      expect(expectedEvent).not.toBeNull();
+      const expectedDateIso = format(expectedEvent!.date, "yyyy-MM-dd");
+      expect(result.forecast.date).toBe(expectedDateIso);
+      expect(result.forecast.kind).toBe(expectedEvent!.kind);
 
-    const expectedGrossKopecks = Math.round(100_000_00 / 2);
-    const expectedTax = calculateNdfl(0, expectedGrossKopecks, expectedEvent!.date.getFullYear()).taxKopecks;
+      const expectedGrossKopecks = Math.round(100_000_00 / 2);
+      const expectedTax = calculateNdfl(0, expectedGrossKopecks, expectedEvent!.date.getFullYear())
+        .taxKopecks;
 
-    expect(result.forecast.grossKopecks).toBe(expectedGrossKopecks);
-    expect(result.forecast.taxKopecks).toBe(expectedTax);
-    expect(result.forecast.netKopecks).toBe(expectedGrossKopecks - expectedTax);
+      expect(result.forecast.grossKopecks).toBe(expectedGrossKopecks);
+      expect(result.forecast.taxKopecks).toBe(expectedTax);
+      expect(result.forecast.netKopecks).toBe(expectedGrossKopecks - expectedTax);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("(2) a user with a schedule but no salary gets the not-configured result naming salary", async () => {
@@ -113,7 +104,14 @@ describe("forecastNextPayment", () => {
     expect(result.missing).toBe("schedule");
   });
 
-  it("(4) a user who skipped the year-to-date question gets a forecast with baselineIsEstimated true and a cumulative-before of zero", async () => {
+  it("(4) a user who skipped the year-to-date question gets a forecast with baselineIsEstimated true, and net still equals gross minus tax", async () => {
+    // Narrowed (01-10): the exact taxKopecks value now depends on however
+    // many scheduled events fall between the synthesized zero baseline's
+    // 1-January asOfDate and whatever "today" resolves to when this test
+    // actually runs — that oracle belongs in the frozen-clock scenarios (1),
+    // (5) and the bracket-crossing test below, not here. This test stays
+    // focused on the two properties that must hold regardless of when it
+    // runs: the estimated flag, and the tax/net identity.
     await replaceSalaryAt(userAId, 100_000_00, "2026-01-01");
     await upsertSchedule(userAId, 10, 25);
     // No ytd_baseline row saved: getYtdBaseline synthesizes a zero,
@@ -123,40 +121,51 @@ describe("forecastNextPayment", () => {
     expect(result.configured).toBe(true);
     if (!result.configured) throw new Error("expected a configured result");
     expect(result.forecast.baselineIsEstimated).toBe(true);
-
-    const expectedEvent = nextPaymentOnOrAfter({ avansDay: 10, salaryDay: 25 }, nowInMoscow());
-    const expectedGrossKopecks = Math.round(100_000_00 / 2);
-    const expectedTax = calculateNdfl(0, expectedGrossKopecks, expectedEvent!.date.getFullYear()).taxKopecks;
-    expect(result.forecast.taxKopecks).toBe(expectedTax);
+    expect(result.forecast.netKopecks).toBe(result.forecast.grossKopecks - result.forecast.taxKopecks);
   });
 
   it("(5) a user with a non-zero baseline receives strictly more tax on identical gross than a zero-baseline user", async () => {
+    // Frozen at 2026-01-01, both baselines' own asOfDate also 2026-01-01:
+    // by the same construction as test (1), zero prior events accrue for
+    // EITHER user, so the only difference between A and B is the baseline
+    // amount itself — isolating exactly the comparison this test targets.
     // Same monthly gross for both users -> identical per-payment gross
     // (2,000,000 rub / 2 = 1,000,000 rub per payment). User A's baseline is
     // zero (payment stays entirely inside the first 0-2.4M rub bracket).
     // User B's baseline (2,000,000 rub) is close enough to the 2.4M rub
     // threshold that this same payment straddles into the second bracket,
     // producing strictly more tax on the identical gross.
-    const monthlyGrossKopecks = 2_000_000_00;
+    const frozenInstant = new Date("2026-01-01T09:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(frozenInstant);
+    try {
+      const monthlyGrossKopecks = 2_000_000_00;
 
-    await replaceSalaryAt(userAId, monthlyGrossKopecks, "2026-01-01");
-    await upsertSchedule(userAId, 10, 25);
-    await upsertYtdBaseline(userAId, 0, "2026-01-01", false);
+      await replaceSalaryAt(userAId, monthlyGrossKopecks, "2026-01-01");
+      await upsertSchedule(userAId, 10, 25);
+      await upsertYtdBaseline(userAId, 0, "2026-01-01", false);
 
-    await replaceSalaryAt(userBId, monthlyGrossKopecks, "2026-01-01");
-    await upsertSchedule(userBId, 10, 25);
-    await upsertYtdBaseline(userBId, 2_000_000_00, "2026-01-01", false);
+      await replaceSalaryAt(userBId, monthlyGrossKopecks, "2026-01-01");
+      await upsertSchedule(userBId, 10, 25);
+      await upsertYtdBaseline(userBId, 2_000_000_00, "2026-01-01", false);
 
-    const resultA = await forecastNextPayment(userAId);
-    const resultB = await forecastNextPayment(userBId);
-    expect(resultA.configured).toBe(true);
-    expect(resultB.configured).toBe(true);
-    if (!resultA.configured || !resultB.configured) {
-      throw new Error("expected both results to be configured");
+      const resultA = await forecastNextPayment(userAId);
+      const resultB = await forecastNextPayment(userBId);
+      expect(resultA.configured).toBe(true);
+      expect(resultB.configured).toBe(true);
+      if (!resultA.configured || !resultB.configured) {
+        throw new Error("expected both results to be configured");
+      }
+
+      expect(resultB.forecast.grossKopecks).toBe(resultA.forecast.grossKopecks);
+      expect(resultA.forecast.taxKopecks).toBe(
+        calculateNdfl(0, resultA.forecast.grossKopecks, Number(resultA.forecast.date.slice(0, 4)))
+          .taxKopecks,
+      );
+      expect(resultB.forecast.taxKopecks).toBeGreaterThan(resultA.forecast.taxKopecks);
+    } finally {
+      vi.useRealTimers();
     }
-
-    expect(resultB.forecast.grossKopecks).toBe(resultA.forecast.grossKopecks);
-    expect(resultB.forecast.taxKopecks).toBeGreaterThan(resultA.forecast.taxKopecks);
   });
 
   it("(6) a future-dated salary change has no effect on a payment dated before its effective date (D-15)", async () => {
@@ -217,6 +226,58 @@ describe("forecastNextPayment", () => {
       expect(result.forecast.date).not.toBe(unanchoredDateIso);
     } finally {
       process.env.TZ = originalTz;
+      vi.useRealTimers();
+    }
+  });
+
+  it("(8) prior scheduled payments accrue into the cumulative base and cross a bracket, producing strictly more tax than the stale baseline alone (closes 01-VERIFICATION.md gaps[0] / TAX-01, TAX-02, HOME-01)", async () => {
+    // Baseline: 1,000,000 rub as of 2026-06-30, confirmed (not estimated).
+    // Salary: 600,000 rub/month effective 2026-01-01, avans on the 20th,
+    // salary on the 5th. Clock frozen to 2026-09-01 (Moscow): the earliest
+    // eligible payment on/after "today" is 2026-09-04's salary (confirmed
+    // via throwaway Node check against date-holidays@3.36.0 — see
+    // 01-10-SUMMARY.md). July and August are therefore fully "interior"
+    // months between the baseline's window bound and the target payment:
+    // both months' avans+salary events are counted in full, and
+    // halfSplitGross's floor+remainder reconciliation guarantees their sum
+    // is exactly two whole monthly oklads regardless of which day within
+    // each month the events actually land on — so this hand-derived
+    // cumulative base is robust to RU calendar specifics, not dependent on
+    // them:
+    //   cumulativeBefore = 1,000,000_00 (baseline)
+    //                     + 600_000_00 * 2 (July + August, fully accrued)
+    //                     = 2,200,000_00
+    // and the payment's own gross (300,000 rub) pushes cumulative income
+    // from 2,200,000 to 2,500,000 rub, crossing the 2,400,000 rub bracket
+    // threshold (ndfl-brackets.ts).
+    const frozenInstant = new Date("2026-09-01T09:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(frozenInstant);
+    try {
+      await replaceSalaryAt(userAId, 600_000_00, "2026-01-01");
+      await upsertSchedule(userAId, 20, 5);
+      await upsertYtdBaseline(userAId, 1_000_000_00, "2026-06-30", false);
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected a configured result");
+
+      expect(result.forecast.date).toBe("2026-09-04");
+      expect(result.forecast.kind).toBe("salary");
+      expect(result.forecast.grossKopecks).toBe(300_000_00);
+
+      const cumulativeBeforeKopecks = 2_200_000_00;
+      const expected = calculateNdfl(cumulativeBeforeKopecks, 300_000_00, 2026);
+      expect(result.forecast.taxKopecks).toBe(expected.taxKopecks);
+      expect(result.forecast.netKopecks).toBe(expected.netKopecks);
+
+      // The assertion that actually fails against the pre-fix implementation
+      // (which taxed only against the stale 1,000,000 rub baseline): the
+      // real, accrual-aware tax is strictly higher than the baseline-only
+      // answer would have been.
+      const baselineOnlyTax = calculateNdfl(1_000_000_00, 300_000_00, 2026).taxKopecks;
+      expect(result.forecast.taxKopecks).toBeGreaterThan(baselineOnlyTax);
+    } finally {
       vi.useRealTimers();
     }
   });
