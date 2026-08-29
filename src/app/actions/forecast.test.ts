@@ -140,7 +140,7 @@ describe("forecastNextPayment", () => {
     await replaceSalaryAt(userAId, 80_000_00, "2020-01-01");
 
     const farFutureEffectiveFrom = format(
-      new Date(new Date().getFullYear() + 5, 0, 1),
+      new Date(nowInMoscow().getFullYear() + 5, 0, 1),
       "yyyy-MM-dd",
     );
     await replaceSalaryAt(userAId, 999_000_00, farFutureEffectiveFrom);

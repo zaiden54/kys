@@ -6,6 +6,7 @@ import {
   listSalaryHistory,
 } from "@/lib/db/salary-repository";
 import { formatKopecks, kopecksToRubles } from "@/domain/money";
+import { todayIsoInMoscow } from "@/domain/time";
 import { SalaryForm, ScheduleForm, YtdForm } from "@/components/pay-setup-forms";
 
 // Post-signup editing surface (D-10): available unconditionally, at any
@@ -13,7 +14,7 @@ import { SalaryForm, ScheduleForm, YtdForm } from "@/components/pay-setup-forms"
 // the dated salary history list required by SAL-02.
 export default async function SalarySettingsPage() {
   const userId = await requireUserId();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIsoInMoscow();
 
   const [activeSalary, schedule, ytdBaseline, history] = await Promise.all([
     getActiveSalaryAt(userId, today),

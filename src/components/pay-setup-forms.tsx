@@ -12,6 +12,7 @@
 import { useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { todayIsoInMoscow } from "@/domain/time";
 import {
   salaryInputSchema,
   scheduleInputSchema,
@@ -52,7 +53,7 @@ export type SalaryFormProps = {
 };
 
 export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryFormProps) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIsoInMoscow();
   const {
     register,
     handleSubmit,
@@ -263,7 +264,7 @@ export type YtdFormProps = {
 };
 
 export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: YtdFormProps) {
-  const currentYearStart = `${new Date().getFullYear()}-01-01`;
+  const currentYearStart = `${todayIsoInMoscow().slice(0, 4)}-01-01`;
   const {
     register,
     handleSubmit,

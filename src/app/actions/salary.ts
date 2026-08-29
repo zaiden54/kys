@@ -17,6 +17,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUserId } from "@/lib/session";
 import { rublesToKopecks, kopecksToRubles } from "@/domain/money";
+import { todayIsoInMoscow } from "@/domain/time";
 import { exceedsMaxPayGap } from "@/domain/schedule/pay-gap";
 import {
   salaryInputSchema,
@@ -148,7 +149,7 @@ export async function saveYtdBaselineAction(formData: FormData): Promise<YtdBase
  */
 export async function skipYtdBaselineAction(): Promise<{ success: true }> {
   const userId = await requireUserId();
-  const januaryFirstOfCurrentYear = `${new Date().getFullYear()}-01-01`;
+  const januaryFirstOfCurrentYear = `${todayIsoInMoscow().slice(0, 4)}-01-01`;
   await upsertYtdBaseline(userId, 0, januaryFirstOfCurrentYear, true);
   revalidatePaySetupPaths();
   return { success: true };

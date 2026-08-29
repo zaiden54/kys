@@ -28,6 +28,7 @@ if (typeof window !== "undefined") {
 import { and, desc, eq, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salaryHistory, paymentSchedule, ytdBaseline } from "@/lib/db/schema";
+import { todayIsoInMoscow } from "@/domain/time";
 
 export type SalaryHistoryRow = typeof salaryHistory.$inferSelect;
 export type PaymentScheduleRow = typeof paymentSchedule.$inferSelect;
@@ -178,7 +179,7 @@ export async function upsertSchedule(
 
 /** Default synthesized when a user has no ytd_baseline row yet (D-11). */
 function defaultYtdBaseline(userId: string): YtdBaselineRow {
-  const januaryFirstOfCurrentYear = `${new Date().getFullYear()}-01-01`;
+  const januaryFirstOfCurrentYear = `${todayIsoInMoscow().slice(0, 4)}-01-01`;
   return {
     userId,
     amountKopecks: 0,

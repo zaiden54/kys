@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUserId } from "@/lib/session";
 import { getActiveSalaryAt, getSchedule, getYtdBaseline } from "@/lib/db/salary-repository";
 import { kopecksToRubles } from "@/domain/money";
+import { todayIsoInMoscow } from "@/domain/time";
 import { SalaryForm, ScheduleForm, YtdForm } from "@/components/pay-setup-forms";
 
 // First-run pay setup (SAL-01, SAL-02, SAL-03). The year-to-date question
@@ -10,7 +11,7 @@ import { SalaryForm, ScheduleForm, YtdForm } from "@/components/pay-setup-forms"
 // it here.
 export default async function OnboardingPage() {
   const userId = await requireUserId();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIsoInMoscow();
 
   const [activeSalary, schedule, ytdBaseline] = await Promise.all([
     getActiveSalaryAt(userId, today),
