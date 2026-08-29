@@ -31,6 +31,7 @@ import { salaryHistory, paymentSchedule, ytdBaseline } from "@/lib/db/schema";
 import { todayIsoInMoscow } from "@/domain/time";
 import { accruedGrossBetween, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
 import type { PaymentKind } from "@/domain/schedule/resolve-payment-date";
+import { listBonuses } from "@/lib/db/bonus-repository";
 
 export type SalaryHistoryRow = typeof salaryHistory.$inferSelect;
 export type SalaryWriteOutcome =
@@ -317,10 +318,11 @@ export async function getCumulativeIncomeBeforeDate(
   isoDate: string,
   kind: PaymentKind = "avans",
 ): Promise<number> {
-  const [baseline, schedule, history] = await Promise.all([
+  const [baseline, schedule, history, bonusRows] = await Promise.all([
     getYtdBaseline(userId),
     getSchedule(userId),
     listSalaryHistory(userId),
+    listBonuses(userId),
   ]);
 
   const paymentYear = isoDate.slice(0, 4);
@@ -330,9 +332,11 @@ export async function getCumulativeIncomeBeforeDate(
   const windowBoundIso = baselineApplies
     ? baseline.asOfDate
     : `${Number(paymentYear) - 1}-12-31`;
-
+  const bonusAccruedKopecks = bonusRows
+    .filter((bonus) => bonus.date > windowBoundIso && bonus.date < isoDate)
+    .reduce((sum, bonus) => sum + bonus.amountKopecks, 0);
   if (!schedule) {
-    return baselineAmountKopecks;
+    return baselineAmountKopecks + bonusAccruedKopecks;
   }
 
   const salaryHistoryEntries: SalaryHistoryEntry[] = history.map((row) => ({
@@ -347,5 +351,5 @@ export async function getCumulativeIncomeBeforeDate(
     { dateIso: isoDate, kind },
   );
 
-  return baselineAmountKopecks + accruedKopecks;
+  return baselineAmountKopecks + accruedKopecks + bonusAccruedKopecks;
 }
