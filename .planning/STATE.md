@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 current_phase: 01
 current_phase_name: Core Payroll Loop
-status: executing
-stopped_at: Completed 01-07-PLAN.md
-last_updated: "2026-08-29T08:44:18.856Z"
+status: verifying
+stopped_at: Completed 01-08-PLAN.md
+last_updated: "2026-08-29T08:55:22.525Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 01 execution started
-state_head: 3db934942b5095f904ed67f8653bdb6b63984a85
+state_head: b9c8f0698b2aadd6399a2a608de56e865f3b9986
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 Phase: 01 (Core Payroll Loop) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-29 — Completed 01-07-PLAN.md
 
 Progress: [░░░░░░░░░░] 0%
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P05 | 12min | 3 tasks | 5 files |
 | Phase 01 P06 | 20min | 2 tasks | 9 files |
 | Phase 01 P07 | 15min | 2 tasks | 3 files |
+| Phase 01 P08 | 15min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,9 @@ Recent decisions affecting current work:
 - [Phase 01]: [Phase 01-06]: Corrected 01-PATTERNS.md's nowInMoscow() sketch from UTC-accessor to local-accessor shape before implementation — the sketch was only correct on a UTC host and silently wrong on any other host timezone, including an MSK dev machine
 - [Phase 01]: [Phase 01-06]: Found and fixed a seventh CR-01 call site beyond 01-VERIFICATION.md's five-site artifact list (pay-setup-forms.tsx YtdForm currentYearStart)
 - [Phase 01]: [Phase 01-07]: replaceSalaryAt/upsertSchedule/upsertYtdBaseline rewritten as single onConflictDoUpdate statements — Closes CR-02/SAL-02 and WR-01: removes the non-atomic delete-then-insert/select-then-branch race windows; proven under live Promise.all concurrency tests against the real Neon database; zero new dependencies
+- [Phase 01]: [Phase 01-08]: MAX_VERIFIED_TAX_YEAR left at 2026 while correcting the false statute-verification comment -- lowering it would be a live outage, not a fix; the primary НК РФ ст.224 confirmation remains an open human_verification item
+- [Phase 01]: [Phase 01-08]: halfSplitGross rewritten as kind-aware floor/remainder split so avans+salary always reconcile to the monthly gross, closing a one-kopeck drift on odd-kopeck amounts (WR-02)
+- [Phase 01]: [Phase 01-08]: Added live database check() constraints (salary_gross_amount_positive, ytd_amount_nonnegative) as a second gate behind Zod; applied via drizzle-kit push after confirming zero pre-existing violating rows and a statement list containing only the two expected ADD CONSTRAINT statements
 
 ### Pending Todos
 
@@ -109,6 +113,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-29T08:44:18.828Z
-Stopped at: Completed 01-07-PLAN.md
+Last session: 2026-08-29T08:55:22.495Z
+Stopped at: Completed 01-08-PLAN.md
 Resume file: None
