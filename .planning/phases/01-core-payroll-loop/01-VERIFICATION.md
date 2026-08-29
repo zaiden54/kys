@@ -1,177 +1,223 @@
 ---
 phase: 01-core-payroll-loop
-verified: 2026-08-29T00:15:00Z
+verified: 2026-08-29T11:28:11Z
 status: gaps_found
 score: 2/5 must-haves verified
 behavior_unverified: 1
 overrides_applied: 0
+re_verification:
+  previous_status: gaps_found
+  previous_score: 3/5
+  gaps_closed:
+    - "The 01-09 SAL-01 gap is closed: values that round to zero kopecks are rejected before repository access, repository rejection is serialized as a generic field error, and SalaryForm catches a rejected Server Action promise."
+  gaps_remaining:
+    - "The deployed forecast does not add prior scheduled salary payments after the YTD baseline, so cumulative income can remain stale and the next-payment tax can be wrong."
+    - "D-14 confirmation is not bound to the displayed row or submitted snapshot, allowing an undisclosed value to be overwritten."
+    - "The shared ISO-date validator accepts impossible calendar dates."
+    - "The documented auth-secret placeholder passes runtime validation as a valid secret."
+  regressions: []
 gaps:
-  - truth: "User can change their salary amount, and the system retains a dated history of prior salary values (SAL-02)"
+  - truth: "The next payment is taxed against all cumulative salary income since the start of the calendar year (TAX-01, TAX-02, HOME-01)."
     status: failed
-    reason: "Confirmed present in current codebase (matches 01-REVIEW.md CR-02, unresolved): replaceSalaryAt (src/lib/db/salary-repository.ts:101-120) performs a non-atomic delete-then-insert with no transaction (the Neon HTTP driver doesn't support one). If the insert fails after the delete succeeds, the user's salary row for that date is permanently gone with no rollback and no user-visible warning that data was lost. This compounds with a check-then-write race in saveSalaryAction (src/app/actions/salary.ts:74-84): findSalaryAt and replaceSalaryAt are two unlocked round trips, so two near-simultaneous submissions — explicitly a supported scenario per this app's cross-device-sync core constraint — can both observe 'no existing row' and both write, silently bypassing the D-14 confirm-before-overwrite guarantee the plan's own must_haves.prohibitions marked 'resolved'. This is a live, unresolved data-integrity defect in a financial app, not a theoretical edge case."
+    reason: "getCumulativeIncomeBeforeDate returns the stored YTD baseline plus a hardcoded zero additional-income sum. It never derives prior avans/salary events between baseline.asOfDate and the forecast date. forecastNextPayment therefore taxes against a stale baseline; the passing forecast test explicitly expects a January-zero baseline still to be zero later in the year."
     artifacts:
       - path: "src/lib/db/salary-repository.ts"
-        issue: "replaceSalaryAt (lines 101-120): sequential delete then insert, no transaction, no rollback on partial failure"
-      - path: "src/app/actions/salary.ts"
-        issue: "saveSalaryAction (lines 59-87): findSalaryAt existence check and replaceSalaryAt write are two unlocked round trips — a race window that can bypass the D-14 confirmation UX"
+        issue: "sumAdditionalIncomeEventsBetween returns 0 and getCumulativeIncomeBeforeDate does not include generated salary payment events."
+      - path: "src/app/actions/forecast.test.ts"
+        issue: "Tests use calculateNdfl(0, nextGross, ...) as the oracle for a January-zero baseline, encoding the missing cumulative-salary behavior."
     missing:
-      - "Atomic upsert via INSERT ... ON CONFLICT (user_id, effective_from) DO UPDATE, as the review's own suggested fix demonstrates, removing both the partial-failure window and the check-then-write race"
-  - truth: "The home screen shows the amount and date of the next upcoming payment, taxed via the progressive НДФЛ scale applied to cumulative year-to-date income (TAX-01, TAX-02, HOME-01)"
+      - "Derive and sum every prior avans/salary taxable event between the baseline date and forecast date, using salary history and schedule changes as applicable."
+      - "Add an integration test spanning multiple earlier payments and a bracket crossing, proving the displayed next-payment tax uses their cumulative gross."
+  - truth: "An exact-date salary replacement only overwrites the value the user was shown and explicitly confirmed (D-14, SAL-02)."
     status: failed
-    reason: "The tax computation itself is correct and well-tested (58/58 Vitest tests pass, domain engine verified against bracket boundaries). But the DATE half of this truth is unreliable: confirmed present in current codebase (matches 01-REVIEW.md CR-01, unresolved) — no file anywhere anchors 'today' to Europe/Moscow. src/app/actions/forecast.ts:98 passes a bare `new Date()` into nextPaymentOnOrAfter, which reads local-timezone accessors that default to UTC on typical serverless deployments (Moscow is UTC+3) — for the first ~3 hours of every Moscow calendar day the server can still believe it is 'yesterday'. src/app/(app)/onboarding/page.tsx:13, src/app/(app)/settings/salary/page.tsx:16, and src/components/pay-setup-forms.tsx:55 all use `new Date().toISOString().slice(0,10)`, which is always UTC regardless of server config — wrong on every deployment near MSK midnight, not just misconfigured ones. This directly undermines the app's stated core value ('точно спланировать бюджет, зная сумму и дату ближайшей выплаты' — PROJECT.md) since the shown 'next payment' date can be off by a day for real users in Russia. The same root cause also mis-years the YTD baseline at the Dec 31/Jan 1 boundary (src/app/actions/salary.ts:151, src/lib/db/salary-repository.ts:181, both use `new Date().getFullYear()`), touching SAL-03's zero-baseline dating."
+    reason: "Confirmation is a client-controlled boolean. The client resubmits current getValues(), not the snapshot that produced the prompt, and the server performs no row-version/expected-value check. Editing the form after a prompt or a concurrent write from another device can overwrite a value never disclosed to the confirmer."
     artifacts:
-      - path: "src/app/actions/forecast.ts"
-        issue: "Line 98: bare `new Date()` passed to nextPaymentOnOrAfter — no Europe/Moscow anchor"
-      - path: "src/app/(app)/onboarding/page.tsx"
-        issue: "Line 13: `new Date().toISOString().slice(0,10)` is always UTC"
-      - path: "src/app/(app)/settings/salary/page.tsx"
-        issue: "Line 16: same UTC-slice pattern"
+      - path: "src/app/actions/salary.ts"
+        issue: "saveSalaryAction accepts confirm=true without an expected row id/version/value and unconditionally upserts after a fresh advisory read."
       - path: "src/components/pay-setup-forms.tsx"
-        issue: "Line 55: same UTC-slice pattern in SalaryForm's default effectiveFrom"
-      - path: "src/app/actions/salary.ts"
-        issue: "Line 151: `new Date().getFullYear()` in skipYtdBaselineAction — can mis-year the baseline at the Dec31/Jan1 MSK boundary"
-      - path: "src/lib/db/salary-repository.ts"
-        issue: "Line 181: same getFullYear() pattern in defaultYtdBaseline"
+        issue: "onConfirmReplace calls submit(getValues(), true), so an old prompt can authorize different current form values."
     missing:
-      - "A single `nowInMoscow()`/`todayIsoInMoscow()` helper (e.g. via date-fns-tz's toZonedTime, or a hand-rolled UTC+3 offset since Russia doesn't observe DST) that every 'what is today' computation in the app routes through, replacing both the bare `new Date()` passed to `nextPaymentOnOrAfter` and every `toISOString().slice(0,10)` call"
-human_verification:
-  - test: "Two-browser AUTH-02 cross-device check: sign in as the same account in two independent browser sessions and confirm both see identical salary/schedule/YTD/forecast data."
-    expected: "Identical data on both sessions, since both read the same per-user Postgres rows through independently-authenticated sessions (no client-side cache, no conflict resolution)."
-    why_human: "No browser is available in any execution sandbox used across all five plans (consistently documented as human_judgment: true in every plan's SUMMARY.md coverage block). Only ad hoc, uncommitted scripts and architectural review have substituted for this so far."
-  - test: "Visual confirmation that /register and /login carry no email-verification interstitial and no forgot-password/reset-password affordance (D-06, D-08)."
-    expected: "Sign-up completes immediately with no verification step; neither page shows a password-reset link."
-    why_human: "grep-based checks confirm no matching strings exist in source, but the actual rendered UX has not been visually confirmed in a browser."
-  - test: "Confirm the 2025 НДФЛ bracket thresholds (0 / 2,400,000 / 5,000,000 / 20,000,000 / 50,000,000 rub), rates (13/15/18/20/22%), and fixed bases (312,000 / 702,000 / 3,402,000 / 9,402,000 rub) in src/domain/tax/ndfl-brackets.ts against the primary НК РФ ст.224 statute text (pravo.gov.ru or consultant.ru's full-article view)."
-    expected: "All values match the primary statute text exactly, and the scale is confirmed still in force (justifying MAX_VERIFIED_TAX_YEAR = 2026)."
-    why_human: "No live web access in this verification sandbox (same limitation documented in 01-03-SUMMARY.md's D4 and carried forward in STATE.md as an open blocker). Note: src/domain/tax/ndfl-brackets.ts's file-header comment currently claims this was 're-confirmed against primary statute text as part of this plan's task 1 human-check' — that claim is not supported by 01-03-SUMMARY.md, which explicitly records the human-check as NOT performed (no web access) and the item as an open blocker. The code comment should be corrected to avoid asserting a verification that did not happen."
-  - test: "D-11 banner persists across a real page reload; D-14 confirm-before-replace modal actually appears and behaves as designed; D-04 gap-warning renders next to a successful schedule save; D-13 backdated salary entries appear in the dated history list; D-02 the shown next-payment date is correct against a real calendar for a schedule day landing on a weekend/RU holiday; the next-payment card's wording genuinely reads as a non-authoritative forecast; a future-dated salary change produces no visible 'upcoming raise' indicator anywhere (D-15)."
-    expected: "All behave as designed when interacted with in a real browser against a running dev server."
-    why_human: "No browser available in any execution sandbox; only ad hoc/uncommitted scripts and static code assertions have substituted for this across all five plans."
+      - "Bind confirmation to the exact submitted snapshot and server-observed row version (or a signed opaque token)."
+      - "Perform a conditional confirmed update; when the row changed, return a fresh prompt showing the new value."
+      - "Add client-edit-after-prompt and cross-request stale-version regression tests."
+  - truth: "Salary and YTD effective dates are validated as real calendar dates before persistence (SAL-01, SAL-02, SAL-03)."
+    status: failed
+    reason: "isoDateString only checks !Number.isNaN(new Date(value).getTime()). JavaScript normalizes 2026-02-29 to 2026-03-01 and 2026-02-31 to 2026-03-03, so impossible dates pass the shared schema."
+    artifacts:
+      - path: "src/lib/validation/salary.ts"
+        issue: "The real-date refine checks parseability without round-tripping year/month/day components."
+      - path: "src/lib/validation/salary.test.ts"
+        issue: "Only money precision is covered; no leap-year or day-overflow cases exist."
+    missing:
+      - "Use a strict calendar-date round trip or strict parser for yyyy-MM-dd."
+      - "Test valid leap day plus invalid non-leap day and month-day overflow for both effectiveFrom and asOfDate."
+  - truth: "The documented environment setup cannot start authentication with a public predictable secret (AUTH-01)."
+    status: failed
+    reason: "The .env.example value generate-with-openssl-rand-base64-32 is 36 characters and therefore passes src/env.ts's sole min(32) rule. Copying the documented template can start Better Auth with a known secret."
+    artifacts:
+      - path: ".env.example"
+        issue: "Contains a predictable placeholder that satisfies runtime validation."
+      - path: "src/env.ts"
+        issue: "BETTER_AUTH_SECRET validates length only and does not reject the known placeholder."
+    missing:
+      - "Make the example value fail closed and reject known placeholder values at boot."
+behavior_unverified_items:
+  - truth: "Logging in from a second independent device/session shows the same salary, schedule, YTD, and forecast data (AUTH-02)."
+    test: "Use two independent browser profiles signed into the same account; edit data in one and reload the other."
+    expected: "Both sessions show the same persisted salary history, schedule, YTD baseline, and forecast."
+    why_human: "The shared Postgres/user-scoped architecture is present, but no committed browser test exercises two independent authenticated sessions end to end."
+decision_coverage:
+  honored: 15
+  total: 15
+  not_honored: []
 ---
 
 # Phase 1: Core Payroll Loop Verification Report
 
-**Phase Goal:** A registered user can enter their gross salary and avans/salary payment schedule and see an accurate amount and date for their next take-home payment, computed via the progressive 2025 НДФЛ scale applied cumulatively from the start of the calendar year — with data synced across their devices.
-**Verified:** 2026-08-29
+**Phase Goal:** A registered user can enter their gross salary and avans/salary payment schedule and see an accurate amount and date for their next take-home payment, computed via the progressive 2025 НДФЛ scale applied cumulatively from the start of the calendar year, with data synced across their devices.
+
+**Verified:** 2026-08-29T11:28:11Z
 **Status:** gaps_found
-**Re-verification:** No — initial verification
+**Re-verification:** Yes — after plan 01-09
 
 ## Goal Achievement
 
 ### Observable Truths
 
-| # | Truth | Status | Evidence |
-|---|-------|--------|----------|
-| 1 | User can register and log in; logging in from a second device shows the same salary/schedule data (AUTH-01, AUTH-02) | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Register/login/session code is real and tested (`scripts/verify-auth-flow.mjs` proves register→session→protected-read plus duplicate/concurrent-signup edges per 01-02-SUMMARY.md; `src/lib/session.ts`'s `requireUserId()` is the sole ownership anchor, verified wired into every action/repository call). The cross-device sync claim itself rests on architecture only (single Postgres row per user, session-cookie auth, no cache) — no committed automated test proves two independent sessions read identical data; every plan's SUMMARY records this as `human_judgment: true` because no browser was available to any execution session. |
-| 2 | User can enter a gross salary and configure avans + salary payment dates twice a month (SAL-01) | ✓ VERIFIED | `src/lib/validation/salary.ts` (Zod schemas, `createInsertSchema` from drizzle-zod), `src/lib/db/salary-repository.ts`, `src/app/actions/salary.ts`, `src/components/pay-setup-forms.tsx` (SalaryForm/ScheduleForm) fully wired; live Neon DB confirmed to hold `salary_history`/`payment_schedule` with `bigint` money columns, 1..31 day check constraints, and the `salary_history_user_effective_from_uq` unique index. 58/58 Vitest tests pass, `npx tsc --noEmit` and `npm run build` exit 0. |
-| 3 | User can change their salary amount, and the system retains a dated history of prior salary values (SAL-02) | ✗ FAILED | Basic functionality works and is tested (`salary-repository.test.ts` D-13/D-14 scenarios pass; `listSalaryHistory` renders on `/settings/salary`). But `replaceSalaryAt`'s non-atomic delete-then-insert and the unlocked `findSalaryAt`→`replaceSalaryAt` race (01-REVIEW.md CR-02, confirmed still present) mean a partial failure can permanently lose a salary row, and concurrent submissions — an explicitly supported cross-device scenario for this app — can silently bypass the D-14 confirm-before-overwrite guarantee. See gaps. |
-| 4 | On first use, user can optionally enter YTD income, or sees an explicit warning assuming zero income since Jan 1 (SAL-03) | ✓ VERIFIED | `/onboarding` renders `YtdForm` unconditionally (no month conditional, confirmed by grep and by reading the page); `skipYtdBaselineAction` stores a zero, `isEstimated: true` baseline; `YtdEstimateBanner` is a persistent, non-dismissible server component rendered only while `baselineIsEstimated` is true; `/settings/salary` allows editing it anytime (D-10). Note: the same `new Date().getFullYear()` timezone gap documented under Truth 5 can mis-year this baseline right at the Dec31/Jan1 MSK boundary — a narrow-window instance of the same unresolved root cause, not a separate defect. |
-| 5 | Home screen shows amount and date of next payment, taxed via the progressive НДФЛ scale (13/15/18/20/22%) applied to cumulative YTD income, avans/salary as independent taxable events (TAX-01, TAX-02, HOME-01) | ✗ FAILED | Tax computation itself is correct and thoroughly tested: `calculateNdfl`/`taxOnCumulative` (`src/domain/tax/calculate-ndfl.ts`) implement cumulative marginal calculation with ст.52 rounding exactly as specified, avans and salary share one code path, `forecastNextPayment` (`src/app/actions/forecast.ts`) folds this correctly, no tax logic reaches the presentation layer (grep-verified). But the DATE half of this truth is unreliable: `forecast.ts:98` passes a bare `new Date()` (server-local/UTC-dependent) into the schedule resolver, and three other files use `toISOString().slice(0,10)` (always UTC) — both confirmed present in the current codebase (01-REVIEW.md CR-01, unresolved). This can show the wrong next-payment date and the wrong "active" salary for roughly the first 3 hours of every Moscow calendar day, on every deployment. See gaps. |
+| # | Roadmap truth | Status | Evidence |
+|---|---|---|---|
+| 1 | User can register/log in and see the same data on a second device (AUTH-01, AUTH-02) | ✗ FAILED | Auth routes, session ownership, and shared Postgres are wired, but `.env.example` supplies a predictable secret that passes validation. The second-device behavior also remains unexercised; see `behavior_unverified_items`. |
+| 2 | User can enter gross salary and configure avans/salary days (SAL-01) | ✓ VERIFIED | Plan 01-09 closes the sub-kopeck failure. `salaryInputSchema`, `saveSalaryAction`, `SalaryForm`, `scheduleInputSchema`, and the ownership-scoped repository are wired; focused and full tests pass. |
+| 3 | User can change salary and retain dated history (SAL-02) | ✗ FAILED | Dated rows and atomic upserts work, but the one-way D-14 replacement can overwrite a row/value the user never saw because confirmation is not snapshot/version-bound. |
+| 4 | User can enter YTD or sees an explicit zero-since-January warning (SAL-03) | ✓ VERIFIED | YTD is always offered; skip stores zero with `isEstimated=true`; settings can edit it; the persistent banner is wired. Impossible-date validation remains a separate failed plan contract. |
+| 5 | Home shows an accurate next amount/date using cumulative progressive tax and independent events (TAX-01, TAX-02, HOME-01) | ✗ FAILED | Date resolution, bracket math, event split, and rendering are present, but the production cumulative-before value omits all prior salary payments after the baseline. The displayed tax can therefore be materially wrong. |
 
-**Score:** 2/5 truths verified (1 present, behavior-unverified)
+**Score:** 2/5 roadmap truths verified (1 additional cross-device behavior remains unverified)
+
+### Plan Must-Have Audit
+
+All nine PLAN frontmatter blocks were checked against current source and tests. Counts below cover positive `truths`; failed/flagged prohibitions are called out separately.
+
+| Plan | Truth result | Exceptions |
+|---|---|---|
+| 01-01 | 7/7 implementation truths present | Auth-secret safety was not a listed truth, but fresh review CR-01 is a phase blocker. |
+| 01-02 | 7/7 implementation truths present | Concurrent-signup script exists; two-device AUTH-02 remains manual. |
+| 01-03 | 9/9 implementation truths present | Primary-statute confirmation and judgment-tier prohibition remain human-review items. |
+| 01-04 | 9 verified, 1 behavior-unverified | Cross-device persistence lacks two-session evidence. D-14's “must show and confirm the overwritten value” prohibition is FAILED. |
+| 01-05 | 5/6 | The cumulative-YTD forecast truth is FAILED because prior salary events are not accumulated. |
+| 01-06 | 7/7 | Moscow anchoring is present and tested. |
+| 01-07 | 6/7 | The claim that atomic last-write-wins prevents silent D-14 confirmation bypass is FAILED; atomicity does not bind consent to a row version. |
+| 01-08 | 6/6 | Gross split, bracket ordering, DB lower bounds, and metadata are present. |
+| 01-09 | 4/4 | Salary precision and error containment are independently confirmed. |
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
-|----------|----------|--------|---------|
-| `src/env.ts` | Boot-validated env | ✓ VERIFIED | Exports `env`, validates `DATABASE_URL`/`BETTER_AUTH_SECRET`/`BETTER_AUTH_URL` |
-| `src/lib/db/index.ts` | Drizzle client bound to Neon | ✓ VERIFIED | `drizzle({ client: neon(env.DATABASE_URL) })` |
-| `src/lib/db/schema.ts` | `salary_history`, `payment_schedule`, `ytd_baseline` | ✓ VERIFIED | Live DB confirms all 3 tables, `bigint` money columns, unique index, check constraints |
-| `src/lib/auth.ts` | Better Auth server config | ✓ VERIFIED | email+password, `requireEmailVerification: false` (D-06), 30-day `expiresIn` (D-07), no OAuth/reset config |
-| `src/lib/db/auth-schema.ts` | Generated Better Auth tables | ✓ VERIFIED | `user`/`session`/`account`/`verification` present in live DB |
-| `src/lib/auth-client.ts` | Browser auth client | ✓ VERIFIED | `createAuthClient`, exports `authClient` |
-| `src/lib/session.ts` | `getSessionUser`/`requireUserId` | ✓ VERIFIED | Reads `auth.api.getSession`, `requireUserId()` redirects to `/login`, `server-only` guard present |
-| `src/app/api/auth/[...all]/route.ts` | Better Auth route handler | ✓ VERIFIED | `toNextJsHandler(auth)`, Node runtime |
-| `src/app/(auth)/register/page.tsx`, `login/page.tsx` | Auth forms | ✓ VERIFIED | react-hook-form + Zod, no forgot-password link, register routes to `/onboarding` |
-| `src/app/(app)/layout.tsx` | Auth-gated shell | ✓ VERIFIED | Redirects to `/login` when `getSessionUser()` is null |
-| `src/domain/money.ts`, `src/domain/tax/*`, `src/domain/schedule/*` | Pure domain engines | ✓ VERIFIED | Zero I/O imports (grep-enforced in each module's own tests); 45 domain-level Vitest tests pass |
-| `src/lib/validation/salary.ts` | Zod input + drizzle-zod persistence schemas | ✓ VERIFIED | `createInsertSchema` used 3+ times, positive-amount/day-range/backdating rules present |
-| `src/lib/db/salary-repository.ts` | Ownership-scoped repository | ⚠️ ORPHANED-RISK (functional but unsafe) | All 9 functions present, ownership filter uniform (`eq(table.userId, userId)`), but `replaceSalaryAt` is non-atomic — see gaps |
-| `src/app/actions/salary.ts` | Server Actions | ✓ VERIFIED (with race caveat) | All 4 actions call `requireUserId()`, no client-supplied userId, D-04 warning non-blocking — see gaps for the check-then-write race |
-| `src/components/pay-setup-forms.tsx` | Salary/Schedule/YTD forms | ✓ VERIFIED | All 3 exported, D-14 confirm UI, D-04 warning display present |
-| `src/app/(app)/onboarding/page.tsx`, `settings/salary/page.tsx` | Pay-setup routes | ✓ VERIFIED | Both render all 3 forms; settings additionally renders `listSalaryHistory` |
-| `src/app/actions/forecast.ts` | Forecast orchestration | ✓ VERIFIED (date caveat) | Correct ordering (schedule→event→salary-at-date→cumulative→tax), `UnsupportedTaxYearError` propagates uncaught, no logging — but see the timezone gap |
-| `src/components/next-payment-card.tsx`, `ytd-estimate-banner.tsx` | Home screen display | ✓ VERIFIED | No tax computation in presentation layer (grep-verified), banner has no dismiss control/storage |
-| `src/app/(app)/page.tsx` | Home screen | ✓ VERIFIED | Calls `requireUserId()`→`forecastNextPayment()`, renders not-configured prompt with no money value when applicable |
+|---|---|---|---|
+| `src/lib/validation/salary.ts` | Strict salary/schedule/YTD validation | ⚠️ PARTIAL | Sub-kopeck salary guard is correct; impossible calendar dates still pass. |
+| `src/app/actions/salary.ts` | Session-scoped serializable mutations | ⚠️ PARTIAL | 01-09 salary error contract works; D-14 confirmation is not version/snapshot-bound; schedule/YTD failures still escape. |
+| `src/lib/db/salary-repository.ts` | Ownership-scoped history and cumulative income | ✗ HOLLOW for cumulative tax | Queries/upserts are real and user-scoped, but cumulative salary income terminates in a hardcoded zero-event sum. |
+| `src/app/actions/forecast.ts` | Next-payment orchestration | ⚠️ PARTIAL | Correctly wires schedule/date/tax/render flow, but receives an incomplete cumulative-before value. |
+| `src/domain/tax/*` | Progressive cumulative НДФЛ engine | ✓ VERIFIED | Pure value-level tests cover brackets, marginal deltas, rounding, and sequential events. |
+| `src/domain/schedule/*`, `src/domain/time.ts` | Moscow-anchored payment-date resolution | ✓ VERIFIED | Clamp/holiday/order behavior and timezone boundary tests pass. |
+| Auth route/pages/session/config | Register, login, session ownership | ⚠️ PARTIAL | Runtime wiring is substantive; environment template permits a known auth secret. |
+| Home/onboarding/settings components | User-visible core loop | ✓ VERIFIED structurally | Real DB-backed values flow into server-rendered UI; visual UAT remains pending. |
+
+`verify.artifacts` reported all 34 structured artifacts from plans 01-01 through 01-05 present/substantive. Plans 01-06 through 01-09 use string-form artifact declarations, so they were verified manually.
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
-|------|-----|-----|--------|---------|
-| `src/lib/auth.ts` | `src/lib/db/index.ts` | `drizzleAdapter(db, {...})` | ✓ WIRED | Confirmed in source |
-| `src/lib/session.ts` | `src/lib/auth.ts` | `auth.api.getSession({headers})` | ✓ WIRED | Confirmed in source |
-| `src/app/actions/salary.ts` | `src/lib/session.ts` | `requireUserId()` | ✓ WIRED | Every action calls it first |
-| `src/app/actions/salary.ts` | `src/lib/validation/salary.ts` | `schema.safeParse` | ✓ WIRED | Confirmed for all 3 input schemas |
-| `src/lib/db/salary-repository.ts` | `src/lib/db/schema.ts` | `eq(table.userId, userId)` filters | ✓ WIRED | Uniform ownership predicate on every query |
-| `src/app/actions/forecast.ts` | `src/domain/tax/calculate-ndfl.ts` | `calculateNdfl(...)` | ✓ WIRED | Sole tax computation site, confirmed by grep across presentation layer (absent there) |
-| `src/app/actions/forecast.ts` | `src/domain/schedule/resolve-payment-date.ts` | `nextPaymentOnOrAfter(...)` | ✓ WIRED | Confirmed, but fed a non-Moscow-anchored `Date` — see gaps |
-| `src/app/(app)/page.tsx` | `src/app/actions/forecast.ts` | server-render call | ✓ WIRED | Computed during RSC render, not client-fetched |
+|---|---|---|---|---|
+| Auth handler/layout/session | Better Auth + request cookie | `toNextJsHandler(auth)`, `getSessionUser()` | ✓ WIRED | Manual source inspection confirms the links despite false negatives from escaped patterns in the generic key-link query. |
+| Salary forms | Server Actions | awaited action calls and serialized results | ⚠️ PARTIAL | Salary rejection is caught; schedule/YTD and auth-page promise rejections are not. |
+| Salary actions | Session + validation + repository | `requireUserId`, `safeParse`, scoped repository calls | ✓ WIRED | Identity comes from the verified session, not FormData. |
+| Forecast | Schedule/time/tax/repository | `nowInMoscow` → next event → salary/baseline → `calculateNdfl` | ⚠️ PARTIAL | Wiring exists, but cumulative-before omits earlier salary events. |
+| Home page | Forecast + display components | server-component render | ✓ WIRED | No client-side tax recomputation. |
 
 ### Data-Flow Trace (Level 4)
 
-| Artifact | Data Variable | Source | Produces Real Data | Status |
-|----------|---------------|--------|---------------------|--------|
-| `next-payment-card.tsx` | `forecast.netKopecks`/`grossKopecks`/`taxKopecks` | `forecastNextPayment()` → `calculateNdfl()` → live `salary_history`/`ytd_baseline` rows via Neon | Yes | ✓ FLOWING |
-| `onboarding/page.tsx`, `settings/salary/page.tsx` | Prefilled form defaults | `getActiveSalaryAt`/`getSchedule`/`getYtdBaseline` → live DB | Yes | ✓ FLOWING |
-| `settings/salary/page.tsx` history list | `listSalaryHistory(userId)` | Live `salary_history` table, ownership-filtered | Yes | ✓ FLOWING |
+| Rendered value | Source chain | Status |
+|---|---|---|
+| Next payment date | `payment_schedule` → `nextPaymentOnOrAfter(..., nowInMoscow())` → `forecast.date` → card | ✓ FLOWING |
+| Payment gross | effective `salary_history` row → kind-aware half split → card | ✓ FLOWING |
+| Cumulative-before / tax / net | `ytd_baseline` + hardcoded zero event sum → `calculateNdfl` → card | ✗ HOLLOW / INCOMPLETE |
+| Salary history list | ownership-filtered `salary_history` query → settings list | ✓ FLOWING |
+| YTD warning | persisted/synthesized `isEstimated` → home banner | ✓ FLOWING |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
-|----------|---------|--------|--------|
-| Full project test suite runs and passes | `npx vitest run` | 5 test files, 58/58 tests pass | ✓ PASS |
-| Type checking is clean | `npx tsc --noEmit` | exit 0 | ✓ PASS |
-| Live schema matches plan (7 tables, bigint money cols, unique index) | direct Neon query via `@neondatabase/serverless` | all 7 tables present, both money columns `bigint`, `salary_history_user_effective_from_uq` present | ✓ PASS |
-| `scripts/verify-auth-flow.mjs` (e2e register/login/duplicate/race) | not re-run (requires a live dev server + fresh DB mutations) | — | ? SKIP — SUMMARY.md documents this was run and passed in the execution session; not re-run here per the no-server-start/no-mutation spot-check constraint |
+|---|---|---|---|
+| Full automated suite | `npm test -- --run` | 11 files, 111/111 tests pass | ✓ PASS |
+| Type checking | `npx tsc --noEmit` | exit 0 | ✓ PASS |
+| Lint | `npm run lint` | exit 0 | ✓ PASS |
+| Next.js 16 production build | `npm run build` | compiled; all 8 routes generated | ✓ PASS |
+| Impossible-date normalization | Node check for `new Date('2026-02-29')` and `new Date('2026-02-31')` | normalized to March, while current refine accepts both | ✗ FAIL |
+| Example secret validation | length check on `generate-with-openssl-rand-base64-32` | 36 characters; passes `min(32)` | ✗ FAIL |
+
+### Probe Execution
+
+No phase-declared or conventional `probe-*.sh` files exist. N/A.
 
 ### Requirements Coverage
 
-| Requirement | Source Plan | Description | Status | Evidence |
-|-------------|-------------|--------------|--------|----------|
-| AUTH-01 | 01-01, 01-02 | Register/login | ✓ SATISFIED | Register/login pages, Better Auth mount, e2e script (per SUMMARY) |
-| AUTH-02 | 01-01, 01-02, 01-04 | Cross-device sync | ? NEEDS HUMAN | Architecture sound (session + shared Postgres row); no browser-verified cross-device test in any session |
-| SAL-01 | 01-01, 01-03, 01-04 | Enter salary + avans/salary schedule | ✓ SATISFIED | Full input→persist→display chain verified |
-| SAL-02 | 01-01, 01-04 | Change salary, retain history | ✗ BLOCKED | Retains history in the happy path, but CR-02's atomicity/race defect threatens the guarantee under failure/concurrency |
-| SAL-03 | 01-01, 01-04, 01-05 | YTD entry or explicit zero-income warning | ✓ SATISFIED | Unconditional YTD question, persistent banner, editable anytime |
-| TAX-01 | 01-03, 01-05 | Progressive НДФЛ, cumulative from Jan 1 | ✓ SATISFIED (computation) | Domain engine exhaustively tested; bracket primary-source confirmation still an open item (see human_verification) |
-| TAX-02 | 01-03, 01-05 | Avans/salary as independent taxable events | ✓ SATISFIED | Single shared code path, proven by tests |
-| HOME-01 | 01-02, 01-05 | Home screen shows next payment amount + date | ✗ BLOCKED | Amount computation correct; date computation unreliable near MSK midnight/year boundary (CR-01) |
+| Requirement | Source plans | Status | Evidence |
+|---|---|---|---|
+| AUTH-01 | 01-01, 01-02 | ✗ BLOCKED | Auth works structurally, but documented setup accepts a public predictable secret. |
+| AUTH-02 | 01-01, 01-02, 01-04 | ? NEEDS HUMAN | Shared cloud DB and ownership scoping are present; two independent sessions are untested. |
+| SAL-01 | 01-01, 01-03, 01-04, 01-09 | ✓ SATISFIED | Valid salary/schedule flow works; 01-09 closes persisted-precision/error containment. |
+| SAL-02 | 01-01, 01-04, 01-07 | ✗ BLOCKED | History/upsert behavior exists, but D-14 one-way replacement consent is stale/racy. |
+| SAL-03 | 01-01, 01-04, 01-05, 01-06 | ⚠️ PARTIAL | Main entry/skip/banner flow works; shared validator accepts impossible `asOfDate`. |
+| TAX-01 | 01-03, 01-05, 01-06, 01-08 | ✗ BLOCKED | Pure tax engine is correct; production cumulative input omits earlier salary payments. |
+| TAX-02 | 01-03, 01-05, 01-06 | ✗ BLOCKED | Event math is correct in isolation, but production does not fold prior avans/salary events into cumulative income. |
+| HOME-01 | 01-02, 01-05, 01-06, 01-08 | ✗ BLOCKED | Card/date render works, but the amount can be wrong due to incomplete cumulative income. |
 
-No orphaned requirements — all 8 phase-1 IDs (AUTH-01, AUTH-02, SAL-01, SAL-02, SAL-03, TAX-01, TAX-02, HOME-01) are claimed across the 5 plans' `requirements` frontmatter and appear in REQUIREMENTS.md's traceability table.
+No orphaned Phase 1 requirement IDs were found. None of the four blocker concerns is specifically deferred by a later roadmap phase; Phase 2/3 add other income types and assume Phase 1's salary cumulative base is already correct.
 
-### Anti-Patterns Found
+### Test Quality Audit
 
-| File | Line | Pattern | Severity | Impact |
-|------|------|---------|----------|--------|
-| `src/lib/db/salary-repository.ts` | 106-113 | Non-atomic delete-then-insert (`replaceSalaryAt`) | 🛑 Blocker | Confirmed unresolved instance of 01-REVIEW.md CR-02 |
-| `src/app/actions/forecast.ts` | 98 | Bare `new Date()`, no timezone anchor | 🛑 Blocker | Confirmed unresolved instance of 01-REVIEW.md CR-01 |
-| `src/app/(app)/onboarding/page.tsx`, `settings/salary/page.tsx`, `pay-setup-forms.tsx` | 13, 16, 55 | `new Date().toISOString().slice(0,10)` (always UTC) | 🛑 Blocker | Same CR-01 family |
-| `src/app/actions/salary.ts`, `src/lib/db/salary-repository.ts` | 151, 181 | `new Date().getFullYear()` at year boundary | 🛑 Blocker | Same CR-01 family, affects SAL-03 baseline year |
-| `src/domain/tax/ndfl-brackets.ts` | 8-10 | File-header comment claims primary-statute re-confirmation happened | ⚠️ Warning | Contradicts 01-03-SUMMARY.md's explicit "NOT performed (no web access)" record — misleading doc comment, should be corrected |
-| `src/lib/db/salary-repository.ts` | 141-173, 212-248 | `upsertSchedule`/`upsertYtdBaseline` select-then-branch race (01-REVIEW.md WR-01) | ⚠️ Warning | Same class of defect as CR-02 but lower severity (no confirm-UX bypass) |
-| `src/app/actions/forecast.ts` | 81-83 | `halfSplitGross` independent per-half rounding (01-REVIEW.md WR-02) | ⚠️ Warning | 1-kopeck drift possible on odd-kopeck gross amounts |
-| `src/lib/db/schema.ts` | 19-38, 62-70 | No DB-level positivity check on money columns (01-REVIEW.md WR-03) | ⚠️ Warning | Defense-in-depth gap, Zod is the only backstop |
-| `src/domain/tax/calculate-ndfl.ts` | 45-62 | Bracket-ascending-order assumed, not asserted (01-REVIEW.md WR-04) | ℹ️ Info | Correct today, no runtime guard for future scale edits |
-| `src/app/layout.tsx` | 15-18 | create-next-app scaffold metadata still in place (01-REVIEW.md WR-05) | ℹ️ Info | Cosmetic; PWA manifest work is Phase 4 scope |
+| Test surface | Linked requirements | Active / skipped | Assertion level | Verdict |
+|---|---|---|---|---|
+| `calculate-ndfl.test.ts` | TAX-01, TAX-02 | active / 0 | Value + property | Strong for the pure engine. |
+| `forecast.test.ts` | TAX-01, TAX-02, HOME-01 | active / 0 | DB-backed value | 🛑 BLOCKER: the oracle uses a stale baseline and never exercises prior scheduled salary events. |
+| `salary-repository.test.ts` | SAL-02, SAL-03, AUTH-02 | active / 0 | DB-backed behavior | Strong for atomicity/isolation; explicitly asserts cumulative income equals baseline only. |
+| `salary.test.ts`, `pay-setup-forms.test.ts` | SAL-01 | active / 0 | Boundary + AST contract | Strong for plan 01-09; no strict date cases. |
+| `verify-auth-flow.mjs` | AUTH-01 | standalone script | End-to-end HTTP/DB | Substantive, but not part of the 111-test Vitest run; cleanup failure remains WR-03. |
 
-No `TBD`/`FIXME`/`XXX` debt markers found in phase-modified files.
+Disabled requirement-linked tests: 0. Circular expected-value generators: 0. The principal quality failure is a production-wiring blind spot: passing pure-engine tests cannot prove the cumulative input supplied by the repository is complete.
+
+### Anti-Patterns and Review Findings
+
+| Finding | Severity | Current verification |
+|---|---|---|
+| Cumulative salary events omitted from `getCumulativeIncomeBeforeDate` | 🛑 BLOCKER | Newly found by goal-backward data-flow tracing; directly breaks TAX-01/TAX-02/HOME-01. |
+| Review CR-01: valid predictable auth placeholder | 🛑 BLOCKER | Confirmed at `.env.example:2` and `src/env.ts:7`. |
+| Review CR-02: D-14 snapshot/TOCTOU race | 🛑 BLOCKER | Confirmed at `salary.ts:84-103` and `pay-setup-forms.tsx:73-110`. |
+| Review CR-03: impossible dates accepted | 🛑 BLOCKER | Confirmed at `salary.ts:38-44` with direct normalization check. |
+| Review WR-01: schedule/YTD rejected promises unhandled | ⚠️ WARNING | Confirmed; Next.js 16 documents expected Server Function errors as return values and async event-handler errors are not handled by render boundaries. |
+| Review WR-02: auth request rejection/upstream messages | ⚠️ WARNING | Confirmed in login/register submit handlers. |
+| Review WR-03: auth verification cleanup bypass | ⚠️ WARNING | Confirmed: `fail()` calls `process.exit(1)`, so `.finally()` cannot run. |
+
+No `TBD`, `FIXME`, or `XXX` debt markers and no disabled tests were found in the checked source/test surface.
+
+### Decision Coverage
+
+All 15 trackable `01-CONTEXT.md` decisions are referenced by shipped artifacts (`check.decision-coverage-verify`: 15/15 honored). This non-blocking lexical gate does not override the behavioral D-14 failure above.
 
 ### Human Verification Required
 
-See frontmatter `human_verification`. In summary: the AUTH-02 two-browser cross-device check, D-06/D-08 visual confirmation, the НДФЛ bracket primary-statute confirmation (open blocker carried from Plan 01-03), and the remaining Task 3 (Plan 01-05) visual/interactive checks (D-11 reload persistence, D-02 real-calendar cross-check, D-15 visual confirmation, card wording) — none of these had browser access in any execution session and are consistently documented as such in every plan's SUMMARY.md, not silently marked complete.
+The overall status remains `gaps_found`, but these checks must remain visible for the later UAT sink:
+
+1. **AUTH-02 two-browser sync:** edit salary/schedule/YTD in one independent browser profile and verify the other shows identical data after reload.
+2. **Primary-statute confirmation:** compare the 2025 thresholds, rates, and fixed bases in `ndfl-brackets.ts` with the primary НК РФ ст.224 text.
+3. **Visual/interactive decisions:** confirm banner persistence, D-04 warning wording, history rendering, weekend/holiday date presentation, forecast wording, and absence of a future-raise indicator in a real browser.
 
 ### Gaps Summary
 
-The phase's architecture is sound and the large majority of it is genuinely built, wired, and tested: 58/58 Vitest tests pass, `tsc`/`build` are clean, the live Neon database matches the schema exactly, ownership scoping is uniform and greppable, and the tax/schedule domain engines are pure and exhaustively tested against real edge cases. This is not a stub-riddled phase.
-
-However, two Critical findings from the phase's own code review (01-REVIEW.md, committed 2026-08-28) remain unresolved in the current codebase, and both were independently re-confirmed by direct code inspection during this verification:
-
-1. **CR-02 (SAL-02):** `replaceSalaryAt`'s non-atomic delete-then-insert, compounded by an unlocked check-then-write race in `saveSalaryAction`, can permanently lose a user's salary data on partial failure and can silently bypass the D-14 confirm-before-overwrite UX under concurrent writes — a scenario this app explicitly supports (cross-device editing of the same account).
-2. **CR-01 (HOME-01/TAX-01/TAX-02, and touching SAL-03):** No file anchors "today" to Europe/Moscow. A bare `new Date()` feeds the payment-date resolver, and three other call sites use `toISOString().slice(0,10)` (always UTC) — both confirmed present. This can show the wrong next-payment date and the wrong "active" salary for roughly the first three hours of every Moscow calendar day, on every deployment, undermining the app's stated core value proposition of a precisely-dated forecast.
-
-Both are fixable with the specific, concrete remediations 01-REVIEW.md already proposed (an `onConflictDoUpdate` atomic upsert for CR-02; a single `nowInMoscow()`/`todayIsoInMoscow()` helper routed through everywhere for CR-01). Given this is a financial-planning app whose entire value proposition is "know precisely when and how much," both are treated as blockers rather than warnings.
+Plan 01-09 successfully closes its stated SAL-01 gap, and all automated quality commands pass. The phase goal is nevertheless not achieved. Three fresh review blockers remain, and goal-backward tracing found a more fundamental production-wiring defect: the pure tax engine is fed a stale YTD baseline because prior salary payments are never accumulated. This can produce a cleanly rendered but materially incorrect next-payment amount, which directly contradicts the phase's core outcome.
 
 ---
 
-_Verified: 2026-08-29_
-_Verifier: Claude (gsd-verifier)_
+_Verified: 2026-08-29T11:28:11Z_
+_Verifier: the agent (gsd-verifier)_
