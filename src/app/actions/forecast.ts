@@ -71,16 +71,21 @@ export type ForecastResult =
   | { configured: false; missing: "salary" | "schedule" };
 
 /**
- * Splits the monthly gross oklad evenly across the avans and salary
- * payments (Task 1 decision: half-split, resolved by the human). Each
- * payment carries exactly half the monthly gross; the annual total across
- * twelve months is always `oklad * 12`. Kept as a single named helper — not
- * inlined — so this is the one place the rule lives and it stays easy to
- * swap for a configurable-percent model later without touching the
- * orchestration around it.
+ * Splits the monthly gross oklad across the avans and salary payments
+ * (Task 1 decision: half-split, resolved by the human). The avans share is
+ * the floor of the half and the salary share is the remainder, so the two
+ * always reconcile to exactly the monthly gross regardless of parity — and
+ * the annual total across twelve months is therefore exactly `oklad * 12`.
+ * Rounding each half independently (the prior implementation) let an
+ * odd-kopeck gross produce two halves that summed to one kopeck MORE than
+ * the gross (WR-02) — the same anti-drift discipline
+ * `src/domain/tax/calculate-ndfl.ts` applies to tax rounding, applied here
+ * to gross. Exported so the parity property is directly unit-testable
+ * without a database fixture.
  */
-function halfSplitGross(monthlyGrossKopecks: Kopecks): Kopecks {
-  return Math.round(monthlyGrossKopecks / 2);
+export function halfSplitGross(monthlyGrossKopecks: Kopecks, kind: PaymentKind): Kopecks {
+  const avansShareKopecks = Math.floor(monthlyGrossKopecks / 2);
+  return kind === "avans" ? avansShareKopecks : monthlyGrossKopecks - avansShareKopecks;
 }
 
 /**
@@ -112,7 +117,7 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
     return { configured: false, missing: "salary" };
   }
 
-  const paymentGrossKopecks = halfSplitGross(activeSalary.grossAmountKopecks);
+  const paymentGrossKopecks = halfSplitGross(activeSalary.grossAmountKopecks, paymentEvent.kind);
 
   const [cumulativeBeforeKopecks, ytdBaseline] = await Promise.all([
     getCumulativeIncomeBeforeDate(userId, paymentDateIso),
