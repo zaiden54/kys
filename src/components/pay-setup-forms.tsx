@@ -80,22 +80,26 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
   async function submit(values: SalaryInput, confirm: boolean) {
     setMessage(null);
     setServerError(null);
-    const result: SalaryActionResult = await saveSalaryAction(
-      toFormData({ ...values, confirm }),
-    );
-    if (result.success) {
-      setPendingConfirmation(null);
-      setMessage("Оклад сохранён.");
-      return;
+    try {
+      const result: SalaryActionResult = await saveSalaryAction(
+        toFormData({ ...values, confirm }),
+      );
+      if (result.success) {
+        setPendingConfirmation(null);
+        setMessage("Оклад сохранён.");
+        return;
+      }
+      if (result.needsConfirmation) {
+        setPendingConfirmation({
+          existingAmountRubles: result.existingAmountRubles,
+          effectiveFrom: result.effectiveFrom,
+        });
+        return;
+      }
+      setServerError(joinFieldErrors(result.fieldErrors));
+    } catch {
+      setServerError("Не удалось сохранить оклад. Попробуйте ещё раз.");
     }
-    if (result.needsConfirmation) {
-      setPendingConfirmation({
-        existingAmountRubles: result.existingAmountRubles,
-        effectiveFrom: result.effectiveFrom,
-      });
-      return;
-    }
-    setServerError(joinFieldErrors(result.fieldErrors));
   }
 
   async function onSubmit(values: SalaryInput) {
