@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 current_phase: 01
 current_phase_name: Core Payroll Loop
-status: executing
-stopped_at: Completed 01-08-PLAN.md
-last_updated: "2026-08-29T10:54:27.915Z"
+status: verifying
+stopped_at: Completed 01-09-PLAN.md
+last_updated: "2026-08-29T11:16:51.249Z"
 last_activity: 2026-08-29
 last_activity_desc: Phase 01 execution started
-state_head: 3887607f77406267b5dc378e963d0347c1aa1aef
+state_head: 320b5634f4d576cb4c08160df99cf4b269fe3660
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
   percent: 0
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-28)
 
 ## Current Position
 
-Phase: 01 (Core Payroll Loop) — READY TO EXECUTE
-Plan: 8 of 8
-Status: Ready to execute
-Last activity: 2026-08-29 — Completed 01-07-PLAN.md
+Phase: 01 (Core Payroll Loop) — READY FOR VERIFICATION
+Plan: 9 of 9
+Status: Phase complete — ready for verification
+Last activity: 2026-08-29 — Completed 01-09-PLAN.md
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -66,6 +66,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P06 | 20min | 2 tasks | 9 files |
 | Phase 01 P07 | 15min | 2 tasks | 3 files |
 | Phase 01 P08 | 15min | 3 tasks | 7 files |
+| Phase 01 P09 | 18min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Recent decisions affecting current work:
 - [Phase 01]: [Phase 01-08]: MAX_VERIFIED_TAX_YEAR left at 2026 while correcting the false statute-verification comment -- lowering it would be a live outage, not a fix; the primary НК РФ ст.224 confirmation remains an open human_verification item
 - [Phase 01]: [Phase 01-08]: halfSplitGross rewritten as kind-aware floor/remainder split so avans+salary always reconcile to the monthly gross, closing a one-kopeck drift on odd-kopeck amounts (WR-02)
 - [Phase 01]: [Phase 01-08]: Added live database check() constraints (salary_gross_amount_positive, ytd_amount_nonnegative) as a second gate behind Zod; applied via drizzle-kit push after confirming zero pre-existing violating rows and a statement list containing only the two expected ADD CONSTRAINT statements
+- [Phase 01]: Phase 01-09: validate salary at persisted precision with Math.round(value * 100) > 0, preserving exact 0.005 rubles as valid
+- [Phase 01]: Phase 01-09: repository and client action failures use fixed generic Russian retry messages without inspecting or exposing caught details
 
 ### Pending Todos
 
@@ -113,6 +116,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-29T08:55:22.495Z
-Stopped at: Completed 01-08-PLAN.md
+Last session: 2026-08-29T11:16:51.216Z
+Stopped at: Completed 01-09-PLAN.md
 Resume file: None
