@@ -56,6 +56,17 @@ export type SalaryActionResult =
  * carry a `confirm` flag, this returns a confirmation request (including the
  * existing amount) instead of writing — the caller must resubmit with
  * `confirm=true` to proceed.
+ *
+ * The `findSalaryAt` read below is advisory only: it exists purely to drive
+ * the D-14 confirmation prompt's UX (showing the user the existing amount
+ * before they confirm an overwrite) and can never itself be made race-free —
+ * two near-simultaneous submissions can both observe "no existing row." That
+ * is fine, because durability no longer depends on this read: `replaceSalaryAt`
+ * persists through a single conflict-handling statement, so whichever write
+ * reaches the database last is the one that survives and exactly one row
+ * exists afterward. No app-level lock, resubmission loop, or transaction
+ * wrapper is needed or added here — the atomicity guarantee lives entirely
+ * in the repository layer (CR-02 / SAL-02).
  */
 export async function saveSalaryAction(formData: FormData): Promise<SalaryActionResult> {
   const userId = await requireUserId();

@@ -92,30 +92,35 @@ export async function listSalaryHistory(userId: string): Promise<SalaryHistoryRo
  * (user, effective date), no duplicate and no archived copy. A row dated
  * differently simply adds a second history row (D-13 backdating).
  *
- * Deletes the colliding row (if any) then inserts the new one. Note: the
- * installed Neon HTTP driver (drizzle-orm/neon-http) does not support
- * interactive transactions, so these are two sequential statements rather
- * than an atomic transaction — an acceptable risk for a single-writer,
- * single-user-scoped row pair with no concurrent-write scenario in this
- * app's usage pattern.
+ * Persists via a single `INSERT ... ON CONFLICT (user_id, effective_from) DO
+ * UPDATE` statement, so the write is atomic without a transaction wrapper —
+ * this matters because the installed Neon HTTP driver
+ * (drizzle-orm/neon-http) has no interactive transactions, so there is no
+ * other way to make a multi-statement write atomic. Because the whole
+ * operation is one round trip, two concurrent calls for the same
+ * (user, effective date) both resolve without error and Postgres itself
+ * serialises them on `salary_history_user_effective_from_uq`: exactly one
+ * row survives, carrying whichever write the database ordered last. No
+ * update is silently lost and no unique-constraint violation escapes to the
+ * caller.
  */
 export async function replaceSalaryAt(
   userId: string,
   grossAmountKopecks: number,
   effectiveFrom: string,
 ): Promise<SalaryHistoryRow> {
-  await db
-    .delete(salaryHistory)
-    .where(and(eq(salaryHistory.userId, userId), eq(salaryHistory.effectiveFrom, effectiveFrom)));
-
-  const inserted = await db
+  const upserted = await db
     .insert(salaryHistory)
     .values({ userId, grossAmountKopecks, effectiveFrom })
+    .onConflictDoUpdate({
+      target: [salaryHistory.userId, salaryHistory.effectiveFrom],
+      set: { grossAmountKopecks, createdAt: new Date() },
+    })
     .returning();
 
-  const row = inserted[0];
+  const row = upserted[0];
   if (!row) {
-    throw new Error("replaceSalaryAt: insert into salary_history returned no row");
+    throw new Error("replaceSalaryAt: upsert into salary_history returned no row");
   }
   return row;
 }
