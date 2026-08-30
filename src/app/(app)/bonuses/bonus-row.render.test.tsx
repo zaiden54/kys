@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 vi.mock("@/app/actions/bonus", () => ({
   saveBonusAction: vi.fn().mockResolvedValue({ success: true }),
@@ -8,6 +8,7 @@ vi.mock("@/app/actions/bonus", () => ({
 }));
 
 import { BonusRow } from "./bonus-row";
+import { saveBonusAction } from "@/app/actions/bonus";
 import type { BonusRow as BonusRowData } from "@/lib/db/bonus-repository";
 
 afterEach(cleanup);
@@ -75,5 +76,47 @@ describe("BonusRow edit-form resync (closes 02-VERIFICATION.md CR-01, truth 11)"
     // ...while a field the user never touched adopts the fresh server value.
     const noteInput = screen.getByRole("textbox") as HTMLInputElement;
     expect(noteInput.value).toBe("Изменено на другом устройстве");
+  });
+
+  it("WR-02: a superseded (cancelled) in-flight save does not clobber a newer edit session", async () => {
+    const bonusFixture = makeBonus();
+    let resolveFirstSave!: (value: { success: true }) => void;
+    const firstSave = new Promise<{ success: true }>((resolve) => {
+      resolveFirstSave = resolve;
+    });
+    vi.mocked(saveBonusAction).mockReturnValueOnce(firstSave);
+
+    render(<BonusRow bonus={bonusFixture} />);
+
+    // First edit session: change the amount and submit (save left in flight).
+    fireEvent.click(screen.getByRole("button", { name: "Изменить бонус" }));
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "111" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    // handleSubmit's resolver validation is async, so the actual save call
+    // (and this component's session-token capture) lands a tick later — wait
+    // for it to actually fire before cancelling, to model a genuinely
+    // in-flight network request rather than a same-tick validation race.
+    await waitFor(() => expect(vi.mocked(saveBonusAction)).toHaveBeenCalledTimes(1));
+
+    // Cancel before the first save resolves — row flips back to display.
+    fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
+    expect(screen.queryByRole("button", { name: "Изменить бонус" })).not.toBeNull();
+
+    // Reopen and start a second, different edit session.
+    fireEvent.click(screen.getByRole("button", { name: "Изменить бонус" }));
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "222" } });
+
+    // The first (now-superseded) save resolves late.
+    await act(async () => {
+      resolveFirstSave({ success: true });
+      await firstSave;
+    });
+
+    // The second edit session must survive untouched — still in edit mode,
+    // still showing the second session's typed value.
+    expect(screen.queryByRole("button", { name: "Сохранить" })).not.toBeNull();
+    const amountInput = screen.getByRole("spinbutton") as HTMLInputElement;
+    expect(amountInput.value).toBe("222");
   });
 });

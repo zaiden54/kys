@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { deleteBonusAction, saveBonusAction } from "@/app/actions/bonus";
@@ -35,14 +35,21 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
       values: toDefaults(bonus),
       resetOptions: { keepDirtyValues: true },
     });
+  // Guards onEdit's async continuation against a superseded edit session:
+  // bumped on every submit and on Cancel, so a stale in-flight save that
+  // resolves after the user has moved on (cancelled + reopened, or
+  // resubmitted) no-ops instead of clobbering the newer session.
+  const editSessionRef = useRef(0);
 
   async function onEdit(values: BonusInput) {
+    const session = ++editSessionRef.current;
     setErrorMessage(null);
     try {
       const data = new FormData();
       data.set("id", bonus.id); data.set("amountRubles", String(values.amountRubles));
       data.set("date", values.date); data.set("note", values.note);
       const result = await saveBonusAction(data);
+      if (editSessionRef.current !== session) return; // superseded — do nothing
       if (result.success) {
         setMode("display");
         reset(values, { keepDirtyValues: false });
@@ -54,6 +61,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
         }
       }
     } catch {
+      if (editSessionRef.current !== session) return; // superseded — do nothing
       setErrorMessage("Не удалось сохранить бонус. Попробуйте ещё раз.");
     }
   }
@@ -83,7 +91,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={isSubmitting} className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">{isSubmitting ? "Сохранение…" : "Сохранить"}</button>
-            <button type="button" onClick={() => { reset(toDefaults(bonus), { keepDirtyValues: false }); setMode("display"); }} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm">Отмена</button>
+            <button type="button" onClick={() => { editSessionRef.current += 1; reset(toDefaults(bonus), { keepDirtyValues: false }); setMode("display"); }} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm">Отмена</button>
           </div>
         </form>
       </li>
