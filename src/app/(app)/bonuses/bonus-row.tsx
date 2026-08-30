@@ -22,15 +22,20 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
     });
 
   async function onEdit(values: BonusInput) {
-    const data = new FormData();
-    data.set("id", bonus.id); data.set("amountRubles", String(values.amountRubles));
-    data.set("date", values.date); data.set("note", values.note);
-    const result = await saveBonusAction(data);
-    if (result.success) { setMode("display"); return; }
-    for (const [field, messages] of Object.entries(result.fieldErrors)) {
-      if ((field === "amountRubles" || field === "date" || field === "note") && messages?.[0]) {
-        setError(field, { message: messages.join(" ") });
+    setErrorMessage(null);
+    try {
+      const data = new FormData();
+      data.set("id", bonus.id); data.set("amountRubles", String(values.amountRubles));
+      data.set("date", values.date); data.set("note", values.note);
+      const result = await saveBonusAction(data);
+      if (result.success) { setMode("display"); return; }
+      for (const [field, messages] of Object.entries(result.fieldErrors)) {
+        if ((field === "amountRubles" || field === "date" || field === "note") && messages?.[0]) {
+          setError(field, { message: messages.join(" ") });
+        }
       }
+    } catch {
+      setErrorMessage("Не удалось сохранить бонус. Попробуйте ещё раз.");
     }
   }
 
@@ -56,6 +61,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
           {errors.amountRubles && <p className="text-sm text-red-600">{errors.amountRubles.message}</p>}
           <input type="text" className="rounded border border-zinc-300 px-3 py-2" {...register("note")} />
           {errors.note && <p className="text-sm text-red-600">{errors.note.message}</p>}
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={isSubmitting} className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">{isSubmitting ? "Сохранение…" : "Сохранить"}</button>
             <button type="button" onClick={() => setMode("display")} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm">Отмена</button>

@@ -23,21 +23,27 @@ export function BonusForm() {
       defaultValues: { amountRubles: undefined, date: today, note: "" },
     });
   const [message, setMessage] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   async function onSubmit(values: BonusInput) {
     setMessage(null);
-    const result = await saveBonusAction(toFormData(values));
-    if (!result.success) {
-      for (const [field, messages] of Object.entries(result.fieldErrors)) {
-        const message = messages?.join(" ");
-        if (message && (field === "amountRubles" || field === "date" || field === "note")) {
-          setError(field, { message });
+    setServerError(null);
+    try {
+      const result = await saveBonusAction(toFormData(values));
+      if (!result.success) {
+        for (const [field, messages] of Object.entries(result.fieldErrors)) {
+          const message = messages?.join(" ");
+          if (message && (field === "amountRubles" || field === "date" || field === "note")) {
+            setError(field, { message });
+          }
         }
+        return;
       }
-      return;
+      setMessage("Бонус сохранён.");
+      reset({ amountRubles: undefined, date: todayIsoInMoscow(), note: "" });
+    } catch {
+      setServerError("Не удалось сохранить бонус. Попробуйте ещё раз.");
     }
-    setMessage("Бонус сохранён.");
-    reset({ amountRubles: undefined, date: todayIsoInMoscow(), note: "" });
   }
 
   return (
@@ -62,6 +68,7 @@ export function BonusForm() {
           className="rounded border border-zinc-300 px-3 py-2" {...register("note")} />
         {errors.note && <p className="text-sm text-red-600">{errors.note.message}</p>}
       </div>
+      {serverError && <p className="text-sm text-red-600">{serverError}</p>}
       {message && <p className="text-sm text-green-700">{message}</p>}
       <button type="submit" disabled={isSubmitting}
         className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">

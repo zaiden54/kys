@@ -20,6 +20,9 @@ export const bonusInputSchema = z.object({
     .max(MAX_RUBLES, "Бонус превышает допустимый максимум")
     .refine((value) => Math.round(value * 100) > 0, {
       message: "Бонус должен быть не меньше одной копейки",
+    })
+    .refine((value) => Number.isInteger(Math.round(value * 100_000_000) / 1_000_000), {
+      message: "Укажите сумму с точностью не более двух знаков после запятой",
     }),
   date: isoDateString,
   note: z.string().max(500, "Заметка слишком длинная (максимум 500 символов)")
