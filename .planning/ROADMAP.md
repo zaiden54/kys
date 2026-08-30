@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Core Payroll Loop** - User registers, enters salary and payment schedule, and sees a correctly-taxed next-payment amount on the home screen (completed 2026-08-29)
 - [x] **Phase 2: Bonuses & One-off Payments** - User adds a one-off premium/compensation that is taxed through the same cumulative НДФЛ engine (completed 2026-08-30)
-- [ ] **Phase 3: Vacation Pay** - User enters vacation dates and sees auto-calculated отпускные per ст.139 ТК РФ
+- [x] **Phase 3: Vacation Pay** - User enters vacation dates and sees auto-calculated отпускные per ст.139 ТК РФ (completed 2026-08-31)
 - [ ] **Phase 4: Annual Overview & PWA Installability** - User sees the full-year gross/tax/net pie chart and can install the app to their iPhone home screen
 
 ## Phase Details
@@ -183,5 +183,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Core Payroll Loop | 12/12 | Complete    | 2026-08-29 |
 | 2. Bonuses & One-off Payments | 4/4 | Complete    | 2026-08-30 |
-| 3. Vacation Pay | 4/4 | In Progress|  |
+| 3. Vacation Pay | 4/4 | Complete    | 2026-08-31 |
 | 4. Annual Overview & PWA Installability | 0/TBD | Not started | - |
