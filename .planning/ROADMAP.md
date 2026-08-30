@@ -102,7 +102,7 @@ Plans:
   2. The bonus amount is added to cumulative year-to-date income and taxed through the same progressive НДФЛ mechanism as regular salary, correctly changing the take-home amount for that payment (BON-02)
   3. If the bonus lands on the next upcoming payment date, the home screen's next-payment amount reflects it
 
-**Plans**: 3/4 plans executed (2 gap-closure plans added: 02-03 after the 2026-08-29 re-verification returned `gaps_found` on the MVP roadmap-contract pre-flight guard; 02-04 after the 2026-08-30 re-verification found CR-01, a critical BonusRow edit-form data-loss defect)
+**Plans**: 4/4 plans executed (2 gap-closure plans added: 02-03 after the 2026-08-29 re-verification returned `gaps_found` on the MVP roadmap-contract pre-flight guard; 02-04 after the 2026-08-30 re-verification found CR-01, a critical BonusRow edit-form data-loss defect)
 
 Plans:
 **Wave 1**
@@ -123,7 +123,7 @@ Plans:
 
 **Gap wave 2**
 
-- [ ] 02-04-PLAN.md — Fix BonusRow's edit form to resync with live bonus data (RHF `values` + explicit `reset()`), backed by a new render-based regression test; bundles the trivial IN-01 delete-confirm formatting fix (CR-01 — BON-01, BON-02)
+- [x] 02-04-PLAN.md — Fix BonusRow's edit form to resync with live bonus data (RHF `values` + explicit `reset()`), backed by a new render-based regression test; bundles the trivial IN-01 delete-confirm formatting fix (CR-01 — BON-01, BON-02)
 
 **UI hint**: yes
 
@@ -167,6 +167,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Payroll Loop | 12/12 | Complete    | 2026-08-29 |
-| 2. Bonuses & One-off Payments | 3/4 | In Progress|  |
+| 2. Bonuses & One-off Payments | 4/4 | In Progress|  |
 | 3. Vacation Pay | 0/TBD | Not started | - |
 | 4. Annual Overview & PWA Installability | 0/TBD | Not started | - |
