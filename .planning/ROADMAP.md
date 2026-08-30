@@ -92,7 +92,7 @@ Plans:
 
 ### Phase 2: Bonuses & One-off Payments
 
-**Goal**: A user can attach a one-off premium or compensation to a specific payment date and see it flow through the same cumulative НДФЛ engine as regular salary, correctly affecting that and subsequent payments.
+**Goal:** As a signed-in user, I want to attach a one-off bonus or compensation (ex. sports) to a payment date, so that I can see how it affects my cumulative НДФЛ and future take-home payments.
 **Mode:** mvp
 **Depends on**: Phase 1
 **Requirements**: BON-01, BON-02
@@ -102,7 +102,7 @@ Plans:
   2. The bonus amount is added to cumulative year-to-date income and taxed through the same progressive НДФЛ mechanism as regular salary, correctly changing the take-home amount for that payment (BON-02)
   3. If the bonus lands on the next upcoming payment date, the home screen's next-payment amount reflects it
 
-**Plans**: 2/2 plans executed
+**Plans**: 2/3 plans executed (gap-closure plan added after the 2026-08-29 re-verification returned `gaps_found` on the MVP roadmap-contract pre-flight guard)
 
 Plans:
 **Wave 1**
@@ -112,6 +112,12 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 02-02-PLAN.md — Edit/delete a bonus (D-B04/D-B06) and the full UI-SPEC-compliant history list (wave 2)
+
+**Gap closure** *(added after 02-VERIFICATION.md returned `gaps_found`: the MVP roadmap-contract pre-flight guard failed before BON-01/BON-02 were evaluated)*
+
+**Gap wave 1**
+
+- [ ] 02-03-PLAN.md — Lock in the corrected user-story goal and close three evidenced code-review warnings (WR-01, WR-02, WR-03)
 
 **UI hint**: yes
 
@@ -155,6 +161,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Payroll Loop | 12/12 | Complete    | 2026-08-29 |
-| 2. Bonuses & One-off Payments | 2/2 | In Progress|  |
+| 2. Bonuses & One-off Payments | 2/3 | In Progress|  |
 | 3. Vacation Pay | 0/TBD | Not started | - |
 | 4. Annual Overview & PWA Installability | 0/TBD | Not started | - |
