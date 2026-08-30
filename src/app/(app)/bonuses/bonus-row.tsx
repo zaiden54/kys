@@ -11,7 +11,7 @@ import { bonusInputSchema, type BonusInput } from "@/lib/validation/bonus";
 function toDefaults(bonus: BonusRowData): BonusInput {
   return {
     id: bonus.id, amountRubles: kopecksToRubles(bonus.amountKopecks),
-    date: bonus.date, note: bonus.note ?? "",
+    date: bonus.date, note: bonus.note ?? "", type: bonus.type,
   };
 }
 
@@ -47,7 +47,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
     try {
       const data = new FormData();
       data.set("id", bonus.id); data.set("amountRubles", String(values.amountRubles));
-      data.set("date", values.date); data.set("note", values.note);
+      data.set("date", values.date); data.set("note", values.note); data.set("type", values.type);
       const result = await saveBonusAction(data);
       if (editSessionRef.current !== session) return; // superseded — do nothing
       if (result.success) {
@@ -88,6 +88,11 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
           {errors.amountRubles && <p className="text-sm text-red-600">{errors.amountRubles.message}</p>}
           <input type="text" className="rounded border border-zinc-300 px-3 py-2" {...register("note")} />
           {errors.note && <p className="text-sm text-red-600">{errors.note.message}</p>}
+          <select aria-label="Тип выплаты" className="rounded border border-zinc-300 px-3 py-2" {...register("type")}>
+            <option value="premium">Премия (учитывается при расчёте отпускных)</option>
+            <option value="compensation">Компенсация — например, к отпуску (не учитывается при расчёте отпускных)</option>
+          </select>
+          {errors.type && <p className="text-sm text-red-600">{errors.type.message}</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={isSubmitting} className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">{isSubmitting ? "Сохранение…" : "Сохранить"}</button>
