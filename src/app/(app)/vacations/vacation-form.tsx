@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { saveVacationAction } from "@/app/actions/vacation";
 import { todayIsoInMoscow } from "@/domain/time";
 import { calculateVacationDays } from "@/domain/vacation/calculate-average-daily-earnings";
+import { pluralizeRu } from "@/lib/pluralize-ru";
 import { vacationInputSchema, type VacationInput } from "@/lib/validation/vacation";
 
 const ISO_DATE_SHAPE = /^\d{4}-\d{2}-\d{2}$/;
@@ -80,7 +81,9 @@ export function VacationForm() {
         <p className="text-xs text-zinc-500">День, когда заканчивается отпуск</p>
         {errors.endDate && <p className="text-sm text-red-600">{errors.endDate.message}</p>}
         {dayCount !== null && (
-          <p className="text-xs text-zinc-500">{dayCount} дней отпуска</p>
+          <p className="text-xs text-zinc-500">
+            {dayCount} {pluralizeRu(dayCount, ["день", "дня", "дней"])} отпуска
+          </p>
         )}
       </div>
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}
