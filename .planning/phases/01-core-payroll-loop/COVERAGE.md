@@ -2,7 +2,7 @@
 
 **Decided:** 2026-08-28 (plan-phase)
 
-No external API integration: Phase 1 touches only in-process libraries (Better Auth, Drizzle, date-holidays, date-fns, Zod) and the application's own Postgres database on Neon — there is no third-party service API whose capability surface the phase could be silently under-integrating.
+No external API integration: Phase 1 uses only in-process libraries and its own Postgres database on Neon; it integrates no third-party service API whose capability coverage could be silently incomplete.
 
 ## Reasoning per dependency
 

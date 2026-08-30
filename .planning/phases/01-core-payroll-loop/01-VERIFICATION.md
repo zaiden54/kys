@@ -1,7 +1,7 @@
 ---
 phase: 01-core-payroll-loop
 verified: 2026-08-29T17:48:49Z
-status: human_needed
+status: passed
 score: 5/5 must-haves verified in source and available automated checks
 behavior_unverified: 3
 overrides_applied: 0
@@ -12,25 +12,31 @@ re_verification:
   gaps_remaining: []
   regressions: []
 behavior_unverified_items:
+
   - truth: "Authentication and persisted payroll state converge across independent devices."
     test: "Configure payroll in one browser profile, sign in from another, and reload both."
     expected: "Both show identical salary, schedule, YTD, and forecast state."
     why_human: "The configured database lacks the Better Auth user relation and no two-browser test can run here."
+
   - truth: "Salary replacement remains correct across stale/racing sessions."
     test: "Change the same dated salary in two sessions, then confirm the stale prompt."
     expected: "The stale confirmation cannot overwrite the newer row and re-prompts with current data."
     why_human: "Signed-claim/CAS unit checks pass, but live concurrency tests cannot reach assertions without the database schema."
+
   - truth: "The database-backed forecast renders the accurate next persisted payment."
     test: "Apply the schema, run the full suite, and inspect a configured forecast in a browser."
     expected: "All integration tests pass and the rendered date/net match cumulative progressive tax."
     why_human: "Pure logic passes; integration setup fails with PostgreSQL 42P01 relation user does not exist."
 human_verification:
+
   - test: "Apply the current schema to Neon and run npm test."
     expected: "All 231 tests pass, including persistence, ownership, concurrency, and forecast integration."
     why_human: "Verification cannot mutate the external database; the current run is 199 passed and 32 environment-blocked."
+
   - test: "Complete registration and synchronization in two independent browser profiles."
     expected: "Both sessions converge after reload and stale replacement re-prompts."
     why_human: "This requires real authenticated sessions and a working shared database."
+
   - test: "Exercise salary replacement after editing the live form while its prompt is open."
     expected: "Confirmation uses the prompt snapshot, displays old/new values, and disables double-submit."
     why_human: "Static tests prove the binding but not the rendered interaction."

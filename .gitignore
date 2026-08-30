@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# GSD run-scoped tooling sentinels (local dispatch bookkeeping, not project state)
+/.gsd/
