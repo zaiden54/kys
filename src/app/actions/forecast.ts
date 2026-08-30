@@ -140,6 +140,16 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
   const taxYear = Number(paymentDateIso.slice(0, 4));
   const { taxKopecks, netKopecks } = calculateNdfl(cumulativeBeforeKopecks, paymentGrossKopecks, taxYear);
 
+  // Mirrors the exact boundary getCumulativeIncomeBeforeDate already applies
+  // (src/lib/db/salary-repository.ts) to decide whether the stored baseline
+  // contributes to the cumulative figure: same calendar year, and not after
+  // the payment date. A baseline the cumulative-income query silently
+  // ignored (wrong year, or dated after the payment) must never be reported
+  // to the UI as confirmed (closes WR-01, 02-REVIEW.md).
+  const baselineApplies =
+    ytdBaseline.asOfDate.slice(0, 4) === paymentDateIso.slice(0, 4) &&
+    ytdBaseline.asOfDate <= paymentDateIso;
+
   return {
     configured: true,
     forecast: {
@@ -148,7 +158,7 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
       grossKopecks: paymentGrossKopecks,
       taxKopecks,
       netKopecks,
-      baselineIsEstimated: ytdBaseline.isEstimated,
+      baselineIsEstimated: !baselineApplies || ytdBaseline.isEstimated,
       breakdown: resolvedEvent.kind !== "bonus" && bonusKopecksOnDate > 0
         ? { salaryOrAvansKopecks: baseGrossKopecks, bonusKopecks: bonusKopecksOnDate }
         : undefined,
