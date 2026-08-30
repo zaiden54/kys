@@ -24,14 +24,21 @@ export default async function VacationsPage() {
     .filter((bonus) => bonus.type !== "compensation")
     .map((bonus) => ({ date: bonus.date, amountKopecks: bonus.amountKopecks }));
 
+  // Mirrors forecast.ts's "configured: false, missing: salary" guard (CR-01
+  // there): a vacation resolved with zero salary-history rows must never
+  // render a fabricated ₽0 payout as if it were a confirmed figure.
+  const hasSalaryHistory = salaryHistoryEntries.length > 0;
+
   const rows = vacations.map((vacation) => ({
     vacation,
-    grossKopecks: calculateVacationPayGross(
-      vacation.startDate,
-      vacation.endDate,
-      salaryHistoryEntries,
-      premiumBonusEntries,
-    ).grossKopecks,
+    grossKopecks: hasSalaryHistory
+      ? calculateVacationPayGross(
+          vacation.startDate,
+          vacation.endDate,
+          salaryHistoryEntries,
+          premiumBonusEntries,
+        ).grossKopecks
+      : null, // null = "not yet computable", never a fabricated ₽0
   }));
 
   return (

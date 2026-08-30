@@ -19,7 +19,7 @@ export function VacationRow({
   grossKopecks,
 }: {
   vacation: VacationRowData;
-  grossKopecks: Kopecks;
+  grossKopecks: Kopecks | null;
 }) {
   const [mode, setMode] = useState<"display" | "editing">("display");
   const [pending, setPending] = useState(false);
@@ -107,7 +107,13 @@ export function VacationRow({
         <span>{formatIsoDateRu(vacation.startDate)}</span>
         <span>{formatIsoDateRu(vacation.endDate)}</span>
         <span>{calculateVacationDays(vacation.startDate, vacation.endDate)}</span>
-        <span className="font-semibold">{formatKopecks(grossKopecks)}</span>
+        <span className="font-semibold">
+          {grossKopecks === null ? (
+            <span className="font-normal text-zinc-500">Укажите оклад, чтобы увидеть сумму</span>
+          ) : (
+            formatKopecks(grossKopecks)
+          )}
+        </span>
         <span className="col-span-2 flex justify-end gap-2 sm:col-span-1">
           <button type="button" onClick={() => setMode("editing")} className="text-zinc-700 underline">Изменить отпуск</button>
           <button type="button" onClick={onDelete} disabled={pending} className="text-red-700 underline disabled:opacity-50">{pending ? "Удаляется…" : "Удалить отпуск"}</button>
