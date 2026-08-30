@@ -36,6 +36,7 @@ import { listVacations, type VacationRow } from "@/lib/db/vacation-repository";
 import {
   calculateVacationPayGross,
   resolveVacationPaymentDate,
+  toPremiumBonusEntries,
   type PremiumBonusEntry,
 } from "@/domain/vacation/calculate-average-daily-earnings";
 
@@ -360,13 +361,9 @@ export function computeCumulativeIncome(
     grossAmountKopecks: row.grossAmountKopecks,
   }));
 
-  // Defensive premium filter (D-V03): any row not explicitly marked
-  // "compensation" is treated as premium, even though the live column is
-  // NOT NULL DEFAULT 'premium' after Plan 03-01 — a second, redundant
-  // safety net rather than a positive `=== "premium"` check.
-  const premiumBonusEntries: PremiumBonusEntry[] = bonusRows
-    .filter((bonus) => bonus.type !== "compensation")
-    .map((bonus) => ({ date: bonus.date, amountKopecks: bonus.amountKopecks }));
+  // Defensive premium filter (D-V03), shared via toPremiumBonusEntries
+  // (closes WR-02, 03-REVIEW.md) rather than copy-pasted here.
+  const premiumBonusEntries: PremiumBonusEntry[] = toPremiumBonusEntries(bonusRows);
 
   // A vacation whose computed payment date falls strictly between
   // windowBoundIso and isoDate contributes its own recomputed gross

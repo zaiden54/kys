@@ -3,7 +3,10 @@ import { VacationRow } from "./vacation-row";
 import { listVacations } from "@/lib/db/vacation-repository";
 import { listSalaryHistory } from "@/lib/db/salary-repository";
 import { listBonuses } from "@/lib/db/bonus-repository";
-import { calculateVacationPayGross } from "@/domain/vacation/calculate-average-daily-earnings";
+import {
+  calculateVacationPayGross,
+  toPremiumBonusEntries,
+} from "@/domain/vacation/calculate-average-daily-earnings";
 import { requireUserId } from "@/lib/session";
 
 export default async function VacationsPage() {
@@ -18,11 +21,9 @@ export default async function VacationsPage() {
     effectiveFrom: row.effectiveFrom,
     grossAmountKopecks: row.grossAmountKopecks,
   }));
-  // Defensive premium filter (D-V03), matching the identical filter already
-  // established in getCumulativeIncomeBeforeDate and forecastNextPayment.
-  const premiumBonusEntries = bonuses
-    .filter((bonus) => bonus.type !== "compensation")
-    .map((bonus) => ({ date: bonus.date, amountKopecks: bonus.amountKopecks }));
+  // Defensive premium filter (D-V03), shared via toPremiumBonusEntries
+  // (closes WR-02, 03-REVIEW.md) rather than copy-pasted here.
+  const premiumBonusEntries = toPremiumBonusEntries(bonuses);
 
   // Mirrors forecast.ts's "configured: false, missing: salary" guard (CR-01
   // there): a vacation resolved with zero salary-history rows must never

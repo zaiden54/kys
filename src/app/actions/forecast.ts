@@ -46,6 +46,7 @@ import { nowInMoscow, todayIsoInMoscow } from "@/domain/time";
 import {
   calculateVacationPayGross,
   resolveVacationPaymentDate,
+  toPremiumBonusEntries,
   type PremiumBonusEntry,
 } from "@/domain/vacation/calculate-average-daily-earnings";
 import { listBonuses } from "@/lib/db/bonus-repository";
@@ -195,9 +196,7 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
         effectiveFrom: row.effectiveFrom,
         grossAmountKopecks: row.grossAmountKopecks,
       }));
-      const premiumBonusEntries: PremiumBonusEntry[] = bonusRows
-        .filter((bonus) => bonus.type !== "compensation")
-        .map((bonus) => ({ date: bonus.date, amountKopecks: bonus.amountKopecks }));
+      const premiumBonusEntries: PremiumBonusEntry[] = toPremiumBonusEntries(bonusRows);
       vacationGrossKopecks = calculateVacationPayGross(
         vacationRow.startDate,
         vacationRow.endDate,

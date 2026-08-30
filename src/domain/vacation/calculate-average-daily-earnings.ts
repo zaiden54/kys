@@ -47,6 +47,35 @@ export interface PremiumBonusEntry {
   amountKopecks: Kopecks;
 }
 
+/**
+ * Minimal shape `toPremiumBonusEntries` needs from a bonus row. Kept
+ * structural (not imported from `@/lib/db/bonus-repository`) so this module
+ * keeps its documented "no `@/lib`" import restriction — any row shape with
+ * these three fields (e.g. the real `BonusRow`) satisfies it.
+ */
+interface BonusLike {
+  type: string;
+  date: string;
+  amountKopecks: Kopecks;
+}
+
+/**
+ * Filters bonus rows down to the premium-bonus entries eligible for
+ * vacation-pay / cumulative-income earnings math (D-V03): any row not
+ * explicitly marked `"compensation"` counts as premium, even though the
+ * live column is `NOT NULL DEFAULT 'premium'` — a defensive, redundant
+ * check rather than a positive `=== "premium"` comparison. Extracted here
+ * so `forecast.ts`, `salary-repository.ts`, and `vacations/page.tsx` share
+ * one definition instead of each copy-pasting the identical filter/map
+ * (closes WR-02, 03-REVIEW.md) — a future change to bonus-type eligibility
+ * now only needs to change in one place.
+ */
+export function toPremiumBonusEntries<T extends BonusLike>(bonusRows: readonly T[]): PremiumBonusEntry[] {
+  return bonusRows
+    .filter((bonus) => bonus.type !== "compensation")
+    .map((bonus) => ({ date: bonus.date, amountKopecks: bonus.amountKopecks }));
+}
+
 /** Result of the month-by-month average-daily-earnings calculation. */
 export interface AverageDailyEarningsResult {
   averageDailyKopecks: Kopecks;
