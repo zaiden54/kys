@@ -32,6 +32,12 @@ import { todayIsoInMoscow } from "@/domain/time";
 import { accruedGrossBetween, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
 import type { PaymentKind } from "@/domain/schedule/resolve-payment-date";
 import { listBonuses } from "@/lib/db/bonus-repository";
+import { listVacations } from "@/lib/db/vacation-repository";
+import {
+  calculateVacationPayGross,
+  resolveVacationPaymentDate,
+  type PremiumBonusEntry,
+} from "@/domain/vacation/calculate-average-daily-earnings";
 
 export type SalaryHistoryRow = typeof salaryHistory.$inferSelect;
 export type SalaryWriteOutcome =
@@ -318,11 +324,12 @@ export async function getCumulativeIncomeBeforeDate(
   isoDate: string,
   kind: PaymentKind = "avans",
 ): Promise<number> {
-  const [baseline, schedule, history, bonusRows] = await Promise.all([
+  const [baseline, schedule, history, bonusRows, vacationRows] = await Promise.all([
     getYtdBaseline(userId),
     getSchedule(userId),
     listSalaryHistory(userId),
     listBonuses(userId),
+    listVacations(userId),
   ]);
 
   const paymentYear = isoDate.slice(0, 4);
@@ -335,14 +342,45 @@ export async function getCumulativeIncomeBeforeDate(
   const bonusAccruedKopecks = bonusRows
     .filter((bonus) => bonus.date > windowBoundIso && bonus.date < isoDate)
     .reduce((sum, bonus) => sum + bonus.amountKopecks, 0);
-  if (!schedule) {
-    return baselineAmountKopecks + bonusAccruedKopecks;
-  }
 
   const salaryHistoryEntries: SalaryHistoryEntry[] = history.map((row) => ({
     effectiveFrom: row.effectiveFrom,
     grossAmountKopecks: row.grossAmountKopecks,
   }));
+
+  // Defensive premium filter (D-V03): any row not explicitly marked
+  // "compensation" is treated as premium, even though the live column is
+  // NOT NULL DEFAULT 'premium' after Plan 03-01 — a second, redundant
+  // safety net rather than a positive `=== "premium"` check.
+  const premiumBonusEntries: PremiumBonusEntry[] = bonusRows
+    .filter((bonus) => bonus.type !== "compensation")
+    .map((bonus) => ({ date: bonus.date, amountKopecks: bonus.amountKopecks }));
+
+  // A vacation whose computed payment date falls strictly between
+  // windowBoundIso and isoDate contributes its own recomputed gross
+  // (never a stored amount, per this plan's prohibition) — the identical
+  // strict-inequality window rule the bonus term above already uses.
+  const vacationAccruedKopecks = vacationRows
+    .map((vacation) => ({
+      vacation,
+      paymentDateIso: resolveVacationPaymentDate(vacation.startDate),
+    }))
+    .filter(({ paymentDateIso }) => paymentDateIso > windowBoundIso && paymentDateIso < isoDate)
+    .reduce(
+      (sum, { vacation }) =>
+        sum +
+        calculateVacationPayGross(
+          vacation.startDate,
+          vacation.endDate,
+          salaryHistoryEntries,
+          premiumBonusEntries,
+        ).grossKopecks,
+      0,
+    );
+
+  if (!schedule) {
+    return baselineAmountKopecks + bonusAccruedKopecks + vacationAccruedKopecks;
+  }
 
   const accruedKopecks = accruedGrossBetween(
     { avansDay: schedule.avansDay, salaryDay: schedule.salaryDay },
@@ -351,5 +389,5 @@ export async function getCumulativeIncomeBeforeDate(
     { dateIso: isoDate, kind },
   );
 
-  return baselineAmountKopecks + accruedKopecks + bonusAccruedKopecks;
+  return baselineAmountKopecks + accruedKopecks + bonusAccruedKopecks + vacationAccruedKopecks;
 }
