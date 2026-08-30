@@ -25,8 +25,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Премии и компенсации
 
-- [ ] **BON-01**: Пользователь может добавить разовую премию или компенсацию к конкретной дате выплаты
-- [ ] **BON-02**: Премии и компенсации облагаются налогом через тот же кумулятивный механизм НДФЛ, что и обычная зарплата
+- [x] **BON-01**: Пользователь может добавить разовую премию или компенсацию к конкретной дате выплаты
+- [x] **BON-02**: Премии и компенсации облагаются налогом через тот же кумулятивный механизм НДФЛ, что и обычная зарплата
 
 ### Отпуска и отпускные
 
@@ -90,8 +90,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAL-03 | Phase 1 | Complete |
 | TAX-01 | Phase 1 | Complete |
 | TAX-02 | Phase 1 | Complete |
-| BON-01 | Phase 2 | Gaps Found |
-| BON-02 | Phase 2 | Gaps Found |
+| BON-01 | Phase 2 | Complete |
+| BON-02 | Phase 2 | Complete |
 | VAC-01 | Phase 3 | Pending |
 | VAC-02 | Phase 3 | Pending |
 | VAC-03 | Phase 3 | Pending |
