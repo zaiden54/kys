@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 current_phase: 03
 current_phase_name: Vacation Pay
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-08-30T20:44:27.944Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-08-30T20:54:54.470Z"
 last_activity: 2026-08-30
 last_activity_desc: Phase 03 execution started
-state_head: 26bf88ae86cc0d614d5c92025f8efa5a221ecb0b
+state_head: c8b416d8012c33786f7cacdaad933525e0668d56
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 20
-  completed_plans: 18
+  completed_plans: 19
   percent: 50
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-08-30)
 ## Current Position
 
 Phase: 03 (Vacation Pay) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-08-30 — Phase 03 execution started
 
@@ -77,6 +77,7 @@ Progress: [█████░░░░░] 50%
 | Phase 02 P04 | 28min | 3 tasks | 5 files |
 | Phase 03 P01 | 25min | 2 tasks | 6 files |
 | Phase 03 P02 | 20min | 2 tasks | 11 files |
+| Phase 03 P03 | 20min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,9 @@ Recent decisions affecting current work:
 - [Phase 03]: [Phase 03][03-01]: Mid-month salary-change proration weights each segment by its real share of the month's actual calendar days, not a flat 29.3-day segment count — departs from 03-RESEARCH.md's literal pseudocode since that formula cannot reproduce the plan's own locked exact-value test targets
 - [Phase 03]: [Phase 03][03-02]: saveBonusAction's type parse uses formData.get("type") || undefined (not the raw null) so Zod's .default("premium") actually applies when the field is absent, matching the existing id-field pattern
 - [Phase 03]: [Phase 03][03-02]: bonus-row.tsx's edit-mode type selector uses aria-label (no visible label), matching that form's existing unlabeled-input convention; bonus-form.tsx's create-mode selector uses a visible label, matching its own pattern
+- [Phase 03]: [Phase 03][03-03]: Vacations carry no note field — dropped from every repository/validation signature per the plan's own resolved design decision
+- [Phase 03]: [Phase 03][03-03]: checkOverlapVacations uses inclusive-boundary overlap semantics — a shared boundary day counts as an overlap (D-V11)
+- [Phase 03]: [Phase 03][03-03]: vacationAccruedKopecks is always recomputed live in getCumulativeIncomeBeforeDate, never stored, so a later salary/bonus edit automatically updates every affected forecast
 
 ### Pending Todos
 
@@ -137,6 +141,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-30T20:44:27.838Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-08-30T20:54:54.342Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None
