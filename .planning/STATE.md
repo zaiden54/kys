@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-29)
+See: .planning/PROJECT.md (updated 2026-08-30)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** Phase 02 — Bonuses & One-off Payments
+**Current focus:** Phase 3 — Vacation Pay
 
 ## Current Position
 
@@ -32,7 +32,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-08-30 — Phase 02 complete, transitioned to Phase 3
 
-Progress: [███░░░░░░░] 25%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -74,6 +74,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 02 P01 | 10min | 3 tasks | 13 files |
 | Phase 02 P02 | 5min | 2 tasks | 8 files |
 | Phase 02 P03 | 15min | 3 tasks | 8 files |
+| Phase 02 P04 | 28min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Phase 01-10: YtdForm's as-of default is conditioned on isEstimated (today in Moscow for an unconfirmed baseline, the stored date for a confirmed one) rather than literally following the plan's present/absent wording, since both real call sites always pass a defined but stale 1-January defaultAsOfDate for unconfirmed baselines
 - [Phase 02]: Phase 2 ROADMAP.md Goal line required no edit — already committed in valid user-story format by a prior session (79a253d); Task 1 verification-only.
 - [Phase 02]: WR-01 regression test uses a 2025/2026 year pair (not 2026/2027) since 2027 exceeds MAX_VERIFIED_TAX_YEAR.
+- [Phase 02]: [02-04] CR-01 (BonusRow edit-form silently resubmitting stale data) closed via React Hook Form `values: toDefaults(bonus)` + explicit `reset()` on Cancel and onEdit success; added jsdom + @testing-library/react as new devDependencies (first render-based test infra in this project) to prove it with real DOM behavior, not AST pattern-matching.
+- [Phase 02]: [re-review] The 02-04 fix reintroduced CR-01 in a new spot (`onEdit` success path resetting to the stale pre-save `bonus` prop instead of the just-submitted `values`) — caught by a second, independent code review after gap-closure, not by the phase verifier (whose must_haves only covered the two originally-reported failure paths). Fixed via `gsd-code-fixer` (`reset(values)`, `resetOptions: { keepDirtyValues: true }` for WR-01, an `editSessionRef` guard for WR-02). Lesson: a bug-class fix on a form-resync pattern deserves a full re-review, not just a check against the original repro steps.
 
 ### Pending Todos
 
@@ -116,6 +119,7 @@ None yet.
 - Research flag (Phase 4): iOS PWA install/storage-jar behavior must be verified on a real iPhone device, not emulator, before considered done
 - [Phase 1, resolved 2026-08-29] Manual UAT for cross-device convergence and confirmation-prompt snapshot behavior completed via 01-UAT.md — 3/3 passed.
 - [Phase 1] Statute verification still outstanding: 2025 НДФЛ bracket thresholds (НК РФ ст.224) have not been confirmed against primary legal text — no live web access in this execution sandbox (curl to consultant.ru and pravo.gov.ru both failed to connect). NDFL_SCALES ordering/values are code-verified but not statute-cross-checked (see T-01-08-04 in 01-SECURITY.md). Confirm before relying on exact bracket numbers in production.
+- [Phase 2, low severity] BonusRow's `keepDirtyValues: true` (WR-01 fix) narrows but does not fully close the possibility of submitting a value based on a premise that changed underneath the user during a concurrent cross-device edit — no inline conflict notice was added; this was a deliberate scope choice (02-REVIEW-FIX.md), not an oversight. Revisit if concurrent multi-device editing of the same bonus turns out to be a real usage pattern.
 
 ## Deferred Items
 
@@ -127,6 +131,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-30T10:17:42.826Z
-Stopped at: Phase 02 complete, ready to plan Phase 3
+Last session: 2026-08-30T16:41:26.000Z
+Stopped at: Phase 02 complete (gap-closure 02-04 + CR-01 re-review/fix cycle), ready to plan Phase 3
 Resume file: None
