@@ -29,8 +29,16 @@ export function VacationForm() {
 
   const startDate = watch("startDate");
   const endDate = watch("endDate");
+  // Guards the live preview on the same startDate <= endDate ordering the
+  // zod schema's cross-field refinement enforces (only run through
+  // handleSubmit/the resolver, not on every keystroke) — without this, a
+  // very ordinary transient mid-edit state (e.g. editing endDate first)
+  // renders a zero/negative day count before the user finishes typing or
+  // submits (closes WR-03, 03-REVIEW.md).
   const dayCount =
-    ISO_DATE_SHAPE.test(startDate ?? "") && ISO_DATE_SHAPE.test(endDate ?? "")
+    ISO_DATE_SHAPE.test(startDate ?? "") &&
+    ISO_DATE_SHAPE.test(endDate ?? "") &&
+    endDate >= startDate
       ? calculateVacationDays(startDate, endDate)
       : null;
 
