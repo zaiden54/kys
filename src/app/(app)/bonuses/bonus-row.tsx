@@ -8,17 +8,31 @@ import { formatKopecks, kopecksToRubles } from "@/domain/money";
 import type { BonusRow as BonusRowData } from "@/lib/db/bonus-repository";
 import { bonusInputSchema, type BonusInput } from "@/lib/validation/bonus";
 
+function toDefaults(bonus: BonusRowData): BonusInput {
+  return {
+    id: bonus.id, amountRubles: kopecksToRubles(bonus.amountKopecks),
+    date: bonus.date, note: bonus.note ?? "",
+  };
+}
+
+function formatPaymentDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
 export function BonusRow({ bonus }: { bonus: BonusRowData }) {
   const [mode, setMode] = useState<"display" | "editing">("display");
   const [pending, setPending] = useState(false);
   const [error, setErrorMessage] = useState<string | null>(null);
-  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } =
+  const { register, handleSubmit, reset, setError, formState: { errors, isSubmitting } } =
     useForm<BonusInput>({
       resolver: zodResolver(bonusInputSchema) as Resolver<BonusInput>,
-      defaultValues: {
-        id: bonus.id, amountRubles: kopecksToRubles(bonus.amountKopecks),
-        date: bonus.date, note: bonus.note ?? "",
-      },
+      values: toDefaults(bonus),
     });
 
   async function onEdit(values: BonusInput) {
@@ -28,7 +42,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
       data.set("id", bonus.id); data.set("amountRubles", String(values.amountRubles));
       data.set("date", values.date); data.set("note", values.note);
       const result = await saveBonusAction(data);
-      if (result.success) { setMode("display"); return; }
+      if (result.success) { setMode("display"); reset(toDefaults(bonus)); return; }
       for (const [field, messages] of Object.entries(result.fieldErrors)) {
         if ((field === "amountRubles" || field === "date" || field === "note") && messages?.[0]) {
           setError(field, { message: messages.join(" ") });
@@ -40,7 +54,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
   }
 
   async function onDelete() {
-    if (!window.confirm(`Удалить бонус на сумму ${kopecksToRubles(bonus.amountKopecks)} ₽ от ${bonus.date}?`)) return;
+    if (!window.confirm(`Удалить бонус на сумму ${formatKopecks(bonus.amountKopecks)} от ${formatPaymentDate(bonus.date)}?`)) return;
     setPending(true); setErrorMessage(null);
     try {
       const result = await deleteBonusAction(bonus.id);
@@ -64,7 +78,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={isSubmitting} className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">{isSubmitting ? "Сохранение…" : "Сохранить"}</button>
-            <button type="button" onClick={() => setMode("display")} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm">Отмена</button>
+            <button type="button" onClick={() => { reset(toDefaults(bonus)); setMode("display"); }} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm">Отмена</button>
           </div>
         </form>
       </li>
