@@ -162,6 +162,16 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
     ? null
     : await getActiveSalaryAt(userId, paymentDateIso);
   if (!isBonusOnly && !isVacationOnly && !activeSalary) return { configured: false, missing: "salary" };
+  // A vacation-only resolved event skips the activeSalary lookup above (it
+  // computes gross from full salary history instead), but it still needs a
+  // salary to exist at all — otherwise calculateAverageDailyEarnings's
+  // correct domain-level "no data -> zero" contract would silently surface
+  // as a fabricated "configured: true, ₽0" forecast instead of the
+  // "missing: salary" empty state every other unconfigured path uses
+  // (closes CR-01, 03-REVIEW.md).
+  if (isVacationOnly && salaryHistoryRows.length === 0) {
+    return { configured: false, missing: "salary" };
+  }
   const baseGrossKopecks = isBonusOnly || isVacationOnly
     ? 0
     : halfSplitGross(activeSalary!.grossAmountKopecks, resolvedEvent.kind as PaymentKind);

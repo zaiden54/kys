@@ -446,6 +446,25 @@ describe("forecastNextPayment", () => {
     }
   });
 
+  it("(15b) a user with a future vacation but no salary history at all gets the not-configured result naming salary, never a fabricated ₽0 forecast (closes 03-REVIEW.md CR-01)", async () => {
+    const frozenInstant = new Date("2026-09-01T09:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(frozenInstant);
+    try {
+      // Deliberately no replaceSalaryAt call — mirrors test (15) except for
+      // this omission, reproducing the "vacation before ever entering a
+      // salary" sequence the review flagged.
+      await createVacation(userAId, "2026-09-15", "2026-09-20");
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(false);
+      if (result.configured) throw new Error("expected a not-configured result");
+      expect(result.missing).toBe("salary");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("(16) a vacation whose computed payment date is earlier than both the next scheduled event and the next bonus date wins the next-payment slot", async () => {
     // September 2026 has no RU public holidays (verified against
     // date-holidays@3.36.0 directly), so this window is free of the
