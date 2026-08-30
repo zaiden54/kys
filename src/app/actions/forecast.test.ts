@@ -340,6 +340,55 @@ describe("forecastNextPayment", () => {
     } finally { vi.useRealTimers(); }
   });
 
+  it("(13) a confirmed baseline dated in a year other than the resolved payment's year is never reported as baselineIsEstimated: false (closes 02-REVIEW.md WR-01)", async () => {
+    // Frozen at 2026-01-01 (Moscow): the earliest eligible payment on/after
+    // "today" lands in 2026 (the highest year with a verified НДФЛ bracket
+    // scale — MAX_VERIFIED_TAX_YEAR), but the confirmed baseline is dated
+    // 2025-06-30 — a prior calendar year. getCumulativeIncomeBeforeDate's
+    // own year-boundary check silently ignores this baseline (it
+    // contributes zero), so the confidence flag returned alongside it must
+    // say so too: a baseline the tax calculation never actually used must
+    // never be reported to the UI as confirmed.
+    const frozenInstant = new Date("2026-01-01T09:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(frozenInstant);
+    try {
+      await replaceSalaryAt(userAId, 100_000_00, "2026-01-01");
+      await upsertSchedule(userAId, 10, 25);
+      await upsertYtdBaseline(userAId, 500_000_00, "2025-06-30", false);
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected a configured result");
+      expect(result.forecast.date.slice(0, 4)).toBe("2026");
+      expect(result.forecast.baselineIsEstimated).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("(14) a confirmed baseline that applies (same year, on/before the payment date) still reports its own isEstimated value untouched", async () => {
+    // Same construction as test (1)/(5): frozen clock, baseline's own
+    // asOfDate also 2026-01-01, so the baseline demonstrably applies —
+    // this is the control case proving the WR-01 fix does not regress the
+    // in-boundary path.
+    const frozenInstant = new Date("2026-01-01T09:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(frozenInstant);
+    try {
+      await replaceSalaryAt(userAId, 100_000_00, "2026-01-01");
+      await upsertSchedule(userAId, 10, 25);
+      await upsertYtdBaseline(userAId, 500_000_00, "2026-01-01", false);
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected a configured result");
+      expect(result.forecast.baselineIsEstimated).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("(12) a bonus saved through the server action appears in the forecast", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-01T09:00:00Z"));
