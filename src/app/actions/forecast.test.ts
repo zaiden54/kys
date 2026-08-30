@@ -22,9 +22,15 @@ import {
 import { nextPaymentOnOrAfter } from "@/domain/schedule/resolve-payment-date";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
 import { nowInMoscow } from "@/domain/time";
-import { forecastNextPayment } from "@/app/actions/forecast";
+import { forecastNextPayment, selectNextPaymentEvent } from "@/app/actions/forecast";
 import { createBonus } from "@/lib/db/bonus-repository";
 import { saveBonusAction } from "@/app/actions/bonus";
+import { createVacation } from "@/lib/db/vacation-repository";
+import { saveVacationAction } from "@/app/actions/vacation";
+import {
+  calculateVacationPayGross,
+  resolveVacationPaymentDate,
+} from "@/domain/vacation/calculate-average-daily-earnings";
 import { requireUserId } from "@/lib/session";
 
 vi.mock("@/lib/session", () => ({ requireUserId: vi.fn() }));
@@ -404,5 +410,152 @@ describe("forecastNextPayment", () => {
       if (!result.configured) throw new Error("expected configured forecast");
       expect(result.forecast).toMatchObject({ kind: "bonus", grossKopecks: 25_000_00 });
     } finally { vi.useRealTimers(); }
+  });
+
+  it("(15) a user with no payment_schedule row and one future vacation gets a configured vacation forecast taxed through calculateNdfl", async () => {
+    const frozenInstant = new Date("2026-09-01T09:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(frozenInstant);
+    try {
+      await replaceSalaryAt(userAId, 300_000_00, "2020-01-01");
+      await createVacation(userAId, "2026-09-15", "2026-09-20");
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected a configured result");
+      expect(result.forecast.kind).toBe("vacation");
+      expect(result.forecast.breakdown).toBeUndefined();
+
+      // Oracle: the same pure calculateVacationPayGross call, fed the exact
+      // salary/bonus rows this test inserted (no bonuses here).
+      const oracleGross = calculateVacationPayGross(
+        "2026-09-15",
+        "2026-09-20",
+        [{ effectiveFrom: "2020-01-01", grossAmountKopecks: 300_000_00 }],
+        [],
+      ).grossKopecks;
+      expect(result.forecast.grossKopecks).toBe(oracleGross);
+
+      // No schedule, no prior bonus/vacation events strictly before the
+      // resolved payment date: cumulativeBefore is exactly 0.
+      const expectedTax = calculateNdfl(0, oracleGross, 2026);
+      expect(result.forecast.taxKopecks).toBe(expectedTax.taxKopecks);
+      expect(result.forecast.netKopecks).toBe(expectedTax.netKopecks);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("(16) a vacation whose computed payment date is earlier than both the next scheduled event and the next bonus date wins the next-payment slot", async () => {
+    // September 2026 has no RU public holidays (verified against
+    // date-holidays@3.36.0 directly), so this window is free of the
+    // New Year holiday-chain edge case that would otherwise shift a
+    // computed payment date backward past "today" and out of contention.
+    const frozenInstant = new Date("2026-09-01T09:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(frozenInstant);
+    try {
+      await replaceSalaryAt(userAId, 100_000_00, "2020-01-01");
+      await upsertSchedule(userAId, 25, 28);
+      await createBonus(userAId, 50_000_00, "2026-09-20", "Бонус", "premium");
+
+      const vacationStart = "2026-09-10";
+      await createVacation(userAId, vacationStart, "2026-09-15");
+      const vacationPaymentDate = resolveVacationPaymentDate(vacationStart);
+      expect(vacationPaymentDate).toBe("2026-09-07");
+      expect(vacationPaymentDate < "2026-09-20").toBe(true);
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected a configured result");
+      expect(result.forecast.kind).toBe("vacation");
+      expect(result.forecast.date).toBe(vacationPaymentDate);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("(17) an exact-date tie between a bonus and a vacation resolves to the bonus (tie-break order)", async () => {
+    const frozenInstant = new Date("2026-01-01T09:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(frozenInstant);
+    try {
+      const vacationStart = "2026-01-20";
+      const tieDateIso = resolveVacationPaymentDate(vacationStart);
+      await createBonus(userAId, 50_000_00, tieDateIso, "Совпадение", "premium");
+      await createVacation(userAId, vacationStart, "2026-01-25");
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected a configured result");
+      expect(result.forecast.date).toBe(tieDateIso);
+      expect(result.forecast.kind).toBe("bonus");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("(18) a vacation saved through the server action appears in the forecast (tracer's end-to-end proof)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-01T09:00:00Z"));
+    try {
+      vi.mocked(requireUserId).mockResolvedValue(userAId);
+      await replaceSalaryAt(userAId, 300_000_00, "2020-01-01");
+
+      const formData = new FormData();
+      formData.set("startDate", "2026-09-15");
+      formData.set("endDate", "2026-09-20");
+      expect(await saveVacationAction(formData)).toEqual({ success: true });
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected configured forecast");
+      expect(result.forecast.kind).toBe("vacation");
+      expect(result.forecast.grossKopecks).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("selectNextPaymentEvent", () => {
+  it("with scheduleEvent null, no bonuses, and one future vacation event, returns that vacation's candidate", () => {
+    const vacationEvent = { dateIso: "2026-05-01", vacationId: "vac-1" };
+    expect(selectNextPaymentEvent(null, [], [vacationEvent])).toEqual({
+      dateIso: "2026-05-01",
+      kind: "vacation",
+      vacationId: "vac-1",
+    });
+  });
+
+  it("with all three candidate sources present and differing dates, returns whichever dateIso sorts earliest", () => {
+    const result = selectNextPaymentEvent(
+      { dateIso: "2026-05-10", kind: "salary" },
+      ["2026-05-05"],
+      [{ dateIso: "2026-05-01", vacationId: "vac-1" }],
+    );
+    expect(result).toEqual({ dateIso: "2026-05-01", kind: "vacation", vacationId: "vac-1" });
+  });
+
+  it("on an exact three-way date tie, schedule wins over bonus and vacation", () => {
+    const result = selectNextPaymentEvent(
+      { dateIso: "2026-05-01", kind: "avans" },
+      ["2026-05-01"],
+      [{ dateIso: "2026-05-01", vacationId: "vac-1" }],
+    );
+    expect(result).toEqual({ dateIso: "2026-05-01", kind: "avans" });
+  });
+
+  it("on an exact tie between bonus and vacation (no schedule), bonus wins", () => {
+    const result = selectNextPaymentEvent(
+      null,
+      ["2026-05-01"],
+      [{ dateIso: "2026-05-01", vacationId: "vac-1" }],
+    );
+    expect(result).toEqual({ dateIso: "2026-05-01", kind: "bonus" });
+  });
+
+  it("with all three empty/null, returns null", () => {
+    expect(selectNextPaymentEvent(null, [], [])).toBeNull();
   });
 });

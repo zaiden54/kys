@@ -16,6 +16,7 @@ const KIND_LABELS: Record<NextPaymentForecast["kind"], string> = {
   avans: "Аванс",
   salary: "Зарплата",
   bonus: "Бонус или компенсация",
+  vacation: "Отпускные",
 };
 
 function formatPaymentDate(isoDate: string): string {
@@ -43,7 +44,21 @@ export function NextPaymentCard({ forecast }: { forecast: NextPaymentForecast })
       </p>
       <p className="mt-1 text-sm text-zinc-500">придёт на руки</p>
 
-      {forecast.breakdown ? (
+      {forecast.kind === "vacation" ? (
+        <div className="mt-6 flex flex-col gap-1 text-sm text-zinc-600">
+          <div className="flex justify-between">
+            <span>Отпускные</span>
+            <span>{formatKopecks(forecast.grossKopecks)}</span>
+          </div>
+          <p className="text-xs text-zinc-500">
+            Расчёт не учитывает исключаемые периоды (больничный, прошлый отпуск и т.п.)
+          </p>
+          <div className="flex justify-between">
+            <span>Удержан НДФЛ</span>
+            <span>{formatKopecks(forecast.taxKopecks)}</span>
+          </div>
+        </div>
+      ) : forecast.breakdown ? (
         <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-zinc-600">
           <dt className="col-span-2 font-medium">Состав выплаты:</dt>
           <dt>Оклад / Аванс</dt>
