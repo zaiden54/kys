@@ -55,4 +55,25 @@ describe("BonusRow edit-form resync (closes 02-VERIFICATION.md CR-01, truth 11)"
     const amountInput = screen.getByRole("spinbutton") as HTMLInputElement;
     expect(amountInput.value).toBe("7500");
   });
+
+  it("WR-01: preserves an in-progress (dirty) edit when a concurrent prop update lands mid-edit", () => {
+    const bonusV1 = makeBonus({ amountKopecks: 500000, note: "Тест" });
+    const bonusV2 = makeBonus({ amountKopecks: 900000, note: "Изменено на другом устройстве" });
+    const { rerender } = render(<BonusRow bonus={bonusV1} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Изменить бонус" }));
+    const amountInput = screen.getByRole("spinbutton") as HTMLInputElement;
+    fireEvent.change(amountInput, { target: { value: "123" } });
+    expect(amountInput.value).toBe("123");
+
+    // A concurrent edit from another device/tab revalidates this row's props
+    // while the user still has unsaved (dirty) input in the amount field.
+    rerender(<BonusRow bonus={bonusV2} />);
+
+    // The user's untouched dirty field is not silently clobbered...
+    expect(amountInput.value).toBe("123");
+    // ...while a field the user never touched adopts the fresh server value.
+    const noteInput = screen.getByRole("textbox") as HTMLInputElement;
+    expect(noteInput.value).toBe("Изменено на другом устройстве");
+  });
 });

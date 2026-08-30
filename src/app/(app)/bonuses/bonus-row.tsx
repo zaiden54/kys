@@ -33,6 +33,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
     useForm<BonusInput>({
       resolver: zodResolver(bonusInputSchema) as Resolver<BonusInput>,
       values: toDefaults(bonus),
+      resetOptions: { keepDirtyValues: true },
     });
 
   async function onEdit(values: BonusInput) {
@@ -42,7 +43,11 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
       data.set("id", bonus.id); data.set("amountRubles", String(values.amountRubles));
       data.set("date", values.date); data.set("note", values.note);
       const result = await saveBonusAction(data);
-      if (result.success) { setMode("display"); reset(values); return; }
+      if (result.success) {
+        setMode("display");
+        reset(values, { keepDirtyValues: false });
+        return;
+      }
       for (const [field, messages] of Object.entries(result.fieldErrors)) {
         if ((field === "amountRubles" || field === "date" || field === "note") && messages?.[0]) {
           setError(field, { message: messages.join(" ") });
@@ -78,7 +83,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={isSubmitting} className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">{isSubmitting ? "Сохранение…" : "Сохранить"}</button>
-            <button type="button" onClick={() => { reset(toDefaults(bonus)); setMode("display"); }} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm">Отмена</button>
+            <button type="button" onClick={() => { reset(toDefaults(bonus), { keepDirtyValues: false }); setMode("display"); }} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm">Отмена</button>
           </div>
         </form>
       </li>
