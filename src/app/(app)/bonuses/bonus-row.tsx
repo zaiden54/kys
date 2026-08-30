@@ -42,7 +42,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
       data.set("id", bonus.id); data.set("amountRubles", String(values.amountRubles));
       data.set("date", values.date); data.set("note", values.note);
       const result = await saveBonusAction(data);
-      if (result.success) { setMode("display"); reset(toDefaults(bonus)); return; }
+      if (result.success) { setMode("display"); reset(values); return; }
       for (const [field, messages] of Object.entries(result.fieldErrors)) {
         if ((field === "amountRubles" || field === "date" || field === "note") && messages?.[0]) {
           setError(field, { message: messages.join(" ") });
