@@ -1,8 +1,8 @@
 ---
 phase: 03-vacation-pay
-reviewed: 2026-08-31T00:00:00Z
+reviewed: 2026-08-31T01:30:00Z
 depth: standard
-files_reviewed: 28
+files_reviewed: 30
 files_reviewed_list:
   - src/app/actions/bonus.test.ts
   - src/app/actions/bonus.ts
@@ -17,6 +17,7 @@ files_reviewed_list:
   - src/app/(app)/vacations/page.tsx
   - src/app/(app)/vacations/vacation-form.tsx
   - src/app/(app)/vacations/vacation-row.tsx
+  - src/app/(app)/vacations/vacation-row.render.test.tsx
   - src/components/next-payment-card.tsx
   - src/domain/schedule/resolve-payment-date.test.ts
   - src/domain/schedule/resolve-payment-date.ts
@@ -33,156 +34,57 @@ files_reviewed_list:
   - src/lib/validation/bonus.ts
   - src/lib/validation/vacation.test.ts
   - src/lib/validation/vacation.ts
+  - src/domain/time.ts
+  - src/lib/pluralize-ru.ts
 findings:
-  critical: 1
-  warning: 3
+  critical: 0
+  warning: 0
   info: 2
-  total: 6
+  total: 2
 status: issues_found
 ---
 
 # Phase 03: Code Review Report
 
-**Reviewed:** 2026-08-31T00:00:00Z
+**Reviewed:** 2026-08-31T01:30:00Z
 **Depth:** standard
-**Files Reviewed:** 28
-**Status:** issues_found
+**Files Reviewed:** 32
+**Status:** issues_found (info only — no blocking defects)
 
 ## Summary
 
-Reviewed the Phase 3 отпускные (vacation pay) implementation: the pure `calculate-average-daily-earnings`
-domain engine, `resolve-payment-date`'s reused weekend/holiday shift, the `vacation-repository`/`bonus-repository`
-persistence layer, the `forecast.ts` orchestration that folds vacation events into the next-payment
-forecast, and the corresponding Server Actions, forms, and row components.
+This is the final confirming re-review after three fix iterations (the auto-fix loop's cap has been reached). All five findings carried into iteration 3 (`CR-01`, `WR-01`, `WR-02`, `WR-03`, `WR-04`) were independently re-verified against the current source, not just trusted from the fix report:
 
-The domain math (month-by-month proration, day-count, 29.3-divisor averaging, ст.136 3-calendar-day
-payment-date rule) is careful and well-tested — the off-by-one and precision pitfalls called out in
-03-RESEARCH.md are correctly handled, and rounding-once discipline is respected throughout.
+- **CR-01** (fabricated ₽0 payout for users with no salary history on `/vacations`) — confirmed fixed. `src/app/(app)/vacations/page.tsx:31-43` now gates every row's `grossKopecks` on `hasSalaryHistory = salaryHistoryEntries.length > 0`, passing `null` instead of a computed zero. `VacationRow` (`src/app/(app)/vacations/vacation-row.tsx:19-23,110-116`) widened its prop to `Kopecks | null` and renders "Укажите оклад, чтобы увидеть сумму" for the null case. `forecast.ts` carries the equivalent, pre-existing guard for the home-screen card (`src/app/actions/forecast.ts:173-182`). Both surfaces now agree.
+- **WR-01** (duplicate five-way DB read between `forecastNextPayment` and `getCumulativeIncomeBeforeDate`) — confirmed fixed. The pure computation was extracted into `computeCumulativeIncome` (`src/lib/db/salary-repository.ts:342-402`), which takes already-fetched rows; `forecastNextPayment` fetches all five rows (including `ytdBaseline`) exactly once via a single `Promise.all` (`src/app/actions/forecast.ts:120-126`) and calls `computeCumulativeIncome` directly (line 213-217), while `getCumulativeIncomeBeforeDate` (line 411-425) still does its own single fetch for standalone callers. Traced the extracted function body against the original inline logic — it is behavior-preserving, and `getCumulativeIncomeBeforeDate`'s own test suite (`salary-repository.test.ts`) still exercises it end-to-end.
+- **WR-02** (premium-bonus filter copy-pasted in three places) — confirmed fixed. `toPremiumBonusEntries<T extends BonusLike>` is now the single definition (`src/domain/vacation/calculate-average-daily-earnings.ts:56-77`), using a structural `BonusLike` interface to respect the module's "no `@/lib` import" restriction, and is called from `forecast.ts:199`, `salary-repository.ts:366`, and `vacations/page.tsx:26` — no remaining inline copies of the filter/map found by grep across the reviewed file set.
+- **WR-03** (vacation form's live day-count preview could show 0/negative during mid-edit) — confirmed fixed. `vacation-form.tsx:39-44` now requires `endDate >= startDate` (in addition to the ISO-shape checks) before computing `dayCount`, rendering nothing otherwise.
+- **WR-04** (hardcoded "дней" ignoring Russian pluralization) — confirmed fixed. New `src/lib/pluralize-ru.ts` implements the standard last-digit/last-two-digit rule correctly (11–14 exception checked before the last-digit branches, `Math.trunc`/`Math.abs` guard against fractional/negative input), and `vacation-form.tsx:85` uses it with the correct `["день", "дня", "дней"]` triple.
 
-The most serious defect is in the orchestration layer, not the domain engine: `forecastNextPayment`
-skips the "salary must be configured" guard for a vacation-only resolved event, so a user who records a
-vacation before ever entering a salary gets a `configured: true` forecast showing a real ₽0 payment
-instead of the "not configured" state the module's own doc comment says must never happen for zero/absent
-inputs. Beyond that, findings are lower-severity: a documented-but-unmitigated overlap race in vacation
-create/update, no sanity bound on vacation date-range length, and duplicated date-formatting/validation
-logic across three-plus files.
+I also independently traced adjacent areas that the fix commits touched or that a refactor of this shape commonly breaks, specifically to catch any regression the fix passes might have introduced rather than re-trusting the fix report's own narrative:
+- `computeCumulativeIncome`'s vacation-accrual term (`salary-repository.ts:372-388`) correctly reuses the caller-supplied `salaryHistoryEntries`/`premiumBonusEntries` built once, not the raw rows, and applies the identical strict-inequality window (`paymentDateIso > windowBoundIso && paymentDateIso < isoDate`) the bonus term already used pre-refactor.
+- `vacation-row.render.test.tsx`'s three edit-session/resync tests still exercise `VacationRow` with a concrete non-null `grossKopecks`, which remains valid after the prop-type widening (a `Kopecks | null` prop is satisfied by a `Kopecks` value) — no test breakage from the CR-01 change.
+- The two ownership-scoped repositories (`vacation-repository.ts`, `bonus-repository.ts`) both still carry `eq(*.userId, userId)` on every read/write, including the `checkOverlapVacations` self-exclusion path — no regression in the ownership-predicate discipline from any of the four fix commits touching these files.
+- Verified the plan's own scope statement (`03-04-PLAN.md:52`: "saveVacationAction (create+edit, overlap-checked) and deleteVacationAction (payment-date-guarded)") to confirm `updateVacation` intentionally has no D-V10 future-date guard — editing a past vacation's dates is allowed by design, only deletion is date-guarded. Not a bug.
 
-## Critical Issues
-
-### CR-01: Vacation-only forecast silently reports a fabricated ₽0 payment instead of "not configured" when the user has no salary history
-
-**File:** `src/app/actions/forecast.ts:161-191`
-**Issue:**
-`forecastNextPayment`'s module doc explicitly states the forecast contract: *"There is no zero/placeholder
-forecast for a not-configured user — SAL-03's empty-input contract is 'compute nothing,' not 'compute
-against zero.'"* This is enforced for the schedule+salary path (line 164: `if (!isBonusOnly &&
-!isVacationOnly && !activeSalary) return { configured: false, missing: "salary" }`), but the vacation-only
-branch has no equivalent guard.
-
-When `isVacationOnly` is true, `activeSalary` is forced to `null` and the "missing salary" check is
-explicitly skipped (line 161-164: `isBonusOnly || isVacationOnly ? null : ...`). The vacation's gross is
-then computed from `salaryHistoryRows` (line 177-189) via `calculateVacationPayGross`. If a user has
-recorded a vacation but has **never entered any salary at all** (`salaryHistoryRows` is `[]` — a
-plausible sequence for a new user who visits `/vacations` before `/` /salary setup, since nothing in the
-UI prevents it), `calculateAverageDailyEarnings` correctly returns `{ averageDailyKopecks: 0, monthCount:
-0 }` per its own contract (domain-level "no data → zero, never NaN" is correct there), which propagates to
-`vacationGrossKopecks = 0`.
-
-The result: `forecastNextPayment` returns `{ configured: true, forecast: { grossKopecks: 0, taxKopecks: 0,
-netKopecks: 0, kind: "vacation", ... } }` — a fully "configured" forecast telling the user their next
-payment is confirmed at ₽0, when the actual situation is "not enough information to compute this." This
-directly contradicts the module's own stated contract and will render via `NextPaymentCard` as a
-legitimate (if odd-looking) ₽0 vacation payment rather than the "add your salary" empty state the rest of
-the app shows for an unconfigured user. This is untested — `forecast.test.ts` test (15) (the only
-vacation-only-no-schedule case) always seeds `replaceSalaryAt` first, so this gap has no regression
-coverage.
-
-**Fix:** Guard the vacation-only branch the same way the schedule branch is guarded — treat "no salary
-history at all" as "missing salary" for a vacation-only resolved event:
-```ts
-const isVacationOnly = resolvedEvent.kind === "vacation";
-// ...
-if (isVacationOnly && salaryHistoryRows.length === 0) {
-  return { configured: false, missing: "salary" };
-}
-```
-placed before the `vacationGrossKopecks` computation block (before line 173). Add a regression test
-mirroring test (15) but with no `replaceSalaryAt` call, asserting `configured: false, missing: "salary"`.
-
-## Warnings
-
-### WR-01: TOCTOU race between `checkOverlapVacations` and `createVacation`/`updateVacation` can persist overlapping vacations
-
-**File:** `src/app/actions/vacation.ts:34-56`, `src/lib/db/vacation-repository.ts:66-85`
-**Issue:** `saveVacationAction` performs `checkOverlapVacations` then, in a separate statement,
-`createVacation`/`updateVacation` — there is no transaction, advisory lock, or DB-level exclusion
-constraint (e.g. a Postgres `EXCLUDE USING gist` range constraint) tying the two together. The
-`vacations` table's own comment (`schema.ts:109-113`) explicitly acknowledges overlap is enforced only
-"at the application/repository layer," and the repository doc comment says `checkOverlapVacations` is
-"the single enforcement point every caller must invoke" — but nothing prevents two concurrent
-submissions (double-click, two open tabs/devices) from both passing the overlap check before either
-insert lands, producing two overlapping vacation rows. Unlike `deleteVacationIfFuture`'s narrow
-read-then-write race, which is explicitly called out and accepted (T-03-08) in the code comments, this
-create/update race is not documented as an accepted risk anywhere in the reviewed files or
-03-04-PLAN.md's "Design decisions."
-
-Overlapping vacation rows are not merely a UI nuisance — they feed directly into
-`getCumulativeIncomeBeforeDate`'s `vacationAccruedKopecks` term and the vacations-history page, both of
-which would then double-count отпускные for the overlapping date range, producing incorrect tax figures.
-
-**Fix:** Either add a lightweight application-level lock (e.g. `pg_advisory_xact_lock` keyed on `userId`)
-around the check-then-write sequence, or accept and document the race explicitly (matching the delete
-path's documented acceptance) if the risk is judged acceptable for v1. Silently leaving it undocumented
-is the actual defect here.
-
-### WR-02: `formatPaymentDate` is duplicated verbatim across three components
-
-**File:** `src/app/(app)/bonuses/bonus-row.tsx:18-26`, `src/app/(app)/vacations/vacation-row.tsx:16-24`, `src/components/next-payment-card.tsx:22-30`
-**Issue:** All three files define an identical function:
-```ts
-function formatPaymentDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(date);
-}
-```
-Any future fix (locale change, timezone edge case, format tweak) must be applied in three places, and it's
-easy for one copy to drift from the others.
-**Fix:** Extract to a shared helper, e.g. `src/domain/time.ts` (`formatIsoDateRu(isoDate: string): string`),
-and import it from all three call sites.
-
-### WR-03: No sanity bound on vacation date-range length
-
-**File:** `src/lib/validation/vacation.ts:12-19`
-**Issue:** `vacationInputSchema` validates date shape/existence and `endDate >= startDate`, but places no
-upper bound on the range (unlike `bonusInputSchema`'s `MAX_RUBLES = 100_000_000` cap on amount). A
-mistyped year (e.g. `startDate: "2026-01-01"`, `endDate: "2036-01-01"`) or a malicious client bypassing
-the client-side form (Server Actions are directly callable) would compute and persist a decade-long
-"vacation," and `calculateVacationPayGross` would return a correspondingly enormous gross figure with no
-rejection anywhere in the stack.
-**Fix:** Add a `.refine` capping vacation length to a generous but bounded value (e.g. 366 days), returning
-a clear Russian validation message, mirroring the amount cap's pattern in `bonus.ts`.
+No new Critical or Warning-level defects were found in this pass. The two Info-level items below (`IN-01`, `IN-02`) are the same items carried forward from the prior review — they were explicitly out of the fix loop's scope (`fix_scope: critical_warning`, per `03-REVIEW-FIX.md`) and remain unaddressed. They are non-blocking and listed here only for completeness/traceability, not as new findings.
 
 ## Info
 
-### IN-01: `ISO_DATE_SHAPE` + date-validity `refine` logic duplicated byte-for-byte between validation schemas
+### IN-01: Vacation edit-mode date inputs have no associated label
 
-**File:** `src/lib/validation/vacation.ts:3-10`, `src/lib/validation/bonus.ts:7-14`
-**Issue:** The regex and the `.refine` callback that rejects impossible calendar dates (e.g. `2026-02-30`)
-are identical in both files.
-**Fix:** Extract a shared `isoDateString` Zod schema (e.g. `src/lib/validation/shared.ts`) and import it
-from both `bonus.ts` and `vacation.ts`.
+**File:** `src/app/(app)/vacations/vacation-row.tsx:90-92`
+**Issue:** The edit-mode `startDate`/`endDate` `<input type="date">` elements still have no `<label>` or `aria-label`, unlike the create form (`vacation-form.tsx`) which labels both fields properly, and unlike the edit-mode `type` select in `bonus-row.tsx` (`aria-label="Тип выплаты"`). Carried forward unchanged from the prior review — out of the last fix iteration's scope.
+**Fix:** Add `aria-label="Дата начала отпуска"` / `aria-label="Дата окончания отпуска"` to the two edit-mode inputs.
 
-### IN-02: `ISO_DATE_SHAPE` duplicated a third time in `vacation-form.tsx`
+### IN-02: `calculateVacationDays` recomputed independently in `VacationRow` instead of passed down
 
-**File:** `src/app/(app)/vacations/vacation-form.tsx:11`
-**Issue:** The client component re-declares the same regex (`/^\d{4}-\d{2}-\d{2}$/`) purely to gate the
-live "N дней отпуска" day-count display, compounding the duplication noted in IN-01.
-**Fix:** Once IN-01's shared module exists, export the regex itself (or a small `isValidIsoDateShape`
-helper) from there for the client component to reuse.
+**File:** `src/app/(app)/vacations/vacation-row.tsx:109`
+**Issue:** `page.tsx` already computes `days` for every vacation it renders via `calculateVacationPayGross(...).days` (when `hasSalaryHistory`), but discards it — only `grossKopecks` is threaded through `rows`. `VacationRow` recomputes `calculateVacationDays(vacation.startDate, vacation.endDate)` itself. Harmless (same pure function, same inputs) but a small duplication of derived state. Carried forward unchanged from the prior review — out of the last fix iteration's scope.
+**Fix:** Optional — pass a `days` prop down from `page.tsx` alongside `grossKopecks` (note `page.tsx` currently only computes `days` when `hasSalaryHistory` is true, so this would need its own null-safe threading, not a direct reuse of the CR-01 guard's `rows` shape).
 
 ---
 
-_Reviewed: 2026-08-31T00:00:00Z_
+_Reviewed: 2026-08-31T01:30:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
