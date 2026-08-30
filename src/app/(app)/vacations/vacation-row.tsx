@@ -104,8 +104,8 @@ export function VacationRow({
   return (
     <li className="border-b border-zinc-200 py-3">
       <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-2 text-sm sm:grid-cols-[6rem_6rem_4rem_7rem_auto] sm:items-center">
-        <span>{vacation.startDate}</span>
-        <span>{vacation.endDate}</span>
+        <span>{formatIsoDateRu(vacation.startDate)}</span>
+        <span>{formatIsoDateRu(vacation.endDate)}</span>
         <span>{calculateVacationDays(vacation.startDate, vacation.endDate)}</span>
         <span className="font-semibold">{formatKopecks(grossKopecks)}</span>
         <span className="col-span-2 flex justify-end gap-2 sm:col-span-1">
