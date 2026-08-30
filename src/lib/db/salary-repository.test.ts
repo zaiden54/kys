@@ -16,6 +16,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-schema";
 import { createBonus, updateBonus } from "@/lib/db/bonus-repository";
+import { createVacation } from "@/lib/db/vacation-repository";
+import { calculateVacationPayGross, resolveVacationPaymentDate } from "@/domain/vacation/calculate-average-daily-earnings";
 import {
   findSalaryAt,
   getActiveSalaryAt,
@@ -38,6 +40,13 @@ async function createThrowawayUser(): Promise<string> {
     email: `salary-repo-test-${id}@example.invalid`,
   });
   return id;
+}
+
+/** Shifts an ISO date by a number of calendar days (UTC-anchored, matches the bonus test pattern). */
+function shiftIsoDate(iso: string, days: number): string {
+  const shifted = new Date(`${iso}T00:00:00.000Z`);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted.toISOString().slice(0, 10);
 }
 
 describe("salary-repository", () => {
@@ -335,5 +344,58 @@ describe("salary-repository", () => {
 
     const after = await getCumulativeIncomeBeforeDate(userAId, "2026-09-04", "salary");
     expect(after).toBe(before);
+  });
+
+  it("VAC-02: a payment dated after an already-paid vacation shows a cumulative-before figure exactly the vacation's computed gross higher", async () => {
+    await replaceSalaryAt(userAId, 600_000_00, "2025-01-01");
+    await createVacation(userAId, "2026-06-15", "2026-06-24");
+
+    const paymentDateIso = resolveVacationPaymentDate("2026-06-15");
+    const onPaymentDate = await getCumulativeIncomeBeforeDate(userAId, paymentDateIso, "salary");
+    const afterPaymentDate = await getCumulativeIncomeBeforeDate(
+      userAId,
+      shiftIsoDate(paymentDateIso, 1),
+      "salary",
+    );
+
+    const salaryHistoryEntries = [{ effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 }];
+    const expectedGross = calculateVacationPayGross(
+      "2026-06-15",
+      "2026-06-24",
+      salaryHistoryEntries,
+      [],
+    ).grossKopecks;
+
+    expect(expectedGross).toBeGreaterThan(0);
+    // Same-date exclusion (off-by-one discipline matching bonuses): a target
+    // date exactly equal to the vacation's own payment date does not yet
+    // include it.
+    expect(afterPaymentDate - onPaymentDate).toBe(expectedGross);
+  });
+
+  it("VAC-02: a 'compensation'-typed bonus inside the vacation's own lookback window does not inflate its computed contribution", async () => {
+    await replaceSalaryAt(userAId, 600_000_00, "2025-01-01");
+    await createBonus(userAId, 300_000_00, "2026-03-15", "Компенсация", "compensation");
+    await createVacation(userAId, "2026-06-15", "2026-06-24");
+
+    const paymentDateIso = resolveVacationPaymentDate("2026-06-15");
+    const before = await getCumulativeIncomeBeforeDate(userAId, paymentDateIso, "salary");
+    const after = await getCumulativeIncomeBeforeDate(
+      userAId,
+      shiftIsoDate(paymentDateIso, 1),
+      "salary",
+    );
+
+    const salaryHistoryEntries = [{ effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 }];
+    // premiumBonusEntries is empty: the compensation-typed bonus must never
+    // reach the vacation's own average-earnings base.
+    const expectedGross = calculateVacationPayGross(
+      "2026-06-15",
+      "2026-06-24",
+      salaryHistoryEntries,
+      [],
+    ).grossKopecks;
+
+    expect(after - before).toBe(expectedGross);
   });
 });
