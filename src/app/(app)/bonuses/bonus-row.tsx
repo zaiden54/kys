@@ -5,6 +5,7 @@ import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { deleteBonusAction, saveBonusAction } from "@/app/actions/bonus";
 import { formatKopecks, kopecksToRubles } from "@/domain/money";
+import { formatIsoDateRu } from "@/domain/time";
 import type { BonusRow as BonusRowData } from "@/lib/db/bonus-repository";
 import { bonusInputSchema, type BonusInput } from "@/lib/validation/bonus";
 
@@ -13,16 +14,6 @@ function toDefaults(bonus: BonusRowData): BonusInput {
     id: bonus.id, amountRubles: kopecksToRubles(bonus.amountKopecks),
     date: bonus.date, note: bonus.note ?? "", type: bonus.type,
   };
-}
-
-function formatPaymentDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
 }
 
 export function BonusRow({ bonus }: { bonus: BonusRowData }) {
@@ -67,7 +58,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
   }
 
   async function onDelete() {
-    if (!window.confirm(`Удалить бонус на сумму ${formatKopecks(bonus.amountKopecks)} от ${formatPaymentDate(bonus.date)}?`)) return;
+    if (!window.confirm(`Удалить бонус на сумму ${formatKopecks(bonus.amountKopecks)} от ${formatIsoDateRu(bonus.date)}?`)) return;
     setPending(true); setErrorMessage(null);
     try {
       const result = await deleteBonusAction(bonus.id);

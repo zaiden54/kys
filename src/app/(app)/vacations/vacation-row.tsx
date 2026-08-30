@@ -5,22 +5,13 @@ import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { deleteVacationAction, saveVacationAction } from "@/app/actions/vacation";
 import { formatKopecks, type Kopecks } from "@/domain/money";
+import { formatIsoDateRu } from "@/domain/time";
 import { calculateVacationDays } from "@/domain/vacation/calculate-average-daily-earnings";
 import type { VacationRow as VacationRowData } from "@/lib/db/vacation-repository";
 import { vacationInputSchema, type VacationInput } from "@/lib/validation/vacation";
 
 function toDefaults(vacation: VacationRowData): VacationInput {
   return { id: vacation.id, startDate: vacation.startDate, endDate: vacation.endDate };
-}
-
-function formatPaymentDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
 }
 
 export function VacationRow({
@@ -74,7 +65,7 @@ export function VacationRow({
   async function onDelete() {
     if (
       !window.confirm(
-        `Удалить отпуск с ${formatPaymentDate(vacation.startDate)} по ${formatPaymentDate(vacation.endDate)}?`,
+        `Удалить отпуск с ${formatIsoDateRu(vacation.startDate)} по ${formatIsoDateRu(vacation.endDate)}?`,
       )
     ) {
       return;

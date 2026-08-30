@@ -10,6 +10,7 @@
  */
 
 import { formatKopecks } from "@/domain/money";
+import { formatIsoDateRu } from "@/domain/time";
 import type { NextPaymentForecast } from "@/app/actions/forecast";
 
 const KIND_LABELS: Record<NextPaymentForecast["kind"], string> = {
@@ -19,16 +20,6 @@ const KIND_LABELS: Record<NextPaymentForecast["kind"], string> = {
   vacation: "Отпускные",
 };
 
-function formatPaymentDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
-
 export function NextPaymentCard({ forecast }: { forecast: NextPaymentForecast }) {
   return (
     <section className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -36,7 +27,7 @@ export function NextPaymentCard({ forecast }: { forecast: NextPaymentForecast })
         Прогноз, а не подтверждённая работодателем сумма
       </p>
       <p className="mt-1 text-sm text-zinc-600">
-        {KIND_LABELS[forecast.kind]} · {formatPaymentDate(forecast.date)}
+        {KIND_LABELS[forecast.kind]} · {formatIsoDateRu(forecast.date)}
       </p>
 
       <p className="mt-4 text-3xl font-semibold text-zinc-900">
