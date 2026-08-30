@@ -20,6 +20,7 @@ function makeBonus(overrides: Partial<BonusRowData> = {}): BonusRowData {
     amountKopecks: 500000,
     date: "2026-09-15",
     note: "Тест",
+    type: "premium",
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

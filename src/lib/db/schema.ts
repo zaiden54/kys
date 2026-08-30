@@ -79,6 +79,12 @@ export const ytdBaseline = pgTable(
 
 // bonuses: individually editable one-off taxable payments. Multiple rows on
 // the same date are intentional; the forecast layer sums them into one event.
+// `type` (D-V02, Phase 3): reclassifies each bonus as "premium" (included in
+// the vacation-pay average-earnings base, ст.139 ТК РФ) or "compensation"
+// (excluded). NOT NULL DEFAULT 'premium' so drizzle-kit push's ALTER TABLE
+// physically backfills every pre-existing row to "premium" at the database
+// layer — no application-level fallback logic, no forced backfill prompt
+// (D-V03).
 export const bonuses = pgTable(
   "bonuses",
   {
@@ -89,11 +95,36 @@ export const bonuses = pgTable(
     amountKopecks: bigint("amount_kopecks", { mode: "number" }).notNull(),
     date: date("date", { mode: "string" }).notNull(),
     note: text("note"),
+    type: text("type", { enum: ["premium", "compensation"] }).notNull().default("premium"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => [
     check("bonus_amount_positive", sql`${table.amountKopecks} > 0`),
+    check("bonus_type_valid", sql`${table.type} IN ('premium', 'compensation')`),
     index("bonuses_user_id_idx").on(table.userId),
+  ],
+);
+
+// vacations: user-recorded vacation date ranges (D-V09 — inclusive start/end
+// range, not start-plus-day-count). Overlap rejection (D-V11) is enforced at
+// the application/repository layer in a later plan, not via a DB-level
+// uniqueness constraint (a range-overlap check can't be expressed as a
+// simple unique index anyway).
+export const vacations = pgTable(
+  "vacations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    startDate: date("start_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }).notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [
+    check("vacation_end_on_or_after_start", sql`${table.endDate} >= ${table.startDate}`),
+    index("vacations_user_id_idx").on(table.userId),
   ],
 );
