@@ -792,22 +792,25 @@ export function selectNextPaymentEvent(
 
 **If this table is not empty:** All assumptions are flagged [ASSUMED] because they rely on existing decisions from earlier phases or on project-level research that was not re-verified in this session. The risk levels are LOW-MEDIUM — none block execution, but reconfirming #A1 (vacation formula) against primary ТК РФ text during implementation is recommended if feasible. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Bonus-type UX clarity (D-V02)**
+1. **Bonus-type UX clarity (D-V02)** — [RESOLVED: D-V02, 03-02-PLAN.md Task 2]
    - What we know: Zod schema will require a `type` field on bonuses; form must default to `"premium"`.
    - What's unclear: What label/hint text should be shown to clarify "performance bonus" vs. "compensation" for Russian users unfamiliar with the tax distinction?
    - Recommendation: Add a tooltip or help-text example during Phase 3 UI implementation (not research scope), and test with a real user if possible.
+   - Resolution: 03-02-PLAN.md Task 2 specifies the exact Russian copy distinguishing the two bonus types on the form.
 
-2. **Boundary case: vacation spanning two salary-change dates**
+2. **Boundary case: vacation spanning two salary-change dates** — [RESOLVED: 03-01-PLAN.md Task 2]
    - What we know: Salary changes are effective-dated; vacation average must account for month-by-month lookups.
    - What's unclear: If a salary change happens on 2026-03-15 and another on 2026-03-20, both within the same lookback month, are both prorated, or is only the final one used?
    - Recommendation: Treat as "use the last-effective salary for that month" (simplification). If correctness demands all in-month changes be prorated, the `calculateSalaryInMonth` helper above shows how; this is a detailed implementation decision, not a research gap.
+   - Resolution: 03-01-PLAN.md Task 2 implements month-by-month proration per the simplification above.
 
-3. **UI for displaying vacation otpusknye breakdown (not VAC-03, but related)**
+3. **UI for displaying vacation otpusknye breakdown (not VAC-03, but related)** — [RESOLVED: D-V08, 03-04-PLAN.md Task 1]
    - What we know: VAC-03 requires an inline disclaimer. D-V08 extends the next-payment card to show vacation events.
    - What's unclear: Should the card show a breakdown (gross otpusknye amount, tax, net) or just a total, and should it link to a detail view?
    - Recommendation: Treat as Phase 3 UI-spec decision. At minimum, show gross, tax, and net (matching salary/bonus card format). A detail view showing "average daily × days = otpusknye" could be deferred.
+   - Resolution: 03-04-PLAN.md Task 1 renders the vacation-kind branch of the next-payment card with gross/tax/net breakdown and the D-V12 disclaimer.
 
 ## Environment Availability
 
