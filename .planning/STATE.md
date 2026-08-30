@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 current_phase: 03
 current_phase_name: Vacation Pay
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-08-30T20:36:00.983Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-08-30T20:44:27.944Z"
 last_activity: 2026-08-30
 last_activity_desc: Phase 03 execution started
-state_head: 42b113c83e8c6f407deb62f3c5e2c5455d0a4771
+state_head: 26bf88ae86cc0d614d5c92025f8efa5a221ecb0b
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 20
-  completed_plans: 17
+  completed_plans: 18
   percent: 50
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-08-30)
 ## Current Position
 
 Phase: 03 (Vacation Pay) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-08-30 — Phase 03 execution started
 
@@ -76,6 +76,7 @@ Progress: [█████░░░░░] 50%
 | Phase 02 P03 | 15min | 3 tasks | 8 files |
 | Phase 02 P04 | 28min | 3 tasks | 5 files |
 | Phase 03 P01 | 25min | 2 tasks | 6 files |
+| Phase 03 P02 | 20min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Recent decisions affecting current work:
 - [Phase 02]: [re-review] The 02-04 fix reintroduced CR-01 in a new spot (`onEdit` success path resetting to the stale pre-save `bonus` prop instead of the just-submitted `values`) — caught by a second, independent code review after gap-closure, not by the phase verifier (whose must_haves only covered the two originally-reported failure paths). Fixed via `gsd-code-fixer` (`reset(values)`, `resetOptions: { keepDirtyValues: true }` for WR-01, an `editSessionRef` guard for WR-02). Lesson: a bug-class fix on a form-resync pattern deserves a full re-review, not just a check against the original repro steps.
 - [Phase 03]: [Phase 03][03-01]: 12-month vacation-pay lookback window excludes the vacation's own start month (corrects an off-by-one in 03-RESEARCH.md's pseudocode)
 - [Phase 03]: [Phase 03][03-01]: Mid-month salary-change proration weights each segment by its real share of the month's actual calendar days, not a flat 29.3-day segment count — departs from 03-RESEARCH.md's literal pseudocode since that formula cannot reproduce the plan's own locked exact-value test targets
+- [Phase 03]: [Phase 03][03-02]: saveBonusAction's type parse uses formData.get("type") || undefined (not the raw null) so Zod's .default("premium") actually applies when the field is absent, matching the existing id-field pattern
+- [Phase 03]: [Phase 03][03-02]: bonus-row.tsx's edit-mode type selector uses aria-label (no visible label), matching that form's existing unlabeled-input convention; bonus-form.tsx's create-mode selector uses a visible label, matching its own pattern
 
 ### Pending Todos
 
@@ -134,6 +137,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-30T20:36:00.877Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-08-30T20:44:27.838Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
