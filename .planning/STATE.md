@@ -1,18 +1,18 @@
 ---
 gsd_state_version: 1.0
-current_phase: 3
+current_phase: 03
 current_phase_name: Vacation Pay
-status: "Phase 02 shipped (direct-to-main, no PR — branching_strategy: none, security gate cleared)"
-stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-08-30T20:19:40.810Z"
+status: executing
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-08-30T20:36:00.983Z"
 last_activity: 2026-08-30
-last_activity_desc: Phase 3 planning complete
-state_head: 35b45bf1b338fffba69135d771e89b8bfd4a6d60
+last_activity_desc: Phase 03 execution started
+state_head: 42b113c83e8c6f407deb62f3c5e2c5455d0a4771
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 20
-  completed_plans: 16
+  completed_plans: 17
   percent: 50
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-30)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** Phase 3 — Vacation Pay
+**Current focus:** Phase 03 — Vacation Pay
 
 ## Current Position
 
-Phase: 3 (Vacation Pay) — READY TO EXECUTE
-Plan: Not started
-Status: Phase 02 shipped (direct-to-main, no PR — branching_strategy: none, security gate cleared)
-Last activity: 2026-08-30 — Phase 3 planning complete
+Phase: 03 (Vacation Pay) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-08-30 — Phase 03 execution started
 
 Progress: [█████░░░░░] 50%
 
@@ -75,6 +75,7 @@ Progress: [█████░░░░░] 50%
 | Phase 02 P02 | 5min | 2 tasks | 8 files |
 | Phase 02 P03 | 15min | 3 tasks | 8 files |
 | Phase 02 P04 | 28min | 3 tasks | 5 files |
+| Phase 03 P01 | 25min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,8 @@ Recent decisions affecting current work:
 - [Phase 02]: WR-01 regression test uses a 2025/2026 year pair (not 2026/2027) since 2027 exceeds MAX_VERIFIED_TAX_YEAR.
 - [Phase 02]: [02-04] CR-01 (BonusRow edit-form silently resubmitting stale data) closed via React Hook Form `values: toDefaults(bonus)` + explicit `reset()` on Cancel and onEdit success; added jsdom + @testing-library/react as new devDependencies (first render-based test infra in this project) to prove it with real DOM behavior, not AST pattern-matching.
 - [Phase 02]: [re-review] The 02-04 fix reintroduced CR-01 in a new spot (`onEdit` success path resetting to the stale pre-save `bonus` prop instead of the just-submitted `values`) — caught by a second, independent code review after gap-closure, not by the phase verifier (whose must_haves only covered the two originally-reported failure paths). Fixed via `gsd-code-fixer` (`reset(values)`, `resetOptions: { keepDirtyValues: true }` for WR-01, an `editSessionRef` guard for WR-02). Lesson: a bug-class fix on a form-resync pattern deserves a full re-review, not just a check against the original repro steps.
+- [Phase 03]: [Phase 03][03-01]: 12-month vacation-pay lookback window excludes the vacation's own start month (corrects an off-by-one in 03-RESEARCH.md's pseudocode)
+- [Phase 03]: [Phase 03][03-01]: Mid-month salary-change proration weights each segment by its real share of the month's actual calendar days, not a flat 29.3-day segment count — departs from 03-RESEARCH.md's literal pseudocode since that formula cannot reproduce the plan's own locked exact-value test targets
 
 ### Pending Todos
 
@@ -131,6 +134,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-30T19:36:00.010Z
-Stopped at: Phase 3 UI-SPEC approved
-Resume file: /home/zaiden/code/kys/.planning/phases/03-vacation-pay/03-UI-SPEC.md
+Last session: 2026-08-30T20:36:00.877Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: None

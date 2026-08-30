@@ -30,8 +30,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Отпуска и отпускные
 
-- [ ] **VAC-01**: Пользователь может внести даты отпуска
-- [ ] **VAC-02**: Система автоматически рассчитывает отпускные по формуле среднего дневного заработка за 12 месяцев (ст.139 ТК РФ, ÷29,3)
+- [x] **VAC-01**: Пользователь может внести даты отпуска
+- [x] **VAC-02**: Система автоматически рассчитывает отпускные по формуле среднего дневного заработка за 12 месяцев (ст.139 ТК РФ, ÷29,3)
 - [ ] **VAC-03**: Интерфейс явно указывает, что расчёт отпускных в v1 не учитывает исключаемые периоды (больничный, прошлый отпуск и т.п.) — это упрощённый расчёт
 
 ### Главный экран
@@ -92,8 +92,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TAX-02 | Phase 1 | Complete |
 | BON-01 | Phase 2 | Complete |
 | BON-02 | Phase 2 | Complete |
-| VAC-01 | Phase 3 | Pending |
-| VAC-02 | Phase 3 | Pending |
+| VAC-01 | Phase 3 | Complete |
+| VAC-02 | Phase 3 | Complete |
 | VAC-03 | Phase 3 | Pending |
 | HOME-01 | Phase 1 | Complete |
 | HOME-02 | Phase 4 | Pending |

@@ -140,12 +140,12 @@ Plans:
   3. The interface explicitly discloses that the v1 vacation-pay calculation does not account for excludable periods (sick leave, prior vacation, etc.) and is a simplified estimate (VAC-03)
   4. Calculated отпускные is taxed through the same cumulative НДФЛ mechanism and appears as a distinct payment event in the user's forecast
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Schema (vacations table + bonuses.type) and the vacation-pay domain engine, exhaustively unit-tested (wave 1)
+- [x] 03-01-PLAN.md — Schema (vacations table + bonuses.type) and the vacation-pay domain engine, exhaustively unit-tested (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion; these two share no files and run in parallel)*
 
@@ -183,5 +183,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Core Payroll Loop | 12/12 | Complete    | 2026-08-29 |
 | 2. Bonuses & One-off Payments | 4/4 | Complete    | 2026-08-30 |
-| 3. Vacation Pay | 0/4 | Not started | - |
+| 3. Vacation Pay | 1/4 | In Progress|  |
 | 4. Annual Overview & PWA Installability | 0/TBD | Not started | - |
