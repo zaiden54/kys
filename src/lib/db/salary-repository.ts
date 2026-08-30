@@ -31,8 +31,8 @@ import { salaryHistory, paymentSchedule, ytdBaseline } from "@/lib/db/schema";
 import { todayIsoInMoscow } from "@/domain/time";
 import { accruedGrossBetween, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
 import type { PaymentKind } from "@/domain/schedule/resolve-payment-date";
-import { listBonuses } from "@/lib/db/bonus-repository";
-import { listVacations } from "@/lib/db/vacation-repository";
+import { listBonuses, type BonusRow } from "@/lib/db/bonus-repository";
+import { listVacations, type VacationRow } from "@/lib/db/vacation-repository";
 import {
   calculateVacationPayGross,
   resolveVacationPaymentDate,
@@ -295,6 +295,15 @@ export async function upsertYtdBaseline(
 // Cumulative income (feeds the НДФЛ engine)
 // ---------------------------------------------------------------------------
 
+/** Already-fetched rows `computeCumulativeIncome` needs — see its doc comment. */
+export interface CumulativeIncomeInputs {
+  baseline: YtdBaselineRow;
+  schedule: PaymentScheduleRow | null;
+  history: SalaryHistoryRow[];
+  bonusRows: BonusRow[];
+  vacationRows: VacationRow[];
+}
+
 /**
  * Cumulative gross income (in kopecks) earned strictly before `isoDate` for
  * a payment of the given `kind` — the `cumulativeBefore` input to
@@ -313,25 +322,28 @@ export async function upsertYtdBaseline(
  * into the next year's cumulative base.
  *
  * The real accrual is derived by the pure `accruedGrossBetween` engine over
- * the user's own schedule and salary history, read through the existing
- * ownership-scoped `getSchedule`/`listSalaryHistory` functions so a second
- * user's rows can never contribute to this figure. A user with a baseline
- * but no payment schedule gets the baseline amount alone — there is nothing
- * to enumerate without a schedule.
+ * the caller-supplied schedule and salary history. A baseline with no
+ * payment schedule gets the baseline amount alone — there is nothing to
+ * enumerate without a schedule.
+ *
+ * Pure — extracted from `getCumulativeIncomeBeforeDate` so a caller that has
+ * already fetched schedule/history/bonuses/vacations/baseline for the same
+ * user in the same request (`forecastNextPayment`) can reuse those rows
+ * instead of re-querying all five a second time. Closes WR-01
+ * (03-REVIEW.md): the duplicate-read pattern opened a narrow window where a
+ * concurrent write landing between the two independent reads could make
+ * `paymentGrossKopecks` and `cumulativeBeforeKopecks` disagree about which
+ * rows exist. Threading a single fetch through both call sites removes the
+ * duplicate reads (and the inconsistency window with them) for the
+ * `forecastNextPayment` caller; `getCumulativeIncomeBeforeDate` itself still
+ * performs its own fetch for callers that only need this one figure.
  */
-export async function getCumulativeIncomeBeforeDate(
-  userId: string,
+export function computeCumulativeIncome(
+  inputs: CumulativeIncomeInputs,
   isoDate: string,
   kind: PaymentKind = "avans",
-): Promise<number> {
-  const [baseline, schedule, history, bonusRows, vacationRows] = await Promise.all([
-    getYtdBaseline(userId),
-    getSchedule(userId),
-    listSalaryHistory(userId),
-    listBonuses(userId),
-    listVacations(userId),
-  ]);
-
+): number {
+  const { baseline, schedule, history, bonusRows, vacationRows } = inputs;
   const paymentYear = isoDate.slice(0, 4);
   const baselineApplies =
     baseline.asOfDate.slice(0, 4) === paymentYear && baseline.asOfDate <= isoDate;
@@ -390,4 +402,27 @@ export async function getCumulativeIncomeBeforeDate(
   );
 
   return baselineAmountKopecks + accruedKopecks + bonusAccruedKopecks + vacationAccruedKopecks;
+}
+
+/**
+ * Fetches this user's baseline/schedule/history/bonuses/vacations and folds
+ * them through `computeCumulativeIncome`. Kept for callers that only need
+ * this one figure and have not already fetched the underlying rows
+ * themselves (see `computeCumulativeIncome`'s doc comment for the
+ * duplicate-read caller, `forecastNextPayment`).
+ */
+export async function getCumulativeIncomeBeforeDate(
+  userId: string,
+  isoDate: string,
+  kind: PaymentKind = "avans",
+): Promise<number> {
+  const [baseline, schedule, history, bonusRows, vacationRows] = await Promise.all([
+    getYtdBaseline(userId),
+    getSchedule(userId),
+    listSalaryHistory(userId),
+    listBonuses(userId),
+    listVacations(userId),
+  ]);
+
+  return computeCumulativeIncome({ baseline, schedule, history, bonusRows, vacationRows }, isoDate, kind);
 }

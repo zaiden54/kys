@@ -51,8 +51,8 @@ import {
 import { listBonuses } from "@/lib/db/bonus-repository";
 import { listVacations } from "@/lib/db/vacation-repository";
 import {
+  computeCumulativeIncome,
   getActiveSalaryAt,
-  getCumulativeIncomeBeforeDate,
   getSchedule,
   getYtdBaseline,
   listSalaryHistory,
@@ -110,11 +110,18 @@ export function selectNextPaymentEvent(
  * implements.
  */
 export async function forecastNextPayment(userId: string): Promise<ForecastResult> {
-  const [schedule, bonusRows, vacationRows, salaryHistoryRows] = await Promise.all([
+  // Fetched once, up front — including ytdBaseline — and threaded into
+  // computeCumulativeIncome below instead of re-fetching all five rows a
+  // second time via getCumulativeIncomeBeforeDate (closes WR-01,
+  // 03-REVIEW.md): a single request now reads each row exactly once, which
+  // also removes the narrow inconsistency window a concurrent write could
+  // previously exploit between two independent reads of the same rows.
+  const [schedule, bonusRows, vacationRows, salaryHistoryRows, ytdBaseline] = await Promise.all([
     getSchedule(userId),
     listBonuses(userId),
     listVacations(userId),
     listSalaryHistory(userId),
+    getYtdBaseline(userId),
   ]);
   const paymentEvent = schedule
     ? nextPaymentOnOrAfter(
@@ -204,14 +211,11 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
     ? vacationGrossKopecks
     : baseGrossKopecks + bonusKopecksOnDate;
 
-  const [cumulativeBeforeKopecks, ytdBaseline] = await Promise.all([
-    getCumulativeIncomeBeforeDate(
-      userId,
-      paymentDateIso,
-      isBonusOnly || isVacationOnly ? "avans" : (resolvedEvent.kind as PaymentKind),
-    ),
-    getYtdBaseline(userId),
-  ]);
+  const cumulativeBeforeKopecks = computeCumulativeIncome(
+    { baseline: ytdBaseline, schedule, history: salaryHistoryRows, bonusRows, vacationRows },
+    paymentDateIso,
+    isBonusOnly || isVacationOnly ? "avans" : (resolvedEvent.kind as PaymentKind),
+  );
 
   // The tax year belongs to the payment date, not to today — a
   // December-resolved payment and a January one belong to different
