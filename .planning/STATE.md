@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 current_phase: 03
 current_phase_name: Vacation Pay
-status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-08-30T20:54:54.470Z"
+status: verifying
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-08-30T21:14:46.402Z"
 last_activity: 2026-08-30
 last_activity_desc: Phase 03 execution started
-state_head: c8b416d8012c33786f7cacdaad933525e0668d56
+state_head: 66d0890ce4a00c568d7c4cd862b9441e1f742f6f
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 20
-  completed_plans: 19
+  completed_plans: 20
   percent: 50
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-30)
 
 Phase: 03 (Vacation Pay) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-30 — Phase 03 execution started
 
 Progress: [█████░░░░░] 50%
@@ -78,6 +78,7 @@ Progress: [█████░░░░░] 50%
 | Phase 03 P01 | 25min | 2 tasks | 6 files |
 | Phase 03 P02 | 20min | 2 tasks | 11 files |
 | Phase 03 P03 | 20min | 2 tasks | 6 files |
+| Phase 03 P04 | 45min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,9 @@ Recent decisions affecting current work:
 - [Phase 03]: [Phase 03][03-03]: Vacations carry no note field — dropped from every repository/validation signature per the plan's own resolved design decision
 - [Phase 03]: [Phase 03][03-03]: checkOverlapVacations uses inclusive-boundary overlap semantics — a shared boundary day counts as an overlap (D-V11)
 - [Phase 03]: [Phase 03][03-03]: vacationAccruedKopecks is always recomputed live in getCumulativeIncomeBeforeDate, never stored, so a later salary/bonus edit automatically updates every affected forecast
+- [Phase 03]: [Phase 03][03-04]: selectNextPaymentEvent's three-way tie-break (schedule beats bonus beats vacation) implemented via fixed push order + stable sort, not an explicit comparator chain
+- [Phase 03]: [Phase 03][03-04]: A vacation-only forecast event never populates breakdown or combines with a same-date bonus — by construction of the tie-break rule this never loses real data
+- [Phase 03]: [Phase 03][03-04]: Task 1's vacation.ts/vacations/page.tsx written and isolation-verified in genuine create-only form before Task 2 extended them, preserving per-task commit atomicity despite both tasks touching the same two files
 
 ### Pending Todos
 
@@ -130,6 +134,7 @@ None yet.
 - [Phase 1, resolved 2026-08-29] Manual UAT for cross-device convergence and confirmation-prompt snapshot behavior completed via 01-UAT.md — 3/3 passed.
 - [Phase 1] Statute verification still outstanding: 2025 НДФЛ bracket thresholds (НК РФ ст.224) have not been confirmed against primary legal text — no live web access in this execution sandbox (curl to consultant.ru and pravo.gov.ru both failed to connect). NDFL_SCALES ordering/values are code-verified but not statute-cross-checked (see T-01-08-04 in 01-SECURITY.md). Confirm before relying on exact bracket numbers in production.
 - [Phase 2, low severity] BonusRow's `keepDirtyValues: true` (WR-01 fix) narrows but does not fully close the possibility of submitting a value based on a premise that changed underneath the user during a concurrent cross-device edit — no inline conflict notice was added; this was a deliberate scope choice (02-REVIEW-FIX.md), not an oversight. Revisit if concurrent multi-device editing of the same bonus turns out to be a real usage pattern.
+- [Phase 3, 03-04] Browser-based manual UAT (03-VALIDATION.md Manual-Only Verifications row) not click-through-performed in this autonomous session — recorded as an open unrun-verify entry in .planning/WINDOWS.md; substituted with npm run build + full 315-test automated suite. A human should complete the walkthrough before considering Phase 3 UAT fully closed.
 
 ## Deferred Items
 
@@ -141,6 +146,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-30T20:54:54.342Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-08-30T21:14:46.289Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None
