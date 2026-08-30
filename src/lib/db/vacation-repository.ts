@@ -17,6 +17,26 @@ if (typeof window !== "undefined") {
  * `checkOverlapVacations` is the single enforcement point every caller must
  * invoke before `createVacation`/`updateVacation` (T-03-07) — no unique DB
  * constraint exists to catch a bypass at the storage layer.
+ *
+ * Accepted risk (T-03-09, closes 03-REVIEW.md WR-01): the
+ * check-then-write between `checkOverlapVacations` and
+ * `createVacation`/`updateVacation` in `saveVacationAction` is not wrapped
+ * in a transaction or advisory lock, so two concurrent submissions for the
+ * same user (double-click, two open tabs/devices) can both pass the
+ * overlap check before either write lands, producing two overlapping
+ * vacation rows. This mirrors `deleteVacationIfFuture`'s already-accepted
+ * read-then-write race (T-03-08) rather than introducing a new pattern: the
+ * installed Neon HTTP driver (`drizzle-orm/neon-http`, see
+ * `src/lib/db/salary-repository.ts`'s `replaceSalaryAt` doc comment) has no
+ * interactive transactions, so `pg_advisory_xact_lock` cannot be scoped
+ * across the check and the write, and a session-scoped
+ * `pg_advisory_lock`/`pg_advisory_unlock` pair cannot be relied on either
+ * since neon-http issues each statement as an independent HTTP round trip
+ * with no guaranteed session continuity. Accepted for v1 given this
+ * driver's constraints and the narrowness of the window (a single user
+ * double-submitting within milliseconds); revisit with a Postgres
+ * `EXCLUDE USING gist` range constraint or a transaction-capable driver if
+ * this proves to matter in practice.
  */
 import { and, desc, eq, gte, lte, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
