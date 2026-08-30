@@ -27,4 +27,19 @@ describe("bonusInputSchema", () => {
         .success,
     ).toBe(false);
   });
+
+  it.each([1.001, 1.005])(
+    "rejects an amount carrying more than two decimal places of ruble precision: %s (closes 02-REVIEW.md WR-03)",
+    (amountRubles) => {
+      const result = bonusInputSchema.safeParse({ amountRubles, date: "2026-01-01" });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues.some((issue) => issue.message === "Укажите сумму с точностью не более двух знаков после запятой")).toBe(true);
+      }
+    },
+  );
+
+  it("accepts an amount with exactly two decimal places", () => {
+    expect(bonusInputSchema.safeParse({ amountRubles: 1.01, date: "2026-01-01" }).success).toBe(true);
+  });
 });
