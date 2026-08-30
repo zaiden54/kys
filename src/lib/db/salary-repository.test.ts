@@ -292,32 +292,32 @@ describe("salary-repository", () => {
   });
 
   it("includes bonuses strictly before the target but excludes same-date bonuses", async () => {
-    await createBonus(userAId, 10_000_00, "2026-08-31", "До выплаты");
-    await createBonus(userAId, 99_000_00, "2026-09-01", "В день выплаты");
+    await createBonus(userAId, 10_000_00, "2026-08-31", "До выплаты", "premium");
+    await createBonus(userAId, 99_000_00, "2026-09-01", "В день выплаты", "premium");
     expect(await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary"))
       .toBe(10_000_00);
   });
 
   it("excludes bonuses on or before the applicable baseline boundary", async () => {
     await upsertYtdBaseline(userAId, 750_000_00, "2026-06-30", false);
-    await createBonus(userAId, 10_000_00, "2026-06-29", "Уже в базе");
-    await createBonus(userAId, 20_000_00, "2026-06-30", "Граница базы");
-    await createBonus(userAId, 30_000_00, "2026-07-01", "После базы");
+    await createBonus(userAId, 10_000_00, "2026-06-29", "Уже в базе", "premium");
+    await createBonus(userAId, 20_000_00, "2026-06-30", "Граница базы", "premium");
+    await createBonus(userAId, 30_000_00, "2026-07-01", "После базы", "premium");
     expect(await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary"))
       .toBe(780_000_00);
   });
 
   it("adds bonuses to the baseline even when no payment schedule exists", async () => {
     await upsertYtdBaseline(userAId, 750_000_00, "2026-03-01", false);
-    await createBonus(userAId, 25_000_00, "2026-04-01", "Без графика");
+    await createBonus(userAId, 25_000_00, "2026-04-01", "Без графика", "premium");
     expect(await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary"))
       .toBe(775_000_00);
   });
 
   it("recomputes later cumulative income by the exact edited bonus delta", async () => {
-    const bonus = await createBonus(userAId, 25_000_00, "2026-04-01", "До правки");
+    const bonus = await createBonus(userAId, 25_000_00, "2026-04-01", "До правки", "premium");
     const before = await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary");
-    await updateBonus(userAId, bonus.id, 40_000_00, bonus.date, "После правки");
+    await updateBonus(userAId, bonus.id, 40_000_00, bonus.date, "После правки", "premium");
     const after = await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary");
     expect(after - before).toBe(15_000_00);
   });

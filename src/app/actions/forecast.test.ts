@@ -292,7 +292,7 @@ describe("forecastNextPayment", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-01T09:00:00Z"));
     try {
-      await createBonus(userAId, 100_000_00, "2026-09-02", "Проект");
+      await createBonus(userAId, 100_000_00, "2026-09-02", "Проект", "premium");
       const result = await forecastNextPayment(userAId);
       expect(result.configured).toBe(true);
       if (!result.configured) throw new Error("expected configured bonus forecast");
@@ -311,8 +311,8 @@ describe("forecastNextPayment", () => {
     try {
       await replaceSalaryAt(userAId, 600_000_00, "2026-01-01");
       await upsertSchedule(userAId, 20, 5);
-      await createBonus(userAId, 40_000_00, "2026-09-04", "Первый");
-      await createBonus(userAId, 10_000_00, "2026-09-04", "Второй");
+      await createBonus(userAId, 40_000_00, "2026-09-04", "Первый", "premium");
+      await createBonus(userAId, 10_000_00, "2026-09-04", "Второй", "premium");
       const result = await forecastNextPayment(userAId);
       expect(result.configured).toBe(true);
       if (!result.configured) throw new Error("expected configured combined forecast");
@@ -332,7 +332,7 @@ describe("forecastNextPayment", () => {
         await upsertSchedule(id, 20, 5);
         await upsertYtdBaseline(id, 1_700_000_00, "2026-08-01", false);
       }
-      await createBonus(userBId, 100_000_00, "2026-08-15", "Прошлый");
+      await createBonus(userBId, 100_000_00, "2026-08-15", "Прошлый", "premium");
       const withoutBonus = await forecastNextPayment(userAId);
       const withBonus = await forecastNextPayment(userBId);
       if (!withoutBonus.configured || !withBonus.configured) throw new Error("expected forecasts");

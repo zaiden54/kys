@@ -27,6 +27,8 @@ export const bonusInputSchema = z.object({
   date: isoDateString,
   note: z.string().max(500, "Заметка слишком длинная (максимум 500 символов)")
     .optional().default(""),
+  type: z.enum(["premium", "compensation"], { error: () => "Некорректный тип бонуса" })
+    .default("premium"),
 });
 
 export type BonusInput = z.infer<typeof bonusInputSchema>;
