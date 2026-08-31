@@ -1,18 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 04-annual-overview-pwa-installability
 source: [04-VERIFICATION.md]
 started: 2026-08-31T17:30:00Z
-updated: 2026-08-31T19:00:00Z
+updated: 2026-08-31T16:27:18Z
 ---
 
 ## Current Test
 
-number: 2
-name: Standalone App Launch and Re-Login
-expected: |
-  Tap the installed app icon to launch it in standalone mode. Verify: (1) app launches without Safari UI chrome, (2) user is not logged in (storage-jar separation), (3) login screen displays with re-login hint ("Похоже, это первый запуск с домашнего экрана…"), (4) log in with test credentials, (5) home screen displays (next payment card, pie chart, install banner hidden). This test was previously blocked by gap G-04-2 (login/register redirect did not complete); G-04-2 is now fixed in code (router.refresh() before router.push()) and covered by passing automated tests — re-attempt this test on a real device to confirm the fix holds in an actual browser/standalone-PWA environment.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -24,20 +20,20 @@ result: pass
 expected: |
   Tap the installed app icon to launch it in standalone mode. Verify: (1) app launches without Safari UI chrome, (2) user is not logged in (storage-jar separation), (3) login screen displays with re-login hint ("Похоже, это первый запуск с домашнего экрана…"), (4) log in with test credentials, (5) home screen displays (next payment card, pie chart, install banner hidden).
   Expected: app launches fullscreen standalone, login screen with re-login hint, after login home screen renders with correct data.
-result: pending
+result: pass
 
 ### 3. AnnualPieChart Visual Verification
 expected: |
   On the home screen (Safari tab and standalone app), visually inspect the pie chart: donut proportions match displayed percentages, "Налог" (red #dc2626) and "На руки" (green #16a34a) slices clearly distinct, title "Доход и налоги в {YYYY} году" readable, 3-row summary correct, estimated-baseline note appears when applicable.
   Expected: proportions accurate, colors legible in light/dark mode, text readable, layout matches other cards.
-result: pending
+result: pass
 
 ## Summary
 
 total: 3
-passed: 1
+passed: 3
 issues: 0
-pending: 2
+pending: 0
 skipped: 0
 blocked: 0
 
