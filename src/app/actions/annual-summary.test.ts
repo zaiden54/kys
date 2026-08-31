@@ -274,4 +274,48 @@ describe("computeAnnualSummary", () => {
     if (!userBResult.configured) throw new Error("expected a configured result");
     expect(userBResult.summary.grossKopecks).toBeGreaterThan(afterResult.summary.grossKopecks);
   });
+
+  it("(7) a YTD baseline dated exactly Dec 31 of taxYear excludes every dated event from the year's walk, so grossKopecks equals exactly the baseline and taxKopecks is exactly 0", async () => {
+    // windowBoundIso becomes the baseline's own asOfDate (Dec 31): no event
+    // date within taxYear can be strictly greater than Dec 31 of that same
+    // year, so every avans/salary occurrence (schedule is configured, so
+    // events do exist) is filtered out by the ">" comparison.
+    await replaceSalaryAt(userAId, 100_000_00, `${TAX_YEAR}-01-01`);
+    await upsertSchedule(userAId, 10, 25);
+    await upsertYtdBaseline(userAId, 500_000_00, `${TAX_YEAR}-12-31`, false);
+
+    const result = await computeAnnualSummary(userAId, TAX_YEAR);
+    expect(result.configured).toBe(true);
+    if (!result.configured) throw new Error("expected a configured result");
+    expect(result.summary.grossKopecks).toBe(500_000_00);
+    expect(result.summary.taxKopecks).toBe(0);
+    expect(result.summary.netKopecks).toBe(500_000_00);
+    expect(result.summary.baselineIsEstimated).toBe(false);
+  });
+
+  it("(8) userA's bonus/vacation amounts never appear in userB's own summary total, even when both users share the same configured salary/schedule shape", async () => {
+    for (const id of [userAId, userBId]) {
+      await replaceSalaryAt(id, 200_000_00, `${TAX_YEAR}-01-01`);
+      await upsertSchedule(id, 10, 25);
+      await upsertYtdBaseline(id, 0, `${TAX_YEAR}-01-01`, false);
+    }
+
+    const userBBaseline = await computeAnnualSummary(userBId, TAX_YEAR);
+    expect(userBBaseline.configured).toBe(true);
+    if (!userBBaseline.configured) throw new Error("expected a configured result");
+
+    // Only userA gets a large, distinctive bonus and vacation.
+    await createBonus(userAId, 400_000_00, `${TAX_YEAR}-05-10`, "Только у А", "premium");
+    await createVacation(userAId, `${TAX_YEAR}-08-01`, `${TAX_YEAR}-08-05`);
+
+    const userBAfter = await computeAnnualSummary(userBId, TAX_YEAR);
+    expect(userBAfter.configured).toBe(true);
+    if (!userBAfter.configured) throw new Error("expected a configured result");
+
+    // userB's totals are byte-identical before and after userA's data was
+    // inserted — userA's bonus/vacation never leaked into userB's own walk.
+    expect(userBAfter.summary.grossKopecks).toBe(userBBaseline.summary.grossKopecks);
+    expect(userBAfter.summary.taxKopecks).toBe(userBBaseline.summary.taxKopecks);
+    expect(userBAfter.summary.netKopecks).toBe(userBBaseline.summary.netKopecks);
+  });
 });

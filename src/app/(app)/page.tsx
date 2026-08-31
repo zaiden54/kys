@@ -55,7 +55,25 @@ export default async function HomePage() {
       <NextPaymentCard forecast={result.forecast} />
       {annualResult.configured ? (
         <AnnualPieChart summary={annualResult.summary} taxYear={currentYear} />
-      ) : null}
+      ) : (
+        // Defensive, forward-compatible fallback: unreachable-by-construction
+        // today (computeAnnualSummary's not-configured gate is byte-for-byte
+        // identical to forecastNextPayment's, and the `!result.configured`
+        // early return above already covers it), but kept as cheap insurance
+        // per 04-01-PLAN.md's "flagged_assumptions" — never a silent `null`.
+        <div className="w-full max-w-sm rounded border border-zinc-300 p-4 text-center">
+          <h2 className="text-lg font-semibold text-zinc-900">Сводка недоступна</h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            Заполните оклад и график выплат, чтобы увидеть годовую сводку.
+          </p>
+          <Link
+            href="/settings/salary"
+            className="mt-3 inline-block rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white"
+          >
+            Настроить оклад
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
