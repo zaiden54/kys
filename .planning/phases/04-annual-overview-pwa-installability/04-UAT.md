@@ -1,9 +1,9 @@
 ---
-status: partial
+status: diagnosed
 phase: 04-annual-overview-pwa-installability
 source: [04-VERIFICATION.md]
 started: 2026-08-31T17:30:00Z
-updated: 2026-08-31T17:42:00Z
+updated: 2026-08-31T17:55:00Z
 ---
 
 ## Current Test
@@ -49,5 +49,13 @@ blocked: 1
   reason: "User reported: При попытке войти или зарегистрироваться ничего не происходит, данные отправляются на сервер, однако редиректа на главный экран не происходит"
   severity: major
   test: 2
-  artifacts: []
-  missing: []
+  root_cause: "src/app/(auth)/login/page.tsx and src/app/(auth)/register/page.tsx both call router.push() right after authClient.signIn.email()/signUp.email() with no router.refresh() (or session-invalidating callback) in between. The destination route is gated by a server-side session check ((app)/layout.tsx's getSessionUser() + redirect('/login')); the stale client-side navigation re-resolves through the unauthenticated gate instead of committing to the authenticated page. Confirmed pre-existing since the Phase 01-02 tracer commit (db14032), unmodified by Phase 04 — both login and register share the identical anti-pattern, which is why both flows are affected even though Phase 04 only touched login/page.tsx's re-login hint block."
+  artifacts:
+    - path: "src/app/(auth)/login/page.tsx"
+      issue: "onSubmit calls router.push('/') with no router.refresh()/session invalidation after authClient.signIn.email()"
+    - path: "src/app/(auth)/register/page.tsx"
+      issue: "onSubmit calls router.push('/onboarding') with the identical anti-pattern after authClient.signUp.email()"
+  missing:
+    - "Add router.refresh() immediately before/alongside router.push() in both onSubmit handlers, or move the redirect into Better Auth's onSuccess callback"
+    - "Add a real navigation-level regression test (existing render tests mock useRouter.push and never assert it committed; existing E2E script drives raw HTTP and never exercises router.push at all)"
+  debug_session: ".planning/debug/auth-no-redirect-standalone.md"
