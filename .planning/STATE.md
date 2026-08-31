@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Полировка MVP
 status: planning
-last_updated: "2026-08-31T21:07:24.615Z"
+last_updated: "2026-09-01T00:00:00.000Z"
 last_activity: 2026-09-01
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-31)
+See: .planning/PROJECT.md (updated 2026-09-01)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** MVP milestone complete; ready for milestone close-out
+**Current focus:** v1.1 Полировка MVP — Phase 5 (Deploy Pipeline & Environment Config) ready to plan
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-09-01 — Milestone v1.1 started
+Phase: 5 of 8 (Deploy Pipeline & Environment Config)
+Plan: — of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-09-01 — ROADMAP.md created for v1.1 (Phases 5-8), 24/24 requirements mapped
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -87,6 +89,10 @@ Last activity: 2026-09-01 — Milestone v1.1 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- Roadmap (v1.1): Phases sequenced Deploy Pipeline → Auth Security → E2E Test Suite → Visual Redesign so the Playwright suite exists as a regression safety net *before* the higher-risk visual redesign lands, per research/SUMMARY.md's "Implications for Roadmap" ordering rationale (not left as a final validation pass).
+- Roadmap (v1.1): SEC-04 (`BETTER_AUTH_URL`/allowed-hosts dynamic resolution) folded into Phase 5 (Deploy Pipeline) rather than Phase 6 (Auth Security), since research/PITFALLS.md flags it as a hard blocker for staging UAT specifically — must be fixed before the staging environment goes live, not as a general auth-hardening item.
+- Roadmap (v1.1): DEPLOY-05 (Vercel auto-deploy vs. GitHub Actions double-deploy race) resolved as part of Phase 5, per research's explicit flag that this belongs to the staging/CI phase, not a separate concern.
+- Roadmap (v1.1): PWA-01/PWA-02 (Dynamic Island safe-area) folded into Phase 8 (Visual Redesign) rather than a standalone PWA phase — both are CSS/layout concerns naturally verified alongside the rest of the visual pass, and standalone would have been a 2-requirement phase.
 - Roadmap: Progressive НДФЛ engine and vacation-pay engine must be built correctness-first (pure, isolated, heavily unit-tested) but delivered as part of end-to-end vertical slices (Vertical MVP mode) rather than as a standalone horizontal "engine phase"
 - Roadmap: Annual overview (HOME-02) deferred to Phase 4 since it requires the full income picture (salary + bonuses + vacation) from Phases 1-3 to reconcile correctly
 - [Phase 01]: Pinned typescript to exact 6.0.3 (no caret) and used --legacy-peer-deps for a benign @hookform/resolvers/@typeschema optional-peer conflict with zod 4 — Matches CLAUDE.md's locked stack and typescript-eslint compatibility constraint; the peer conflict was on an unused optional adapter path, not a real incompatibility
@@ -141,6 +147,9 @@ None yet.
 - [Phase 1] Statute verification still outstanding: 2025 НДФЛ bracket thresholds (НК РФ ст.224) have not been confirmed against primary legal text — no live web access in this execution sandbox (curl to consultant.ru and pravo.gov.ru both failed to connect). NDFL_SCALES ordering/values are code-verified but not statute-cross-checked (see T-01-08-04 in 01-SECURITY.md). Confirm before relying on exact bracket numbers in production.
 - [Phase 2, low severity] BonusRow's `keepDirtyValues: true` (WR-01 fix) narrows but does not fully close the possibility of submitting a value based on a premise that changed underneath the user during a concurrent cross-device edit — no inline conflict notice was added; this was a deliberate scope choice (02-REVIEW-FIX.md), not an oversight. Revisit if concurrent multi-device editing of the same bonus turns out to be a real usage pattern.
 - [Phase 3, 03-04] Browser-based manual UAT (03-VALIDATION.md Manual-Only Verifications row) not click-through-performed in this autonomous session — recorded as an open unrun-verify entry in .planning/WINDOWS.md; substituted with npm run build + full 315-test automated suite. A human should complete the walkthrough before considering Phase 3 UAT fully closed.
+- Research flag (v1.1, Phase 5): confirm the target Vercel staging domain/branch doesn't already exist before creating it (research/SUMMARY.md Gaps to Address #1)
+- Research flag (v1.1, Phase 7): Neon globalSetup for Playwright's isolated-branch-per-CI-run pattern is proven locally but needs validation once it actually runs inside GitHub Actions (research/SUMMARY.md Gaps to Address #2)
+- Research flag (v1.1, Phase 8): visual-regression baseline screenshots need explicit design agreement before the redesign lands, or regressions will pass silently (research/PITFALLS.md #6)
 
 ## Deferred Items
 
@@ -152,10 +161,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-31T16:32:31.963Z
-Stopped at: Phase 04 complete — all phases complete
+Last session: 2026-09-01T00:00:00.000Z
+Stopped at: v1.1 ROADMAP.md created (Phases 5-8, 24/24 requirements mapped) — ready for /gsd-plan-phase 5
 Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Review the v1.1 roadmap draft, then run `/gsd-plan-phase 5` to start Deploy Pipeline & Environment Config
