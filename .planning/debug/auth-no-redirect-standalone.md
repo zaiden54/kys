@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "UAT G-04-2: After installing as a standalone PWA, the user remains able to log back in and sees their data — this UAT check failed. При попытке войти или зарегистрироваться ничего не происходит, данные отправляются на сервер, однако редиректа на главный экран не происходит."
 created: 2026-08-31T14:50:04Z
-updated: 2026-08-31T15:06:00Z
+updated: 2026-08-31T16:32:31Z
 ---
 
 ## Current Focus
@@ -261,6 +261,11 @@ root_cause: |
   Phase 01 verify-auth-flow.mjs script drives raw HTTP endpoints directly, bypassing the
   React client components and router.push altogether). This Phase 04 UAT's manual
   click-through is the first real-browser exercise of this code path.
-fix: (not applicable — goal is find_root_cause_only; deferred to /gsd-plan-phase --gaps)
-verification: (not applicable — goal is find_root_cause_only)
-files_changed: []
+fix: |
+  Added router.refresh() immediately before router.push() in both onSubmit success
+  handlers, forcing the App Router to invalidate its client-side cache of the destination
+  route and read the freshly-set session cookie before navigating.
+verification: Fixed independently in commits a200bb8 (login) and d293dca (register), phase 04-03.
+files_changed:
+  - src/app/(auth)/login/page.tsx
+  - src/app/(auth)/register/page.tsx
