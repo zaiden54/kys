@@ -17,6 +17,14 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // Node 22+'s built-in global `localStorage` (Web Storage API, on by
+    // default) shadows jsdom's own window.localStorage implementation in
+    // jsdom-environment tests, silently leaving `window.localStorage`
+    // undefined ("localStorage is not available because --localstorage-file
+    // was not provided"). Disabling it lets jsdom's implementation through —
+    // needed by install-banner.render.test.tsx and any future test that
+    // exercises localStorage-backed UI state.
+    execArgv: ["--no-experimental-webstorage"],
   },
   resolve: {
     alias: {

@@ -5,6 +5,7 @@ import { computeAnnualSummary } from "@/app/actions/annual-summary";
 import { NextPaymentCard } from "@/components/next-payment-card";
 import { AnnualPieChart } from "@/components/annual-pie-chart";
 import { YtdEstimateBanner } from "@/components/ytd-estimate-banner";
+import { InstallBanner } from "@/components/install-banner";
 import { todayIsoInMoscow } from "@/domain/time";
 
 // HOME-01: shows only the next payment's date and take-home amount. The
@@ -37,6 +38,7 @@ export default async function HomePage() {
     const copy = MISSING_COPY[result.missing];
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+        <InstallBanner />
         <h1 className="text-2xl font-semibold">{copy.title}</h1>
         <p className="max-w-sm text-zinc-600">{copy.body}</p>
         <Link
@@ -51,6 +53,7 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-1 flex-col items-center gap-4 px-6 py-16">
+      <InstallBanner />
       {result.forecast.baselineIsEstimated ? <YtdEstimateBanner /> : null}
       <NextPaymentCard forecast={result.forecast} />
       {annualResult.configured ? (
