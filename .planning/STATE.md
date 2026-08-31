@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 current_phase: 04
 current_phase_name: Annual Overview & PWA Installability
-status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-08-31T07:41:09.250Z"
+status: verifying
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-08-31T08:00:34.875Z"
 last_activity: 2026-08-31
 last_activity_desc: Phase 04 execution started
-state_head: 419b1466e1e796e49015146cd8d4508d17e283a7
+state_head: 1ef73298a6dc6234854893583d406e17d5c976f1
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 22
-  completed_plans: 21
+  completed_plans: 22
   percent: 75
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 
 Phase: 04 (Annual Overview & PWA Installability) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-31 — Phase 04 execution started
 
 Progress: [████████░░] 75%
@@ -81,6 +81,7 @@ Progress: [████████░░] 75%
 | Phase 03 P03 | 20min | 2 tasks | 6 files |
 | Phase 03 P04 | 45min | 2 tasks | 9 files |
 | Phase 04 P01 | 20min | 2 tasks | 10 files |
+| Phase 04 P02 | 20min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,9 @@ Recent decisions affecting current work:
 - [Phase 03]: [Phase 03][03-04]: Task 1's vacation.ts/vacations/page.tsx written and isolation-verified in genuine create-only form before Task 2 extended them, preserving per-task commit atomicity despite both tasks touching the same two files
 - [Phase 04]: [Phase 04][04-01]: resolveBaselineWindow extracted from computeCumulativeIncome (pure refactor) so computeAnnualSummary's whole-year walk and forecastNextPayment's single-event path share one baseline-applicability formula, never independently drift apart.
 - [Phase 04]: [Phase 04][04-01]: AnnualPieChart renders exactly 2 Recharts Cell slices (Налог/На руки, not a third Грязными wedge) since a gross wedge would double-count the total and push displayed percentages to 200% -- corrects a bug 04-RESEARCH.md's own illustrative example had introduced.
+- [Phase 04]: [Phase 04][04-02]: package.json's dev/build scripts pinned to --webpack since @serwist/next's service-worker injection is webpack-only (no Turbopack support yet, upstream issue #54)
+- [Phase 04]: [Phase 04][04-02]: next.config.ts needs both exclude:[/.*/] and globPublicPatterns:[] to produce a genuinely empty precache manifest -- exclude alone left 5 default public/*.svg files in self.__SW_MANIFEST
+- [Phase 04]: [Phase 04][04-02]: vitest.config.ts disables Node's built-in global localStorage via execArgv --no-experimental-webstorage so jsdom's window.localStorage is used in tests
 
 ### Pending Todos
 
@@ -140,6 +144,7 @@ None yet.
 - [Phase 2, low severity] BonusRow's `keepDirtyValues: true` (WR-01 fix) narrows but does not fully close the possibility of submitting a value based on a premise that changed underneath the user during a concurrent cross-device edit — no inline conflict notice was added; this was a deliberate scope choice (02-REVIEW-FIX.md), not an oversight. Revisit if concurrent multi-device editing of the same bonus turns out to be a real usage pattern.
 - [Phase 3, 03-04] Browser-based manual UAT (03-VALIDATION.md Manual-Only Verifications row) not click-through-performed in this autonomous session — recorded as an open unrun-verify entry in .planning/WINDOWS.md; substituted with npm run build + full 315-test automated suite. A human should complete the walkthrough before considering Phase 3 UAT fully closed.
 - [Phase 4, 04-01] AnnualPieChart's real-browser rendering (donut proportions/colors/legibility) not click-through-verified in this autonomous session -- recorded as open unrun-verify entry #2 in .planning/WINDOWS.md; substituted with jsdom render tests, a Cell-count structural check, and npm run build. A human should visually confirm the chart before phase close-out.
+- [Phase 4, 04-02] Real-device iPhone UAT (install -> standalone launch -> re-login -> data loads) not performed in this autonomous session -- no physical iPhone available. Live-verified instead: manifest.webmanifest/apple-icon/api/pwa-icon endpoints and sw.js against a real npm run start production server, plus the full automated test suite and production build. A human must complete the real-device walkthrough before Phase 4 sign-off (per 04-VALIDATION.md's Manual-Only Verifications row).
 
 ## Deferred Items
 
@@ -151,6 +156,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-31T07:40:56.671Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-08-31T08:00:34.644Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None

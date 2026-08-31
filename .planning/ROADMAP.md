@@ -171,7 +171,7 @@ Plans:
   3. User can install the app to their iPhone home screen via Safari's "Add to Home Screen," and it launches in standalone display mode with its own icon (PWA-01)
   4. After installing as a standalone PWA, the user remains logged in and sees their data (handling the separate storage-jar behavior between the Safari tab and the installed app)
 
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans executed
 
 Plans:
 **Wave 1**
@@ -180,7 +180,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion — both plans touch src/app/(app)/page.tsx)*
 
-- [ ] 04-02-PLAN.md — Web app manifest, icons, minimal Serwist service worker, standalone-mode install banner + login re-login hint (PWA-01) (wave 2)
+- [x] 04-02-PLAN.md — Web app manifest, icons, minimal Serwist service worker, standalone-mode install banner + login re-login hint (PWA-01) (wave 2)
 
 **UI hint**: yes
 
@@ -194,4 +194,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Core Payroll Loop | 12/12 | Complete    | 2026-08-29 |
 | 2. Bonuses & One-off Payments | 4/4 | Complete    | 2026-08-30 |
 | 3. Vacation Pay | 4/4 | Complete    | 2026-08-31 |
-| 4. Annual Overview & PWA Installability | 1/2 | In Progress|  |
+| 4. Annual Overview & PWA Installability | 2/2 | In Progress|  |

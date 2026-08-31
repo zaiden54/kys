@@ -41,7 +41,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### PWA
 
-- [ ] **PWA-01**: Приложение устанавливается на домашний экран iPhone (манифест, иконки, standalone-режим)
+- [x] **PWA-01**: Приложение устанавливается на домашний экран iPhone (манифест, иконки, standalone-режим)
 
 ## v2 Requirements
 
@@ -97,7 +97,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VAC-03 | Phase 3 | Complete |
 | HOME-01 | Phase 1 | Complete |
 | HOME-02 | Phase 4 | Complete |
-| PWA-01 | Phase 4 | Pending |
+| PWA-01 | Phase 4 | Complete |
 
 **Coverage:**
 
