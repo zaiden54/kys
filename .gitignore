@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# serwist (generated at build time by next.config.ts's withSerwistInit, not committed source)
+/public/sw.js
+/public/sw.js.map
+
 # production
 /build
 

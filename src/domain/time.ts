@@ -97,3 +97,26 @@ export function todayIsoInMoscow(): string {
   const day = String(fields.day).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Formats a `yyyy-MM-dd` string as a Russian-locale long date (e.g.
+ * "15 сентября 2026 г."). Extracted from three call sites that previously
+ * defined this verbatim (`bonus-row.tsx`, `vacation-row.tsx`,
+ * `next-payment-card.tsx` — closes 03-REVIEW.md WR-02) so a future locale or
+ * formatting change only needs to happen once.
+ *
+ * Builds the `Date` from local year/month/day components (never
+ * `new Date(isoDate)`, which parses as UTC midnight and can display the
+ * wrong calendar day in a host timezone behind UTC) purely to hand it to
+ * `Intl.DateTimeFormat`, which only reads local accessors — this is safe
+ * regardless of host process timezone.
+ */
+export function formatIsoDateRu(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}

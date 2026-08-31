@@ -16,6 +16,8 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-schema";
 import { createBonus, updateBonus } from "@/lib/db/bonus-repository";
+import { createVacation } from "@/lib/db/vacation-repository";
+import { calculateVacationPayGross, resolveVacationPaymentDate } from "@/domain/vacation/calculate-average-daily-earnings";
 import {
   findSalaryAt,
   getActiveSalaryAt,
@@ -38,6 +40,13 @@ async function createThrowawayUser(): Promise<string> {
     email: `salary-repo-test-${id}@example.invalid`,
   });
   return id;
+}
+
+/** Shifts an ISO date by a number of calendar days (UTC-anchored, matches the bonus test pattern). */
+function shiftIsoDate(iso: string, days: number): string {
+  const shifted = new Date(`${iso}T00:00:00.000Z`);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted.toISOString().slice(0, 10);
 }
 
 describe("salary-repository", () => {
@@ -292,32 +301,32 @@ describe("salary-repository", () => {
   });
 
   it("includes bonuses strictly before the target but excludes same-date bonuses", async () => {
-    await createBonus(userAId, 10_000_00, "2026-08-31", "До выплаты");
-    await createBonus(userAId, 99_000_00, "2026-09-01", "В день выплаты");
+    await createBonus(userAId, 10_000_00, "2026-08-31", "До выплаты", "premium");
+    await createBonus(userAId, 99_000_00, "2026-09-01", "В день выплаты", "premium");
     expect(await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary"))
       .toBe(10_000_00);
   });
 
   it("excludes bonuses on or before the applicable baseline boundary", async () => {
     await upsertYtdBaseline(userAId, 750_000_00, "2026-06-30", false);
-    await createBonus(userAId, 10_000_00, "2026-06-29", "Уже в базе");
-    await createBonus(userAId, 20_000_00, "2026-06-30", "Граница базы");
-    await createBonus(userAId, 30_000_00, "2026-07-01", "После базы");
+    await createBonus(userAId, 10_000_00, "2026-06-29", "Уже в базе", "premium");
+    await createBonus(userAId, 20_000_00, "2026-06-30", "Граница базы", "premium");
+    await createBonus(userAId, 30_000_00, "2026-07-01", "После базы", "premium");
     expect(await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary"))
       .toBe(780_000_00);
   });
 
   it("adds bonuses to the baseline even when no payment schedule exists", async () => {
     await upsertYtdBaseline(userAId, 750_000_00, "2026-03-01", false);
-    await createBonus(userAId, 25_000_00, "2026-04-01", "Без графика");
+    await createBonus(userAId, 25_000_00, "2026-04-01", "Без графика", "premium");
     expect(await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary"))
       .toBe(775_000_00);
   });
 
   it("recomputes later cumulative income by the exact edited bonus delta", async () => {
-    const bonus = await createBonus(userAId, 25_000_00, "2026-04-01", "До правки");
+    const bonus = await createBonus(userAId, 25_000_00, "2026-04-01", "До правки", "premium");
     const before = await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary");
-    await updateBonus(userAId, bonus.id, 40_000_00, bonus.date, "После правки");
+    await updateBonus(userAId, bonus.id, 40_000_00, bonus.date, "После правки", "premium");
     const after = await getCumulativeIncomeBeforeDate(userAId, "2026-09-01", "salary");
     expect(after - before).toBe(15_000_00);
   });
@@ -335,5 +344,58 @@ describe("salary-repository", () => {
 
     const after = await getCumulativeIncomeBeforeDate(userAId, "2026-09-04", "salary");
     expect(after).toBe(before);
+  });
+
+  it("VAC-02: a payment dated after an already-paid vacation shows a cumulative-before figure exactly the vacation's computed gross higher", async () => {
+    await replaceSalaryAt(userAId, 600_000_00, "2025-01-01");
+    await createVacation(userAId, "2026-06-15", "2026-06-24");
+
+    const paymentDateIso = resolveVacationPaymentDate("2026-06-15");
+    const onPaymentDate = await getCumulativeIncomeBeforeDate(userAId, paymentDateIso, "salary");
+    const afterPaymentDate = await getCumulativeIncomeBeforeDate(
+      userAId,
+      shiftIsoDate(paymentDateIso, 1),
+      "salary",
+    );
+
+    const salaryHistoryEntries = [{ effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 }];
+    const expectedGross = calculateVacationPayGross(
+      "2026-06-15",
+      "2026-06-24",
+      salaryHistoryEntries,
+      [],
+    ).grossKopecks;
+
+    expect(expectedGross).toBeGreaterThan(0);
+    // Same-date exclusion (off-by-one discipline matching bonuses): a target
+    // date exactly equal to the vacation's own payment date does not yet
+    // include it.
+    expect(afterPaymentDate - onPaymentDate).toBe(expectedGross);
+  });
+
+  it("VAC-02: a 'compensation'-typed bonus inside the vacation's own lookback window does not inflate its computed contribution", async () => {
+    await replaceSalaryAt(userAId, 600_000_00, "2025-01-01");
+    await createBonus(userAId, 300_000_00, "2026-03-15", "Компенсация", "compensation");
+    await createVacation(userAId, "2026-06-15", "2026-06-24");
+
+    const paymentDateIso = resolveVacationPaymentDate("2026-06-15");
+    const before = await getCumulativeIncomeBeforeDate(userAId, paymentDateIso, "salary");
+    const after = await getCumulativeIncomeBeforeDate(
+      userAId,
+      shiftIsoDate(paymentDateIso, 1),
+      "salary",
+    );
+
+    const salaryHistoryEntries = [{ effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 }];
+    // premiumBonusEntries is empty: the compensation-typed bonus must never
+    // reach the vacation's own average-earnings base.
+    const expectedGross = calculateVacationPayGross(
+      "2026-06-15",
+      "2026-06-24",
+      salaryHistoryEntries,
+      [],
+    ).grossKopecks;
+
+    expect(after - before).toBe(expectedGross);
   });
 });

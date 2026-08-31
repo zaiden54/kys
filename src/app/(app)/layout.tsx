@@ -19,6 +19,7 @@ export default async function AppLayout({
         <div className="flex items-center gap-4">
           <span className="text-sm text-zinc-600">{user.email}</span>
           <Link href="/bonuses" className="text-sm font-medium text-zinc-800 underline">Бонусы</Link>
+          <Link href="/vacations" className="text-sm font-medium text-zinc-800 underline">Отпуска</Link>
         </div>
         <SignOutButton />
       </header>

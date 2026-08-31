@@ -100,8 +100,12 @@ function parseIsoToLocalMidnight(iso: string): Date {
  * with the greatest `effectiveFrom` not exceeding it. Scans the whole array
  * so the result never depends on insertion order; returns `undefined` when
  * no entry applies yet.
+ *
+ * Exported (04-01-PLAN.md Task 1) so `src/app/actions/annual-summary.ts` can
+ * reuse this exact per-event resolution instead of re-deriving it — no
+ * behavior change, visibility only.
  */
-function selectEffectiveEntry(
+export function selectEffectiveEntry(
   salaryHistory: readonly SalaryHistoryEntry[],
   eventDateIso: string,
 ): SalaryHistoryEntry | undefined {

@@ -41,27 +41,37 @@ import { format } from "date-fns";
 import type { Kopecks } from "@/domain/money";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
 import { nextPaymentOnOrAfter, type PaymentKind } from "@/domain/schedule/resolve-payment-date";
-import { halfSplitGross } from "@/domain/pay/payment-accrual";
+import { halfSplitGross, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
 import { nowInMoscow, todayIsoInMoscow } from "@/domain/time";
-import { listBonuses } from "@/lib/db/bonus-repository";
 import {
+  calculateVacationPayGross,
+  resolveVacationPaymentDate,
+  toPremiumBonusEntries,
+  type PremiumBonusEntry,
+} from "@/domain/vacation/calculate-average-daily-earnings";
+import { listBonuses } from "@/lib/db/bonus-repository";
+import { listVacations } from "@/lib/db/vacation-repository";
+import {
+  computeCumulativeIncome,
   getActiveSalaryAt,
-  getCumulativeIncomeBeforeDate,
   getSchedule,
   getYtdBaseline,
+  listSalaryHistory,
 } from "@/lib/db/salary-repository";
 
 /** The next payment's date, kind, and fully-computed take-home figures. */
 export interface NextPaymentForecast {
   /** `yyyy-MM-dd`, local calendar date — matches salary_history's date column format. */
   date: string;
-  kind: PaymentKind | "bonus";
+  kind: PaymentKind | "bonus" | "vacation";
   grossKopecks: Kopecks;
   taxKopecks: Kopecks;
   netKopecks: Kopecks;
   /** True while the YTD baseline is a synthesized zero (D-11) rather than a user-entered figure. */
   baselineIsEstimated: boolean;
   breakdown?: { salaryOrAvansKopecks: Kopecks; bonusKopecks: Kopecks };
+  /** Set only when `kind === "vacation"` — the resolved vacation's own id. */
+  vacationId?: string;
 }
 
 /**
@@ -76,11 +86,23 @@ export type ForecastResult =
 export function selectNextPaymentEvent(
   scheduleEvent: { dateIso: string; kind: PaymentKind } | null,
   futureBonusDatesAscending: readonly string[],
-): { dateIso: string; kind: PaymentKind | "bonus" } | null {
+  futureVacationEventsAscending: readonly { dateIso: string; vacationId: string }[] = [],
+): { dateIso: string; kind: PaymentKind | "bonus" | "vacation"; vacationId?: string } | null {
+  // Fixed push order (schedule, then bonus, then vacation) plus a stable
+  // sort means an exact-date tie always resolves in this same order —
+  // schedule beats bonus (Phase 2's existing rule, unchanged) and both beat
+  // vacation. See 03-04-PLAN.md's "Flagged assumptions" for why this
+  // three-way tie-break is a documented planner discretion call.
+  const candidates: { dateIso: string; kind: PaymentKind | "bonus" | "vacation"; vacationId?: string }[] = [];
+  if (scheduleEvent) candidates.push(scheduleEvent);
   const bonusDate = futureBonusDatesAscending[0];
-  if (!scheduleEvent) return bonusDate ? { dateIso: bonusDate, kind: "bonus" } : null;
-  if (!bonusDate || scheduleEvent.dateIso <= bonusDate) return scheduleEvent;
-  return { dateIso: bonusDate, kind: "bonus" };
+  if (bonusDate) candidates.push({ dateIso: bonusDate, kind: "bonus" });
+  const vacationEvent = futureVacationEventsAscending[0];
+  if (vacationEvent) {
+    candidates.push({ dateIso: vacationEvent.dateIso, kind: "vacation", vacationId: vacationEvent.vacationId });
+  }
+  if (candidates.length === 0) return null;
+  return candidates.sort((a, b) => a.dateIso.localeCompare(b.dateIso))[0];
 }
 
 /**
@@ -89,7 +111,19 @@ export function selectNextPaymentEvent(
  * implements.
  */
 export async function forecastNextPayment(userId: string): Promise<ForecastResult> {
-  const [schedule, bonusRows] = await Promise.all([getSchedule(userId), listBonuses(userId)]);
+  // Fetched once, up front — including ytdBaseline — and threaded into
+  // computeCumulativeIncome below instead of re-fetching all five rows a
+  // second time via getCumulativeIncomeBeforeDate (closes WR-01,
+  // 03-REVIEW.md): a single request now reads each row exactly once, which
+  // also removes the narrow inconsistency window a concurrent write could
+  // previously exploit between two independent reads of the same rows.
+  const [schedule, bonusRows, vacationRows, salaryHistoryRows, ytdBaseline] = await Promise.all([
+    getSchedule(userId),
+    listBonuses(userId),
+    listVacations(userId),
+    listSalaryHistory(userId),
+    getYtdBaseline(userId),
+  ]);
   const paymentEvent = schedule
     ? nextPaymentOnOrAfter(
         { avansDay: schedule.avansDay, salaryDay: schedule.salaryDay },
@@ -103,35 +137,84 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
     .map((bonus) => bonus.date)
     .filter((date) => date >= todayIsoInMoscow())
     .sort();
-  const resolvedEvent = selectNextPaymentEvent(scheduleEvent, futureBonusDatesAscending);
+  const futureVacationEventsAscending = vacationRows
+    .map((vacation) => ({
+      dateIso: resolveVacationPaymentDate(vacation.startDate),
+      vacationId: vacation.id,
+    }))
+    .filter((event) => event.dateIso >= todayIsoInMoscow())
+    .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+  const resolvedEvent = selectNextPaymentEvent(
+    scheduleEvent,
+    futureBonusDatesAscending,
+    futureVacationEventsAscending,
+  );
   if (!resolvedEvent) {
     return { configured: false, missing: "schedule" };
   }
   const paymentDateIso = resolvedEvent.dateIso;
-  const bonusKopecksOnDate = bonusRows
-    .filter((bonus) => bonus.date === paymentDateIso)
-    .reduce((sum, bonus) => sum + bonus.amountKopecks, 0);
+  const isVacationOnly = resolvedEvent.kind === "vacation";
+  const isBonusOnly = resolvedEvent.kind === "bonus";
+  const bonusKopecksOnDate = isVacationOnly
+    ? 0
+    : bonusRows
+        .filter((bonus) => bonus.date === paymentDateIso)
+        .reduce((sum, bonus) => sum + bonus.amountKopecks, 0);
 
   // The salary effective ON the payment's own date — never the newest row
   // overall and never today's date. This is D-15: a future-dated salary
   // change simply has no effect until a payment actually falls on/after it.
-  const activeSalary = resolvedEvent.kind === "bonus"
+  // A vacation-only resolved event never calls this either — mirrors the
+  // existing bonus-only branch.
+  const activeSalary = isBonusOnly || isVacationOnly
     ? null
     : await getActiveSalaryAt(userId, paymentDateIso);
-  if (resolvedEvent.kind !== "bonus" && !activeSalary) return { configured: false, missing: "salary" };
-  const baseGrossKopecks = resolvedEvent.kind === "bonus"
+  if (!isBonusOnly && !isVacationOnly && !activeSalary) return { configured: false, missing: "salary" };
+  // A vacation-only resolved event skips the activeSalary lookup above (it
+  // computes gross from full salary history instead), but it still needs a
+  // salary to exist at all — otherwise calculateAverageDailyEarnings's
+  // correct domain-level "no data -> zero" contract would silently surface
+  // as a fabricated "configured: true, ₽0" forecast instead of the
+  // "missing: salary" empty state every other unconfigured path uses
+  // (closes CR-01, 03-REVIEW.md).
+  if (isVacationOnly && salaryHistoryRows.length === 0) {
+    return { configured: false, missing: "salary" };
+  }
+  const baseGrossKopecks = isBonusOnly || isVacationOnly
     ? 0
-    : halfSplitGross(activeSalary!.grossAmountKopecks, resolvedEvent.kind);
-  const paymentGrossKopecks = baseGrossKopecks + bonusKopecksOnDate;
+    : halfSplitGross(activeSalary!.grossAmountKopecks, resolvedEvent.kind as PaymentKind);
 
-  const [cumulativeBeforeKopecks, ytdBaseline] = await Promise.all([
-    getCumulativeIncomeBeforeDate(
-      userId,
-      paymentDateIso,
-      resolvedEvent.kind === "bonus" ? "avans" : resolvedEvent.kind,
-    ),
-    getYtdBaseline(userId),
-  ]);
+  // A vacation-only event's gross is computed live from full salary history
+  // + premium-filtered bonuses, never a stored amount (mirrors the
+  // defensive premium filter already established in
+  // getCumulativeIncomeBeforeDate for the same reason: D-V03).
+  let vacationGrossKopecks = 0;
+  if (isVacationOnly) {
+    const vacationRow = vacationRows.find((vacation) => vacation.id === resolvedEvent.vacationId);
+    if (vacationRow) {
+      const salaryHistoryEntries: SalaryHistoryEntry[] = salaryHistoryRows.map((row) => ({
+        effectiveFrom: row.effectiveFrom,
+        grossAmountKopecks: row.grossAmountKopecks,
+      }));
+      const premiumBonusEntries: PremiumBonusEntry[] = toPremiumBonusEntries(bonusRows);
+      vacationGrossKopecks = calculateVacationPayGross(
+        vacationRow.startDate,
+        vacationRow.endDate,
+        salaryHistoryEntries,
+        premiumBonusEntries,
+      ).grossKopecks;
+    }
+  }
+
+  const paymentGrossKopecks = isVacationOnly
+    ? vacationGrossKopecks
+    : baseGrossKopecks + bonusKopecksOnDate;
+
+  const cumulativeBeforeKopecks = computeCumulativeIncome(
+    { baseline: ytdBaseline, schedule, history: salaryHistoryRows, bonusRows, vacationRows },
+    paymentDateIso,
+    isBonusOnly || isVacationOnly ? "avans" : (resolvedEvent.kind as PaymentKind),
+  );
 
   // The tax year belongs to the payment date, not to today — a
   // December-resolved payment and a January one belong to different
@@ -159,9 +242,13 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
       taxKopecks,
       netKopecks,
       baselineIsEstimated: !baselineApplies || ytdBaseline.isEstimated,
-      breakdown: resolvedEvent.kind !== "bonus" && bonusKopecksOnDate > 0
+      // A vacation-only resolved event never populates breakdown — its own
+      // gross is not a combination of a salary/avans row plus a bonus row
+      // (see 03-04-PLAN.md "Design decisions").
+      breakdown: !isBonusOnly && !isVacationOnly && bonusKopecksOnDate > 0
         ? { salaryOrAvansKopecks: baseGrossKopecks, bonusKopecks: bonusKopecksOnDate }
         : undefined,
+      vacationId: isVacationOnly ? resolvedEvent.vacationId : undefined,
     },
   };
 }

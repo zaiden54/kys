@@ -38,6 +38,10 @@ export default function RegisterPage() {
       setFormError(error.message ?? "Не удалось зарегистрироваться");
       return;
     }
+    // G-04-2: refresh before push so (app)/layout.tsx's server-side
+    // getSessionUser() reads the just-set session cookie fresh, instead of
+    // soft-navigating against stale pre-auth Server Component data.
+    router.refresh();
     // D-09: land on /onboarding so the year-to-date question is presented
     // at signup, unconditionally of signup month.
     router.push("/onboarding");

@@ -1,43 +1,41 @@
 ---
 gsd_state_version: 1.0
-current_phase: 3
-current_phase_name: Vacation Pay
-status: "Phase 02 shipped (direct-to-main, no PR — branching_strategy: none, security gate cleared)"
-stopped_at: Completed Phase 02 (gap-closure 02-04 + CR-01 re-review/fix cycle)
-last_updated: "2026-08-30T18:44:43.743Z"
-last_activity: 2026-08-30
-state_head: d0b7c7db7cb31fe780f8431f44de7588a7acd37b
+status: Awaiting next milestone
+stopped_at: Phase 04 complete — all phases complete
+last_updated: "2026-08-31T20:36:49.373Z"
+last_activity: 2026-08-31
+last_activity_desc: Milestone v1.0 completed and archived
+state_head: 19699d26ba3c2805043d1230b56d797377adf890
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 16
-  completed_plans: 16
-  percent: 50
+  completed_phases: 4
+  total_plans: 23
+  completed_plans: 23
+  percent: 100
+current_phase: 04
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-30)
+See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** Phase 3 — Vacation Pay
+**Current focus:** MVP milestone complete; ready for milestone close-out
 
 ## Current Position
 
-Phase: 3 — Vacation Pay
-Plan: Not started
-Status: Phase 02 shipped (direct-to-main, no PR — branching_strategy: none, security gate cleared)
-Last activity: 2026-08-30
-
-Progress: [█████░░░░░] 50%
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-31 — Milestone v1.0 completed and archived
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16
+- Total plans completed: 23
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -47,6 +45,8 @@ Progress: [█████░░░░░] 50%
 |-------|-------|-------|----------|
 | 01 | 12 | - | - |
 | 02 | 4 | - | - |
+| 03 | 4 | - | - |
+| 04 | 3 | - | - |
 
 **Recent Trend:**
 
@@ -74,6 +74,13 @@ Progress: [█████░░░░░] 50%
 | Phase 02 P02 | 5min | 2 tasks | 8 files |
 | Phase 02 P03 | 15min | 3 tasks | 8 files |
 | Phase 02 P04 | 28min | 3 tasks | 5 files |
+| Phase 03 P01 | 25min | 2 tasks | 6 files |
+| Phase 03 P02 | 20min | 2 tasks | 11 files |
+| Phase 03 P03 | 20min | 2 tasks | 6 files |
+| Phase 03 P04 | 45min | 2 tasks | 9 files |
+| Phase 04 P01 | 20min | 2 tasks | 10 files |
+| Phase 04 P02 | 20min | 3 tasks | 19 files |
+| Phase 04 P03 | 6min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -106,6 +113,23 @@ Recent decisions affecting current work:
 - [Phase 02]: WR-01 regression test uses a 2025/2026 year pair (not 2026/2027) since 2027 exceeds MAX_VERIFIED_TAX_YEAR.
 - [Phase 02]: [02-04] CR-01 (BonusRow edit-form silently resubmitting stale data) closed via React Hook Form `values: toDefaults(bonus)` + explicit `reset()` on Cancel and onEdit success; added jsdom + @testing-library/react as new devDependencies (first render-based test infra in this project) to prove it with real DOM behavior, not AST pattern-matching.
 - [Phase 02]: [re-review] The 02-04 fix reintroduced CR-01 in a new spot (`onEdit` success path resetting to the stale pre-save `bonus` prop instead of the just-submitted `values`) — caught by a second, independent code review after gap-closure, not by the phase verifier (whose must_haves only covered the two originally-reported failure paths). Fixed via `gsd-code-fixer` (`reset(values)`, `resetOptions: { keepDirtyValues: true }` for WR-01, an `editSessionRef` guard for WR-02). Lesson: a bug-class fix on a form-resync pattern deserves a full re-review, not just a check against the original repro steps.
+- [Phase 03]: [Phase 03][03-01]: 12-month vacation-pay lookback window excludes the vacation's own start month (corrects an off-by-one in 03-RESEARCH.md's pseudocode)
+- [Phase 03]: [Phase 03][03-01]: Mid-month salary-change proration weights each segment by its real share of the month's actual calendar days, not a flat 29.3-day segment count — departs from 03-RESEARCH.md's literal pseudocode since that formula cannot reproduce the plan's own locked exact-value test targets
+- [Phase 03]: [Phase 03][03-02]: saveBonusAction's type parse uses formData.get("type") || undefined (not the raw null) so Zod's .default("premium") actually applies when the field is absent, matching the existing id-field pattern
+- [Phase 03]: [Phase 03][03-02]: bonus-row.tsx's edit-mode type selector uses aria-label (no visible label), matching that form's existing unlabeled-input convention; bonus-form.tsx's create-mode selector uses a visible label, matching its own pattern
+- [Phase 03]: [Phase 03][03-03]: Vacations carry no note field — dropped from every repository/validation signature per the plan's own resolved design decision
+- [Phase 03]: [Phase 03][03-03]: checkOverlapVacations uses inclusive-boundary overlap semantics — a shared boundary day counts as an overlap (D-V11)
+- [Phase 03]: [Phase 03][03-03]: vacationAccruedKopecks is always recomputed live in getCumulativeIncomeBeforeDate, never stored, so a later salary/bonus edit automatically updates every affected forecast
+- [Phase 03]: [Phase 03][03-04]: selectNextPaymentEvent's three-way tie-break (schedule beats bonus beats vacation) implemented via fixed push order + stable sort, not an explicit comparator chain
+- [Phase 03]: [Phase 03][03-04]: A vacation-only forecast event never populates breakdown or combines with a same-date bonus — by construction of the tie-break rule this never loses real data
+- [Phase 03]: [Phase 03][03-04]: Task 1's vacation.ts/vacations/page.tsx written and isolation-verified in genuine create-only form before Task 2 extended them, preserving per-task commit atomicity despite both tasks touching the same two files
+- [Phase 04]: [Phase 04][04-01]: resolveBaselineWindow extracted from computeCumulativeIncome (pure refactor) so computeAnnualSummary's whole-year walk and forecastNextPayment's single-event path share one baseline-applicability formula, never independently drift apart.
+- [Phase 04]: [Phase 04][04-01]: AnnualPieChart renders exactly 2 Recharts Cell slices (Налог/На руки, not a third Грязными wedge) since a gross wedge would double-count the total and push displayed percentages to 200% -- corrects a bug 04-RESEARCH.md's own illustrative example had introduced.
+- [Phase 04]: [Phase 04][04-02]: package.json's dev/build scripts pinned to --webpack since @serwist/next's service-worker injection is webpack-only (no Turbopack support yet, upstream issue #54)
+- [Phase 04]: [Phase 04][04-02]: next.config.ts needs both exclude:[/.*/] and globPublicPatterns:[] to produce a genuinely empty precache manifest -- exclude alone left 5 default public/*.svg files in self.__SW_MANIFEST
+- [Phase 04]: [Phase 04][04-02]: vitest.config.ts disables Node's built-in global localStorage via execArgv --no-experimental-webstorage so jsdom's window.localStorage is used in tests
+- [Phase 04]: [Phase 04][04-03]: Applied identical router.refresh()-before-router.push() fix independently to both login and register onSubmit (G-04-2), matching the diagnosis that both pages drifted into the same anti-pattern independently since the Phase 01-02 tracer commit — Two-line addition per page per the plan's explicit scope; no shared helper extracted
+- [Phase 04]: [Phase 04][04-03]: Rebuilt login/page.render.test.tsx's router mock from an inline unreachable vi.fn() to vi.hoisted() pushMock/refreshMock spies so tests can assert call order and destination — Closes the structural blind spot named in the root-cause diagnosis: an inline vi.fn() inside a mock factory is a fresh instance per call and cannot be asserted against
 
 ### Pending Todos
 
@@ -115,10 +139,10 @@ None yet.
 
 - Research flag (Phase 1): confirm exact 2025 НДФЛ bracket thresholds and the ст.139 ТК РФ 29.3 divisor against primary НК РФ/ТК РФ legal text before implementing the tax/vacation engines — see research/PITFALLS.md and research/SUMMARY.md
 - Research flag (Phase 1): unresolved product decision on mid-year onboarding UX (SAL-03) — no authoritative source, needs explicit design during plan-phase
-- Research flag (Phase 4): iOS PWA install/storage-jar behavior must be verified on a real iPhone device, not emulator, before considered done
 - [Phase 1, resolved 2026-08-29] Manual UAT for cross-device convergence and confirmation-prompt snapshot behavior completed via 01-UAT.md — 3/3 passed.
 - [Phase 1] Statute verification still outstanding: 2025 НДФЛ bracket thresholds (НК РФ ст.224) have not been confirmed against primary legal text — no live web access in this execution sandbox (curl to consultant.ru and pravo.gov.ru both failed to connect). NDFL_SCALES ordering/values are code-verified but not statute-cross-checked (see T-01-08-04 in 01-SECURITY.md). Confirm before relying on exact bracket numbers in production.
 - [Phase 2, low severity] BonusRow's `keepDirtyValues: true` (WR-01 fix) narrows but does not fully close the possibility of submitting a value based on a premise that changed underneath the user during a concurrent cross-device edit — no inline conflict notice was added; this was a deliberate scope choice (02-REVIEW-FIX.md), not an oversight. Revisit if concurrent multi-device editing of the same bonus turns out to be a real usage pattern.
+- [Phase 3, 03-04] Browser-based manual UAT (03-VALIDATION.md Manual-Only Verifications row) not click-through-performed in this autonomous session — recorded as an open unrun-verify entry in .planning/WINDOWS.md; substituted with npm run build + full 315-test automated suite. A human should complete the walkthrough before considering Phase 3 UAT fully closed.
 
 ## Deferred Items
 
@@ -130,6 +154,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-30T16:42:27.680Z
-Stopped at: Completed Phase 02 (gap-closure 02-04 + CR-01 re-review/fix cycle)
+Last session: 2026-08-31T16:32:31.963Z
+Stopped at: Phase 04 complete — all phases complete
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

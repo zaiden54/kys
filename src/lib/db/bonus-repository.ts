@@ -11,14 +11,16 @@ import { db } from "@/lib/db";
 import { bonuses } from "@/lib/db/schema";
 
 export type BonusRow = typeof bonuses.$inferSelect;
+export type BonusType = "premium" | "compensation";
 
 export async function createBonus(
   userId: string,
   amountKopecks: number,
   date: string,
   note: string,
+  type: BonusType,
 ): Promise<BonusRow> {
-  const inserted = await db.insert(bonuses).values({ userId, amountKopecks, date, note }).returning();
+  const inserted = await db.insert(bonuses).values({ userId, amountKopecks, date, note, type }).returning();
   const row = inserted[0];
   if (!row) throw new Error("createBonus: insert into bonuses returned no row");
   return row;
@@ -34,10 +36,11 @@ export async function updateBonus(
   amountKopecks: number,
   date: string,
   note: string,
+  type: BonusType,
 ): Promise<BonusRow | null> {
   const updated = await db
     .update(bonuses)
-    .set({ amountKopecks, date, note, updatedAt: new Date() })
+    .set({ amountKopecks, date, note, type, updatedAt: new Date() })
     .where(and(eq(bonuses.id, bonusId), eq(bonuses.userId, userId)))
     .returning();
   return updated[0] ?? null;

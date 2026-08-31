@@ -42,4 +42,20 @@ describe("bonusInputSchema", () => {
   it("accepts an amount with exactly two decimal places", () => {
     expect(bonusInputSchema.safeParse({ amountRubles: 1.01, date: "2026-01-01" }).success).toBe(true);
   });
+
+  it("defaults type to 'premium' when omitted", () => {
+    const result = bonusInputSchema.parse({ amountRubles: 1, date: "2026-01-01" });
+    expect(result.type).toBe("premium");
+  });
+
+  it("accepts an explicit 'compensation' type", () => {
+    const result = bonusInputSchema.parse({ amountRubles: 1, date: "2026-01-01", type: "compensation" });
+    expect(result.type).toBe("compensation");
+  });
+
+  it("rejects an invalid type value", () => {
+    expect(
+      bonusInputSchema.safeParse({ amountRubles: 1, date: "2026-01-01", type: "bonus" }).success,
+    ).toBe(false);
+  });
 });

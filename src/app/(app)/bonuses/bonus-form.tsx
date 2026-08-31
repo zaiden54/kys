@@ -12,6 +12,7 @@ function toFormData(values: BonusInput): FormData {
   data.set("amountRubles", String(values.amountRubles));
   data.set("date", values.date);
   data.set("note", values.note);
+  data.set("type", values.type);
   return data;
 }
 
@@ -20,7 +21,7 @@ export function BonusForm() {
   const { register, handleSubmit, reset, setError, formState: { errors, isSubmitting } } =
     useForm<BonusInput>({
       resolver: zodResolver(bonusInputSchema) as Resolver<BonusInput>,
-      defaultValues: { amountRubles: undefined, date: today, note: "" },
+      defaultValues: { amountRubles: undefined, date: today, note: "", type: "premium" },
     });
   const [message, setMessage] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export function BonusForm() {
         return;
       }
       setMessage("Бонус сохранён.");
-      reset({ amountRubles: undefined, date: todayIsoInMoscow(), note: "" });
+      reset({ amountRubles: undefined, date: todayIsoInMoscow(), note: "", type: "premium" });
     } catch {
       setServerError("Не удалось сохранить бонус. Попробуйте ещё раз.");
     }
@@ -67,6 +68,14 @@ export function BonusForm() {
         <input id="note" type="text" placeholder={'Например, "13-я зарплата" или "бонус за проект"'}
           className="rounded border border-zinc-300 px-3 py-2" {...register("note")} />
         {errors.note && <p className="text-sm text-red-600">{errors.note.message}</p>}
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="type" className="text-sm font-medium">Тип выплаты</label>
+        <select id="type" className="rounded border border-zinc-300 px-3 py-2" {...register("type")}>
+          <option value="premium">Премия (учитывается при расчёте отпускных)</option>
+          <option value="compensation">Компенсация — например, к отпуску (не учитывается при расчёте отпускных)</option>
+        </select>
+        {errors.type && <p className="text-sm text-red-600">{errors.type.message}</p>}
       </div>
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}
       {message && <p className="text-sm text-green-700">{message}</p>}
