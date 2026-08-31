@@ -1,18 +1,16 @@
 ---
 gsd_state_version: 1.0
-status: Awaiting next milestone
-stopped_at: Phase 04 complete — all phases complete
-last_updated: "2026-08-31T20:36:49.373Z"
-last_activity: 2026-08-31
-last_activity_desc: Milestone v1.0 completed and archived
-state_head: 19699d26ba3c2805043d1230b56d797377adf890
+milestone: v1.1
+milestone_name: Полировка MVP
+status: planning
+last_updated: "2026-08-31T21:07:24.615Z"
+last_activity: 2026-09-01
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 23
-  completed_plans: 23
-  percent: 100
-current_phase: 04
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -26,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-08-31 — Milestone v1.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-09-01 — Milestone v1.1 started
 
 ## Performance Metrics
 

@@ -24,7 +24,14 @@ PWA-приложение для расчёта и прогнозирования
 
 ### Active
 
-No active MVP requirements.
+- [ ] Полный визуальный редизайн UI (типографика, цвета, компоненты) через `frontend-design` skill
+- [ ] Хедер/навигация уважают `env(safe-area-inset-top/bottom)` — не пересекаются с dynamic island на iPhone
+- [ ] Пользователь может вернуться на главный экран с любого экрана приложения
+- [ ] Утечка пароля в адресной строке/Network tab при логине или регистрации подтверждена и устранена (или опровергнута живым тестом)
+- [ ] Playwright e2e-тесты покрывают golden path всех фаз (вход/регистрация, оклад+график, премии, отпуска, годовая сводка, PWA-инсталляция), интегрированы с Playwright MCP
+- [ ] Постоянное staging-окружение (свой Vercel-домен + своя Neon-ветка) отделено от прода; релиз идёт по циклу feature-branch → staging → prod
+- [ ] `BETTER_AUTH_URL` корректно резолвится на всех окружениях (PR preview / staging / prod)
+- [ ] GitHub Actions гейт (vitest + eslint + tsc) блокирует мердж/деплой при ошибках
 
 ### Out of Scope
 
@@ -73,9 +80,17 @@ No active MVP requirements.
 
 Из открытых пунктов на момент шипа: статутная сверка порогов НДФЛ 2025 (ст.224 НК РФ) и делителя 29.3 (ст.139 ТК РФ) против первоисточника не выполнена (нет доступа к интернету в песочнице выполнения) — числа проверены по коду, но не сверены с первичным юридическим текстом; браузерный click-through UAT для кросс-девайсной синхронизации и части Phase 3 отпускных не проводился вживую (заменён автотестами).
 
-## Next Milestone Goals
+## Current Milestone: v1.1 Полировка MVP
 
-Следующий milestone определяется через `/gsd-new-milestone`. Кандидаты из Out of Scope v1 (налоговые вычеты, несколько работодателей) — стартовая точка для обсуждения, не решение.
+**Goal:** Довести v1.0 MVP до продакшн-качества — визуально, по UX, по безопасности, по автотестовому покрытию и по надёжности релизного процесса, без изменения расчётной модели (НДФЛ/премии/отпускные).
+
+**Target features:**
+- Полный визуальный редизайн UI через `frontend-design` skill
+- PWA safe-area фикс (хедер не пересекается с dynamic island)
+- UX-фикс: возврат на главный экран и прочие мелкие UX-баги
+- Security-харденинг auth-флоу (проверка/устранение утечки пароля через URL)
+- Playwright e2e-тесты на golden path всех фаз + интеграция с Playwright MCP
+- Постоянный staging-контур (Vercel + Neon) и цикл feature → staging → prod, включая фикс `BETTER_AUTH_URL` и CI-гейт (GitHub Actions)
 
 ## Evolution
 
@@ -95,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-31 after v1.0 milestone*
+*Last updated: 2026-09-01 after starting v1.1 milestone*
