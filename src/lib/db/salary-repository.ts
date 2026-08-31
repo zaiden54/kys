@@ -339,19 +339,41 @@ export interface CumulativeIncomeInputs {
  * `forecastNextPayment` caller; `getCumulativeIncomeBeforeDate` itself still
  * performs its own fetch for callers that only need this one figure.
  */
+/**
+ * Determines whether `baseline` contributes to a cumulative-income window
+ * ending at/around `isoDate`: the baseline's own `asOfDate` must fall in the
+ * same calendar year as `isoDate` AND be on or before it. When applicable,
+ * the window opens exactly at the baseline's `asOfDate`; otherwise it opens
+ * at 31 December of the year preceding `isoDate` — a baseline entered in a
+ * prior calendar year must never silently carry forward.
+ *
+ * Extracted (04-01-PLAN.md Task 1) from `computeCumulativeIncome`'s
+ * previously-inline 6-line block — pure refactor, no behavior change — so
+ * `src/app/actions/annual-summary.ts`'s whole-year walk shares the EXACT
+ * same baseline-applicability formula as this single-event path, and the two
+ * can never independently drift apart.
+ */
+export function resolveBaselineWindow(
+  baseline: YtdBaselineRow,
+  isoDate: string,
+): { baselineApplies: boolean; baselineAmountKopecks: number; windowBoundIso: string } {
+  const targetYear = isoDate.slice(0, 4);
+  const baselineApplies =
+    baseline.asOfDate.slice(0, 4) === targetYear && baseline.asOfDate <= isoDate;
+  const baselineAmountKopecks = baselineApplies ? baseline.amountKopecks : 0;
+  const windowBoundIso = baselineApplies
+    ? baseline.asOfDate
+    : `${Number(targetYear) - 1}-12-31`;
+  return { baselineApplies, baselineAmountKopecks, windowBoundIso };
+}
+
 export function computeCumulativeIncome(
   inputs: CumulativeIncomeInputs,
   isoDate: string,
   kind: PaymentKind = "avans",
 ): number {
   const { baseline, schedule, history, bonusRows, vacationRows } = inputs;
-  const paymentYear = isoDate.slice(0, 4);
-  const baselineApplies =
-    baseline.asOfDate.slice(0, 4) === paymentYear && baseline.asOfDate <= isoDate;
-  const baselineAmountKopecks = baselineApplies ? baseline.amountKopecks : 0;
-  const windowBoundIso = baselineApplies
-    ? baseline.asOfDate
-    : `${Number(paymentYear) - 1}-12-31`;
+  const { baselineAmountKopecks, windowBoundIso } = resolveBaselineWindow(baseline, isoDate);
   const bonusAccruedKopecks = bonusRows
     .filter((bonus) => bonus.date > windowBoundIso && bonus.date < isoDate)
     .reduce((sum, bonus) => sum + bonus.amountKopecks, 0);

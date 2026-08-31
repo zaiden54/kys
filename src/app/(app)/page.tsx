@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { requireUserId } from "@/lib/session";
 import { forecastNextPayment } from "@/app/actions/forecast";
+import { computeAnnualSummary } from "@/app/actions/annual-summary";
 import { NextPaymentCard } from "@/components/next-payment-card";
+import { AnnualPieChart } from "@/components/annual-pie-chart";
 import { YtdEstimateBanner } from "@/components/ytd-estimate-banner";
+import { todayIsoInMoscow } from "@/domain/time";
 
 // HOME-01: shows only the next payment's date and take-home amount. The
 // forecast is computed server-side (see src/app/actions/forecast.ts) during
@@ -24,7 +27,11 @@ const MISSING_COPY: Record<"salary" | "schedule", { title: string; body: string 
 
 export default async function HomePage() {
   const userId = await requireUserId();
-  const result = await forecastNextPayment(userId);
+  const currentYear = Number(todayIsoInMoscow().slice(0, 4));
+  const [result, annualResult] = await Promise.all([
+    forecastNextPayment(userId),
+    computeAnnualSummary(userId, currentYear),
+  ]);
 
   if (!result.configured) {
     const copy = MISSING_COPY[result.missing];
@@ -46,6 +53,9 @@ export default async function HomePage() {
     <div className="flex flex-1 flex-col items-center gap-4 px-6 py-16">
       {result.forecast.baselineIsEstimated ? <YtdEstimateBanner /> : null}
       <NextPaymentCard forecast={result.forecast} />
+      {annualResult.configured ? (
+        <AnnualPieChart summary={annualResult.summary} taxYear={currentYear} />
+      ) : null}
     </div>
   );
 }
