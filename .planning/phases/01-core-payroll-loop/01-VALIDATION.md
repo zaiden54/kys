@@ -1,89 +1,69 @@
 ---
 phase: 1
 slug: core-payroll-loop
-# status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-# audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
+status: validated
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-08-28
+updated: 2026-08-31
 ---
 
 # Phase 1 — Validation Strategy
 
-> Per-phase validation contract for feedback sampling during execution.
-
----
+> Retroactive Nyquist audit of Phase 1 verification coverage.
 
 ## Test Infrastructure
 
 | Property | Value |
 |----------|-------|
-| **Framework** | Vitest (locked in `.claude/CLAUDE.md`) |
-| **Config file** | none yet — Wave 0 installs `vitest.config.ts` |
-| **Quick run command** | `npx vitest run domain/tax domain/schedule` |
-| **Full suite command** | `npx vitest run` |
-| **Estimated runtime** | ~5 seconds (pure-function unit tests only in Phase 1; no browser/e2e runner yet) |
+| **Framework** | Vitest 4.1.11; jsdom + Testing Library for render tests |
+| **Config file** | `vitest.config.ts` |
+| **Phase subset** | `npm run test -- <15 Phase 1 test files>` |
+| **Full suite** | `npm run test` |
+| **Audit result** | 15 files passed, 258 tests passed on 2026-08-31 |
 
----
+## Requirement Coverage
 
-## Sampling Rate
-
-- **After every task commit:** Run `npx vitest run domain/` (fast, pure-function subset)
-- **After every plan wave:** Run `npx vitest run` (full suite, including any DB-touching integration tests)
-- **Before `/gsd-verify-work`:** Full suite must be green; AUTH-02's manual second-device check must be explicitly performed and recorded (no automated coverage path exists for it)
-- **Max feedback latency:** 10 seconds
-
----
-
-## Per-Task Verification Map
-
-*Task IDs are assigned by the planner — not yet known at this draft stage. Requirement-level mapping below (from 01-RESEARCH.md § Phase Requirements → Test Map) is the seed the planner must translate into `{N}-01-01`-style task IDs and `<verify>`/`<acceptance_criteria>` fields.*
-
-| Requirement | Behavior | Test Type | Automated Command | File Exists | Status |
-|-------------|----------|-----------|-------------------|-------------|--------|
-| TAX-01 | Bracket-boundary-straddling payment splits correctly across 2.4M/5M/20M/50M ₽ thresholds | unit | `npx vitest run domain/tax/calculate-ndfl.test.ts` | ❌ Wave 0 | ⬜ pending |
-| TAX-01 | Rounding matches ст.52 НК РФ (< 50 kop drop, ≥ 50 kop round up) on cumulative tax, not per-payment | unit | `npx vitest run domain/tax/calculate-ndfl.test.ts` | ❌ Wave 0 | ⬜ pending |
-| TAX-02 | Avans and salary each independently increase cumulative base and are each taxed via the delta method | unit | `npx vitest run domain/tax/calculate-ndfl.test.ts` | ❌ Wave 0 | ⬜ pending |
-| SAL-01 | Day-of-month clamps to last valid day (D-03); e.g. day=31 in a 30-day month → 30th | unit | `npx vitest run domain/schedule/resolve-payment-date.test.ts` | ❌ Wave 0 | ⬜ pending |
-| SAL-01 | Payment date shifts earlier off a weekend/RU holiday (D-02) | unit | `npx vitest run domain/schedule/resolve-payment-date.test.ts` | ❌ Wave 0 | ⬜ pending |
-| SAL-02 | Backdated salary change with exact-date collision overwrites the prior row, no audit trail (D-14) | integration | `npx vitest run lib/db/salary-history.test.ts` (requires test DB or Neon branch) | ❌ Wave 0 | ⬜ pending |
-| SAL-03 | Skipped YTD entry produces `is_estimated = true` and the forecast treats baseline as 0 | unit/integration | `npx vitest run domain/tax/ytd-baseline.test.ts` | ❌ Wave 0 | ⬜ pending |
-| AUTH-01 | Register → login → session persists | e2e/manual | Manual click-through (Playwright deferred per STACK.md) | ❌ Wave 0 (manual acceptable) | ⬜ pending |
-| AUTH-02 | Login from a second "device" (second browser/session) shows same salary/schedule data | manual | Manual UAT — no automated multi-session test infra exists yet | N/A — manual-only | ⬜ pending |
-| HOME-01 | Home screen shows correct next-payment amount+date for a range of schedule/salary/YTD combinations | integration | `npx vitest run app/actions/forecast.test.ts` | ❌ Wave 0 | ⬜ pending |
-
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-
----
-
-## Wave 0 Requirements
-
-- [ ] `vitest.config.ts` — framework install/config, none exists yet (greenfield)
-- [ ] `domain/tax/calculate-ndfl.test.ts` — covers TAX-01, TAX-02
-- [ ] `domain/schedule/resolve-payment-date.test.ts` — covers SAL-01 (D-02, D-03)
-- [ ] `lib/db/salary-history.test.ts` — covers SAL-02 (D-14 collision/overwrite); needs a test Postgres instance or a Neon branch per test run
-- [ ] `domain/tax/ytd-baseline.test.ts` — covers SAL-03 (D-09/10/11)
-- [ ] `app/actions/forecast.test.ts` — covers HOME-01 end-to-end orchestration
-- [ ] Test-DB strategy decision: local Postgres 16.13 (available in this environment) vs. a per-test-run Neon branch — recommend local Postgres for fast unit/integration iteration, reserving Neon branches for CI/preview verification
-
----
+| Requirement | Behavior | Automated Evidence | Status |
+|-------------|----------|--------------------|--------|
+| AUTH-01 | Registration, login, fail-closed auth configuration, and protected navigation | `auth-secret.test.ts`, login/register render tests, session/auth source verification | manual-only remainder |
+| AUTH-02 | Session-derived ownership and shared persisted state | repository ownership/isolation and concurrency tests; signed replacement-claim tests | manual-only remainder |
+| SAL-01 | Positive salary input, valid dates, schedule resolution, persistence boundary | `salary.test.ts`, `salary-repository.test.ts`, `resolve-payment-date.test.ts`, `pay-gap.test.ts`, `schema.test.ts` | covered |
+| SAL-02 | Effective-dated salary history and safe exact-date replacement | `salary-repository.test.ts`, `salary-confirmation-token.test.ts`, `salary.test.ts`, `pay-setup-forms.test.ts` | covered |
+| SAL-03 | Optional YTD baseline, estimated-zero skip, persistent forecast state | `salary.test.ts`, `salary-repository.test.ts`, `forecast.test.ts`, `schema.test.ts` | covered |
+| TAX-01 | Progressive cumulative NDFL brackets, marginal delta tax, rounding, and year bounds | `calculate-ndfl.test.ts`, `ndfl-brackets.test.ts`, `payment-accrual.test.ts`, `forecast.test.ts` | covered |
+| TAX-02 | Advance and salary as ordered independent taxable events | `calculate-ndfl.test.ts`, `resolve-payment-date.test.ts`, `payment-accrual.test.ts`, `forecast.test.ts` | covered |
+| HOME-01 | Configured/not-configured forecast, date, gross, tax, net, and estimated baseline | `forecast.test.ts` | covered |
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| Cross-device data sync | AUTH-02 | No automated multi-session/multi-device test infrastructure exists in-repo for Phase 1 | Log in from two different browsers/sessions with the same account; confirm salary, schedule, and YTD baseline are identical on both |
+| Behavior | Requirement | Why Manual | Evidence |
+|----------|-------------|------------|----------|
+| Complete registration → login → protected home flow with a real cookie session | AUTH-01 | The repository has no browser E2E runner; render tests mock the auth client/router boundary. | `01-UAT.md` complete; authentication flow accepted during Phase 1 UAT. |
+| Sign in to the same account in two independent browser profiles and verify salary, schedule, YTD, and forecast convergence | AUTH-02 | Requires two real authenticated browser storage contexts against the shared database. | `01-UAT.md` Test 1 passed. |
 
----
+These are intentional manual-only checks, not missing unit/integration tests. User selected **Keep manual-only** during the 2026-08-31 audit.
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] Every Phase 1 requirement has automated unit/integration coverage where technically meaningful
+- [x] Phase subset passes: 15 files, 258 tests
+- [x] Database ownership, isolation, and concurrency behaviors are automated
+- [x] Browser-only authentication and cross-device behaviors are explicitly tracked as manual-only
+- [x] Manual UAT evidence exists and is complete
+- [x] No watch-mode commands
+- [x] Wave 0 test infrastructure and files exist
+- [ ] Fully Nyquist-compliant (blocked only by two intentional manual browser checks)
 
-**Approval:** pending
+**Approval:** validated (partial) 2026-08-31
+
+## Validation Audit 2026-08-31
+
+| Metric | Count |
+|--------|-------|
+| Requirements audited | 8 |
+| Fully automated | 6 |
+| Automated with manual-only remainder | 2 |
+| Missing automated tests | 0 |
+| Failing tests | 0 |
+| Tests passed | 258 |
