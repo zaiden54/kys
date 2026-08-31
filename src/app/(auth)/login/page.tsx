@@ -37,6 +37,10 @@ export default function LoginPage() {
       setFormError(error.message ?? "Не удалось войти");
       return;
     }
+    // G-04-2: refresh before push so (app)/layout.tsx's server-side
+    // getSessionUser() reads the just-set session cookie fresh, instead of
+    // soft-navigating against stale pre-auth Server Component data.
+    router.refresh();
     router.push("/");
   }
 
