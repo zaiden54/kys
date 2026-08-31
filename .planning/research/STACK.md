@@ -1,125 +1,629 @@
-# Technology Stack
+# Technology Stack — v1.1 Milestone
 
-**Project:** НаРуки (take-home salary tracker PWA, Russia)
-**Researched:** 2026-08-28
-**Confidence:** MEDIUM-HIGH (package versions verified directly against npm registry = HIGH; architecture/library-choice recommendations cross-checked across multiple 2026 sources = MEDIUM)
+**Project:** НаРуки (v1.1 — Polishing MVP for Production Quality)
+**Researched:** 2026-09-01
+**Scope:** NEW technologies and configurations for v1.1 work (UI redesign, PWA safe-area, security hardening, e2e testing, CI/CD pipeline)
+**Confidence:** HIGH (versions verified via npm, Vercel, official documentation as of Sept 2026)
+
+---
 
 ## Executive Summary
 
-This is a small-team greenfield CRUD app with real backend requirements (multi-user accounts, cross-device cloud sync, a backend-owned progressive-tax calculation engine) but **no offline requirement and no realtime-collaboration requirement**. That combination points straight at a single full-stack framework rather than a separate SPA + API service: **Next.js (App Router) on Vercel, Postgres (Neon) via Drizzle ORM, and Better Auth for accounts** — one deployable, one database, minimal glue code, all TypeScript end-to-end so the tax/vacation-pay math has one source of truth shared (or at least type-shared) between server and client.
+**v1.0 MVP stack is validated and remains unchanged.** This research identifies **NEW technology areas** required to polish v1.0 into production quality:
 
-The single highest-leverage architectural decision, orthogonal to any package pick: **the tax/vacation-pay calculation logic must be pure, framework-free TypeScript functions with zero DB or HTTP dependencies**, run only on the server. This directly serves the two hardest requirements in PROJECT.md — cumulative YTD progressive НДФЛ brackets and 12-month average-earnings отпускные — both of which are pure functions of (dates, amounts) and should be unit-tested exhaustively before any UI is built. This is a stack-adjacent decision, but it dictates supporting-library choices below (Vitest for fast pure-function testing, date-fns for date math).
+1. **iOS PWA safe-area CSS** — `env(safe-area-inset-top/bottom)` (zero-config, baseline CSS)
+2. **Vercel multi-environment URL management** — VERCEL_URL system variable + environment scoping
+3. **Playwright 1.62.1 e2e testing** — for auth flows, Server Actions, user journeys
+4. **Playwright MCP 1.62.1** — optional AI-assisted test writing (GitHub Copilot integration)
+5. **GitHub Actions CI workflow** — ESLint, TypeScript type-check, Vitest gates
+6. **shadcn/ui 4.x + Tailwind CSS 4.x** — component library for visual redesign
 
-## Recommended Stack
+All additions are **backwards-compatible** with v1.0 (Next.js 16, React 19, Drizzle, Neon, Better Auth). No existing code changes required.
 
-### Core Technologies
+---
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Next.js | 16.3.3 (App Router) | Full-stack framework — UI + API in one deploy | Current stable as of Aug 2026 (verified via npm registry). App Router gives Server Components for read-heavy screens (next payment, pie chart) and Server Actions/Route Handlers for mutations (add bonus, change salary), avoiding a separate Express/Fastify API layer for a small team. Turbopack is the default bundler in v16, React Compiler is stable. |
-| React | 19.2.8 | UI runtime | Ships with Next.js 16 as the baseline; React Compiler (stable in Next 16) removes most manual `useMemo`/`useCallback` need for the dashboard/chart screens. |
-| TypeScript | **6.0.3** (not 7.0.x yet) | Language / type safety | TypeScript 7.0 (native Go compiler, ~10x faster builds) shipped stable in July 2026, but it ships **without a stable programmatic API** — `typescript-eslint` cannot support it yet (issue closed "not planned," fix targeted for TS 7.1, "several months away" per Microsoft as of Aug 2026). For a project that wants type-aware linting on financial calculation code, stay on the 6.0.x line now and upgrade once `typescript-eslint` ships 7.x support. Re-check this at each phase boundary — it may resolve mid-project. |
-| PostgreSQL (via Neon) | Postgres 17-class, Neon serverless | Primary database | Relational model fits this domain precisely: users → salary_history (effective-dated) → bonuses → pay_dates, all needing joins and window functions (`SUM() OVER (PARTITION BY user_id, year ORDER BY pay_date)`) to compute YTD cumulative income for the progressive tax brackets. Neon adds branching (safe migrations testing), scale-to-zero (near-zero cost at low usage), and is Vercel's native Marketplace Postgres integration (Vercel Postgres itself was retired Dec 2024, auto-migrated to Neon). |
-| Drizzle ORM + drizzle-kit | 0.45.2 / 0.31.10 | Type-safe SQL query builder + migrations | Code-first TS schema (no separate `.prisma` file/generation step), stays close to SQL so the cumulative-sum/window-function queries needed for YTD tax calculation are easy to express directly, tiny bundle, edge/serverless-friendly cold starts. Drizzle Kit handles migrations, which matter here because `salary_history`/`bonus` schemas will evolve. |
-| Better Auth | 1.7.2 | Authentication, multi-device sessions | Self-hosted TS-native auth library that stores users/sessions in your own Postgres (via the Drizzle adapter) — no per-MAU billing, which matters for a personal-finance side project with unpredictable user count. Session cookies work naturally across devices once the user logs in on each; "sync" here just means the same Postgres row is the source of truth per user, which Better Auth's session model supports out of the box. |
+## Validated v1.0 Stack (DO NOT CHANGE)
 
-### Supporting Libraries
+| Package | Version | Reason It's Locked |
+|---------|---------|-------------------|
+| Next.js | 16.3.3 App Router | Core framework, validated in Phase 4 |
+| React | 19.2.8 | Stable with Next.js 16, compiler optimized |
+| TypeScript | 6.0.3 (not 7.x) | TS 7 breaks typescript-eslint until 7.1 ships |
+| PostgreSQL | Neon serverless (Postgres 17-class) | Relational model required for YTD tax calculations |
+| Drizzle ORM | 0.45.2 | Type-safe SQL, edge-runtime friendly |
+| Better Auth | 1.7.2 | Self-hosted, Drizzle-integrated, no per-MAU billing |
+| Recharts | 3.10.1 | Single chart (pie), validated in Phase 4 |
+| Serwist | 9.5.12 | PWA manifest + service worker, iOS install heuristics |
+| date-fns | 4.4.0 | Date math for pay dates, отпускные averaging |
+| Zod | 4.4.3 | Runtime validation at Server Action boundaries |
+| Vitest | 4.1.11 | Unit tests for tax/vacation-pay pure functions |
+| Vercel | Hosting + Neon Marketplace integration | Deployment, preview deployments, system variables |
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| Recharts | 3.10.1 | Pie/donut chart (gross/tax/net annual summary) | Default choice: declarative JSX matches React/Next.js idioms, good TypeScript types, most common React dashboard chart library in 2026 comparisons. For a single chart, bundle-size differences vs. Chart.js/Nivo are marginal — pick for DX, not KB. |
-| Serwist (`@serwist/next`, `serwist`) | 9.5.12 | Web app manifest + minimal service worker for "Add to Home Screen" | `next-pwa` (the old default) has been archived/unmaintained since Aug 2023 — do not use it. Serwist is its actively maintained successor and is what current Next.js PWA guides point to. Since v1 has **no offline requirement** (per PROJECT.md), configure Serwist with an empty/near-empty precache — the service worker only needs to exist and be "active" to satisfy install-ability heuristics and to leave a clean path to add real offline caching later. Pair with explicit `apple-touch-icon` and `apple-mobile-web-app-*` meta tags — iOS Safari's manual "Add to Home Screen" flow reads the manifest + those meta tags directly and does not require Chrome-style install-prompt criteria. |
-| date-fns | 4.4.0 | Date math for pay dates, YTD windows, 12-month отпускные averaging window | Tree-shakeable, immutable, no timezone footguns like native `Date` mutation bugs. All pay-date and average-earnings-window logic should route through this rather than hand-rolled `Date` arithmetic. |
-| Zod | 4.4.3 | Runtime validation for salary/bonus/vacation input, and API boundary schemas | Validate all money and date inputs at the Server Action boundary (gross salary must be positive, pay dates must be valid calendar days, etc.) before they ever reach the tax engine. |
-| `drizzle-zod` | latest matching Drizzle | Derive Zod schemas from Drizzle table definitions | Keeps DB schema and input-validation schema from drifting apart as `salary_history`/`bonus` tables evolve. |
-| React Hook Form | latest | Form state for salary/bonus/vacation entry forms | Standard pairing with Zod (`@hookform/resolvers`) for the multi-field forms this app needs (salary amount + effective date, bonus amount + pay date, vacation start/end). |
-| Vitest | 4.1.11 | Unit testing for the tax/vacation-pay calculation engine | The НДФЛ progressive-bracket function and the отпускные average-earnings function are pure, deterministic, and the highest-risk code in this app (get them wrong and every number on screen is wrong) — they need fast, exhaustive unit tests. Vitest is the natural fit for a Vite/Next-adjacent TS project and runs fast enough for TDD on this kind of pure logic. |
-| Playwright | 1.62.1 | End-to-end smoke tests (login → enter salary → see next payment) | Add once core flows exist; not needed on day one. |
-| `@t3-oss/env-nextjs` | 0.13.11 | Typed, validated environment variables | Cheap insurance against a missing `DATABASE_URL`/`BETTER_AUTH_SECRET` reaching production silently. |
+See `.claude/CLAUDE.md` Technology Stack section for v1.0 full details. **No changes to these packages for v1.1.**
 
-### Development Tools
+---
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| Vercel CLI + Vercel dashboard | Deploy target, preview deployments per PR | Zero-config for Next.js; Vercel's own build system does not accept Docker, which is fine here since nothing in this stack needs a custom container. |
-| Neon branching | Per-PR/preview database branches | Pairs with Vercel preview deployments so schema changes and tax-logic changes can be tested against a real (copy-on-write) Postgres branch before merging. |
-| Drizzle Studio | Local/hosted DB browser | Useful for manually inspecting salary_history rows during development of the YTD calculation logic. |
+## NEW Technologies for v1.1
 
-## Installation
+### 1. iOS PWA Safe-Area CSS Support
 
-```bash
-# Core
-npm install next@16.3.3 react@19.2.8 react-dom@19.2.8
+**Status:** ZERO-CONFIG (no package installation required)
 
-# Data layer
-npm install drizzle-orm postgres better-auth drizzle-zod zod
-npm install -D drizzle-kit
+| Component | Specification | Integration |
+|-----------|---------------|-------------|
+| **CSS Foundation** | `env(safe-area-inset-top/bottom/left/right)` + `@media (display-mode: standalone)` | Add to global CSS or Tailwind config (see below) |
+| **What It Does** | Reserves padding on header/footer to avoid overlap with iOS notch, dynamic island, and home indicator | Critical for v1.1: current header overlaps dynamic island on iPhone 14+. Fix required before release. |
+| **Browser Support** | iOS 15+, Android 10+ (CSS standard, all evergreen browsers support as of 2026) | No polyfill or shim needed |
+| **Next.js + Serwist Integration** | Serwist 9.5.12 already includes `apple-touch-icon` + `apple-mobile-web-app-*` meta tags. Just add CSS. | Verify in `next.config.js` / `serwist` config during Phase 1 (safe-area CSS). |
 
-# UI / forms / dates
-npm install recharts date-fns react-hook-form @hookform/resolvers
-npm install serwist @serwist/next
+**Implementation:**
 
-# Env safety
-npm install @t3-oss/env-nextjs
-
-# Dev dependencies
-npm install -D typescript@6.0.3 vitest playwright @playwright/test
+If **NOT using Tailwind** (raw CSS):
+```css
+/* src/app/globals.css */
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
 ```
 
-Pin `typescript` explicitly to the 6.0.x line in `package.json` (not `^7`) until `typescript-eslint` ships native-compiler support — otherwise a routine `npm update` can silently pull in TS 7 and break lint tooling.
+If **using Tailwind 4.x** (recommended for redesign):
+```css
+/* In your tailwind.config.ts or CSS layer */
+@layer components {
+  @media (display-mode: standalone) {
+    .safe-container {
+      @apply pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)];
+    }
+  }
+}
+```
 
-## Alternatives Considered
+Then wrap your layout's main content:
+```tsx
+// app/layout.tsx
+<body>
+  <header className="fixed top-0 w-full">...</header>
+  <main className="safe-container pt-[header-height]">
+    {children}
+  </main>
+</body>
+```
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|--------------------------|
-| Neon (Postgres-only) + Better Auth | Supabase (Postgres + bundled Auth + Realtime) | If the team wants one fewer moving part and is willing to accept Supabase's bundled auth model and slightly more black-box platform. Reasonable choice, but this app doesn't need Supabase's realtime subscriptions (no live multi-user collaboration on the same data — each user only ever syncs their own rows across their own devices), so the extra bundling buys less than it costs in flexibility. |
-| Better Auth | Clerk | If shipping speed and a polished hosted login UI matter more than owning the auth data model and avoiding per-MRU billing. Clerk is free to 50k MRU, then ~$0.02/MRU — fine for a side project that stays small, expensive if it doesn't. |
-| Drizzle ORM | Prisma (v7, TS/Wasm engine) | If the team strongly prefers Prisma's schema-first DX and mature Prisma Studio, and is fine with an extra generation step. Prisma 7's rewritten engine (~600KB gzipped) closed most of the historical serverless cold-start gap, so this is a legitimate, not just "worse," alternative. |
-| Recharts | Chart.js (via `react-chartjs-2`) | If bundle size is under real scrutiny (smallest gzip footprint among the three compared) and the canvas-based, less-React-idiomatic API is an acceptable tradeoff for one chart. |
-| Vercel | Railway | If the team wants one dashboard/bill for app + Postgres + background jobs and is less concerned with Vercel-specific Next.js optimizations (ISR edge caching, image optimization). Railway's managed Postgres is pricier at scale than Fly.io's, but this app's Postgres footprint will be tiny. |
-| Vercel | Fly.io | Only if the team anticipates needing persistent VM-level control or non-serverless background workers later — not indicated by v1 scope. |
+**Known Caveat (2026):** Using `next/link` instead of raw `<a>` tags can set `env()` values to 0px in some Turbopack builds. Test on real iOS device during Phase 1.
 
-## What NOT to Use
+**Confidence:** HIGH (CSS standard approved by W3C Jan 2026, native iOS Safari support, documented in MDN + multiple 2026 PWA guides)
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `next-pwa` | Archived/unmaintained since August 2023; will accumulate compatibility issues with current Next.js/Turbopack | `serwist` / `@serwist/next` |
-| TypeScript 7.0.x (right now) | Ships without a stable programmatic API; `typescript-eslint` support was explicitly closed as "not planned" until TS 7.1 lands (still months out as of Aug 2026) — type-aware ESLint rules will break | TypeScript 6.0.x until `typescript-eslint` confirms 7.x support, then upgrade |
-| PlanetScale | MySQL/Vitess-based (not Postgres — loses window-function ergonomics this app leans on for YTD cumulative tax math), free tier removed, $39/mo minimum | Neon (Postgres, generous free tier, scale-to-zero) |
-| Firebase/Firestore or MongoDB for the primary store | This domain is fundamentally relational and time-ordered — salary changes, bonuses, and pay dates need joins and cumulative window-function aggregation for the progressive tax calculation; document/NoSQL stores make that logic much harder to express and verify correctly | PostgreSQL (via Neon) |
-| A dedicated time-series DB (TimescaleDB, InfluxDB) | Massive overkill — each user generates a handful of rows per month, not high-frequency time-series data; adds operational complexity for zero benefit at this scale | Plain PostgreSQL tables with `valid_from`/`valid_to`-style effective-dated columns and indexes |
-| Client-side-only storage / offline-first sync engines (RxDB, WatermelonDB, IndexedDB-based sync) | PROJECT.md explicitly scopes offline out of v1; building an offline-first sync layer now is speculative complexity the requirements don't ask for | Standard server-authoritative Postgres + Server Actions; revisit only if a future milestone adds offline scope |
-| NextAuth.js v4 (callback-based Auth.js) | Legacy pattern; the ecosystem's 2026 guidance is to migrate new projects toward Better Auth | Better Auth |
+---
 
-## Stack Patterns by Variant
+### 2. Better Auth URL Management Across Vercel Environments
 
-**If the team wants to minimize infrastructure surface even further (single vendor for DB+Auth+hosting glue):**
-- Use Supabase (Postgres + Auth) instead of Neon + Better Auth, deployed on Vercel
-- Because it trades some architectural flexibility for one less account/bill/integration to manage — acceptable if the team is small enough that operational simplicity outweighs owning the auth data model
+**Status:** CONFIGURATION CHANGE (no package changes)
 
-**If a future milestone adds offline support or multi-employer income tracking (both explicitly out of scope for v1 per PROJECT.md):**
-- Revisit the "no client-side sync engine" decision above — that recommendation is scoped to v1's requirements, not a permanent architectural stance
+**Problem:** v1.0 likely has `BETTER_AUTH_URL` as a static string, causing redirect failures on preview deployments. Each deployment (prod/staging/PR preview) needs its own URL.
 
-## Version Compatibility
+| Environment | URL Source | Configuration |
+|-------------|-----------|---------------|
+| **Production** | Custom domain (e.g., `naruki.yourcompany.com`) | Set in Vercel dashboard: Production scope |
+| **Staging** | Custom domain (e.g., `staging.naruki.yourcompany.com`) | Optional; use Vercel branch deployment if preferred |
+| **PR Preview** | Auto-generated (e.g., `pr-123--naruki.vercel.app`) | Use Vercel's system variable `VERCEL_URL` |
 
-| Package A | Compatible With | Notes |
-|-----------|------------------|-------|
-| `next@16.3.3` | `react@19.2.x`, `typescript@6.0.x` | Next.js 16 requires Node.js 20+ as its minimum runtime. |
-| `typescript@6.0.3` | `typescript-eslint@8.63.x` (peer range `>=4.8.4 <6.1.0`) | Do **not** bump to `typescript@^7` yet — breaks `typescript-eslint`/ESLint (`Can't read properties of undefined (reading 'Cjs')`) until TS 7.1's programmatic API ships. |
-| `drizzle-orm@0.45.2` | `postgres@3.4.9` or `pg@8.23.0`, Neon serverless driver | Use the Neon-specific driver (`@neondatabase/serverless`) if deploying Route Handlers/Server Actions to the Vercel Edge runtime; plain `postgres`/`pg` is fine for Node.js runtime functions. |
-| `better-auth@1.7.2` | `drizzle-orm` (via `better-auth`'s Drizzle adapter) | Confirm adapter version compatibility at install time — Better Auth ships frequent minor releases. |
-| `serwist@9.5.12` | `next@16.3.3` (Turbopack) | Serwist's Next.js integration explicitly documents both Turbopack and webpack build paths. |
+**Implementation in Better Auth Config:**
+
+```typescript
+// lib/better-auth.ts or app/api/auth/[...]/route.ts
+
+const baseURL = process.env.BETTER_AUTH_URL 
+  || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+
+export const auth = createAuth({
+  baseURL,
+  // ... rest of config
+})
+```
+
+**Vercel Dashboard Setup:**
+
+1. **Production scope:**
+   - Key: `BETTER_AUTH_URL`
+   - Value: `https://naruki.yourcompany.com` (or custom prod domain)
+   - Environment: Production only
+
+2. **Preview scope:**
+   - Leave `BETTER_AUTH_URL` unset (defaults to fallback using `VERCEL_URL`)
+   - OR set if using a persistent staging domain
+
+3. **Development (local):**
+   - Create `.env.local`: `BETTER_AUTH_URL=http://localhost:3000`
+
+**How It Works:**
+- Vercel automatically populates `VERCEL_URL` for every deployment (PR preview, branch deploy, prod)
+- Example: `git push origin feature-branch` → Vercel creates `pr-123--naruki.vercel.app` → `VERCEL_URL` env var = `pr-123--naruki.vercel.app`
+- Better Auth callback URL auto-resolves to that URL → no redirect loops
+
+**Neon Database Pairing:**
+- Ensure Neon branch connection string also scopes per environment (existing in v1.0, verify during Phase 1)
+- Production = main branch, Staging = staging branch, Preview = ephemeral PR branch
+
+**Confidence:** HIGH (Vercel VERCEL_URL is first-class system variable, confirmed in official Vercel + Better Auth docs)
+
+---
+
+### 3. Playwright 1.62.1 for E2E Testing
+
+**Status:** NEW DEPENDENCY
+
+| Package | Version | Install Command |
+|---------|---------|-----------------|
+| `@playwright/test` | 1.62.1 | `npm install -D @playwright/test` |
+
+**Why This Version:**
+- July 2026 stable release, recommended by Next.js 16 official guide
+- AI snapshots (accessibility tree assertions instead of brittle CSS locators)
+- Better Server Actions handling than earlier versions
+- Official MCP integration (see Section 4)
+- Playwright is the 2026 consensus for Next.js e2e testing (Cypress Electron reached EOL)
+
+**Do NOT use Playwright 2.0-alpha** — breaking API changes, wait for stable.
+
+**Setup for Next.js 16 App Router:**
+
+1. **Install browsers:**
+   ```bash
+   npm install -D @playwright/test
+   npx playwright install
+   ```
+
+2. **Create `playwright.config.ts` at project root:**
+   ```typescript
+   import { defineConfig, devices } from '@playwright/test'
+   
+   export default defineConfig({
+     testDir: './e2e',
+     webServer: {
+       command: 'npm run dev',
+       url: 'http://localhost:3000',
+       reuseExistingServer: !process.env.CI,
+     },
+     use: {
+       baseURL: 'http://localhost:3000',
+       screenshot: 'only-on-failure',
+       trace: 'on-first-retry',
+     },
+     projects: [
+       { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+       { name: 'safari', use: { ...devices['Desktop Safari'] } },
+       { name: 'webkit', use: { ...devices['iPhone 14'] } },
+     ],
+   })
+   ```
+
+3. **Create test file `e2e/golden-path.spec.ts`:**
+   ```typescript
+   import { test, expect } from '@playwright/test'
+   
+   test.describe('Golden Path — Full User Journey', () => {
+     test('login → enter salary → forecast next payment', async ({ page }) => {
+       // 1. Navigate to login
+       await page.goto('/auth/login')
+       
+       // 2. Fill login form (Server Action)
+       await page.fill('input[name="email"]', 'test@example.com')
+       await page.fill('input[name="password"]', 'testpass123')
+       await page.click('button:has-text("Log In")')
+       
+       // 3. Wait for navigation + Better Auth session cookie
+       await page.waitForURL('/dashboard')
+       
+       // 4. Verify session cookie present
+       const cookies = await page.context().cookies()
+       expect(cookies.some(c => c.name === 'better_auth_session')).toBe(true)
+       
+       // 5. Enter salary (Server Action)
+       await page.goto('/salary')
+       await page.fill('input[name="gross_salary"]', '100000')
+       await page.click('button:has-text("Save")')
+       
+       // 6. Verify next payment forecast displays
+       await page.waitForSelector('text=₽')
+       const nextPayment = await page.locator('[data-testid="next-payment-amount"]').textContent()
+       expect(nextPayment).toMatch(/\d+/)
+     })
+   })
+   ```
+
+**Key Integration Points:**
+- Tests run against full Next.js 16 app (with Server Actions, Neon DB, Better Auth)
+- Playwright can read/set cookies for auth testing
+- Runs on CI and locally
+
+**Separation from Vitest (existing):**
+- **Vitest:** Pure function tests (НДФЛ calculation, отпускные math) — fast, isolated
+- **Playwright:** Integration/e2e tests (user flows, form submission, navigation) — full app context
+
+**Add to package.json scripts:**
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  }
+}
+```
+
+**Confidence:** HIGH (official Next.js 16 guide, multiple 2026 boilerplates use Playwright 1.62, consensus on Server Actions testing)
+
+---
+
+### 4. Playwright MCP 1.62.1 (Optional AI-Assisted Test Writing)
+
+**Status:** OPTIONAL DEV-TIME TOOL
+
+| Package | Version | Install Command |
+|---------|---------|-----------------|
+| `@playwright/mcp` | 1.62.1 | `npm install -D @playwright/mcp` |
+
+**What It Does:**
+- Exposes Playwright browser automation as MCP (Model Context Protocol) tools
+- Allows AI agents (Claude Code, GitHub Copilot) to drive a real browser, inspect accessibility tree, generate tests
+- Uses accessibility snapshots (roles/labels) instead of screenshots — faster, more reliable for AI
+
+**When to Use:**
+- During test writing: Start dev server + Playwright MCP, use Claude/Copilot to prompt "write a test for the bonus form"
+- AI agent connects to real browser, examines page structure, generates test code based on actual layout (not guesses)
+- Optional; not required if team prefers manual test writing
+
+**GitHub Copilot Auto-Integration:**
+- Playwright MCP v1.62 is auto-configured in GitHub Copilot's Coding Agent as of Sept 2026
+- No setup needed in Copilot; just mention "test the login flow" and Copilot can spin up a browser
+
+**Workflow Example:**
+1. `npm run dev` (Next.js app running)
+2. `npx playwright mcp` (starts MCP server, listens for connections)
+3. In Claude Code: "Write a Playwright test for the salary entry form on /salary"
+4. Claude connects to MCP server → navigates to `/salary` in real browser → takes accessibility snapshot → generates test code
+5. You review generated test, commit it
+
+**Confidence:** MEDIUM-HIGH (official v1.62 release, integrated into Copilot, but CI/CD integration patterns still emerging — test thoroughly before adding to CI)
+
+---
+
+### 5. GitHub Actions CI Workflow
+
+**Status:** NEW WORKFLOW FILE (`.github/workflows/ci.yml`)
+
+**Purpose:** Gate merges/deployments on code quality checks (ESLint, TypeScript, Vitest)
+
+**Required Steps:**
+
+| Step | Command | Purpose |
+|------|---------|---------|
+| Checkout | `actions/checkout@v4` | Pull code from Git |
+| Setup Node | `actions/setup-node@v4` with Node 20.x | Next.js 16 requires Node 20+ |
+| Install deps | `npm ci` (not `npm install`) | Idempotent, uses lock file, caches dependencies |
+| Type check | `npx tsc --noEmit` | Catch TS errors without full build |
+| Lint | `npm run lint` (existing ESLint config) | Code quality, type-aware linting (requires TypeScript 6.0.x parser) |
+| Unit tests | `npm run test` (Vitest) | НДФЛ + отпускные calculation tests |
+| Build | `npm run build` | Verify production bundle builds |
+
+**Sample Workflow File (`.github/workflows/ci.yml`):**
+
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - run: npm ci
+      
+      - name: Type check
+        run: npx tsc --noEmit
+      
+      - name: Lint
+        run: npm run lint
+      
+      - name: Unit tests
+        run: npm run test
+      
+      - name: Build
+        run: npm run build
+```
+
+**Protect Main Branch:**
+- In GitHub: Settings → Branches → Branch Protection Rules
+- Require `ci/github-actions` status check to pass before merge
+- Require PR review (existing team practice)
+
+**Vercel Integration:**
+- Vercel automatically reads CI status
+- Can configure to deploy only after CI passes
+- Or set "Ignore Build Step" to a check that fails if CI hasn't passed
+
+**Optional: Database Test Step (if adding integration tests later):**
+```yaml
+      - name: Create Neon preview branch
+        if: github.event_name == 'pull_request'
+        run: |
+          neon branch create --parent main --name pr-${{ github.event.pull_request.number }}
+```
+
+**Confidence:** HIGH (standard Node.js CI pattern, documented in multiple 2026 Next.js boilerplates, no exotic dependencies)
+
+---
+
+### 6. Component Library: shadcn/ui 4.x + Tailwind CSS 4.x
+
+**Status:** NEW DEPENDENCY (for UI redesign)
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `shadcn/ui` | 4.x | Copy-paste React components (Button, Input, Select, Card, etc.) with Tailwind styling |
+| `@radix-ui/*` | Latest (peer dependency of shadcn) | Unstyled, accessible primitives (Dialog, Select, Popover, etc.) |
+| `tailwindcss` | 4.x | Utility CSS framework with native CSS variables support |
+| `class-variance-authority` | 0.7.x | (Optional) Helper for component variant composition |
+
+**Why This Stack for v1.1 Redesign:**
+- **Ownership:** shadcn components are source code you copy into your project — you own them, can modify without library version lock
+- **TypeScript:** Full TS types, integrates cleanly with Next.js 16 App Router
+- **Accessibility:** Radix UI primitives provide ARIA + keyboard navigation; shadcn adds Tailwind styling
+- **Theming:** Tailwind 4.x supports native CSS variables for dark mode, color schemes
+- **Zero Runtime Overhead:** Components are just React code, no extra runtime dependencies beyond Radix + Tailwind
+- **iOS PWA Compatible:** Tailwind can use `env(safe-area-inset-*)` for safe-area integration (see Section 1)
+
+**Setup:**
+
+1. **Install Tailwind 4:**
+   ```bash
+   npm install -D tailwindcss@^4 postcss autoprefixer
+   npm install clsx class-variance-authority
+   ```
+
+2. **Initialize shadcn/ui CLI:**
+   ```bash
+   npx shadcn-ui@latest init
+   ```
+   CLI prompts:
+   - Styling: Tailwind CSS ✓
+   - Base color: slate (or your choice)
+   - CSS variables: Yes ✓
+   - Component directory: `./src/components/ui`
+
+3. **Add components as needed:**
+   ```bash
+   npx shadcn-ui@latest add button input form card select
+   ```
+   Components are copied to `src/components/ui/` — you own the code.
+
+**Integration with v1.0 Stack:**
+
+- **Recharts (existing):** shadcn/ui doesn't replace it. Recharts stays for the pie chart.
+- **Better Auth forms:** Wrap `<input>` in shadcn `<Input>`, hook React Hook Form into shadcn `<Form>` component.
+- **Serwist PWA:** No conflict. Just ensure root layout respects safe-area CSS.
+- **Next.js 16 App Router:** shadcn/ui works natively with Server Components and Server Actions.
+
+**Example: Salary Input Form with shadcn/ui + React Hook Form:**
+
+```tsx
+// app/salary/page.tsx
+'use client'
+
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import { Form, FormControl, FormLabel, FormMessage, FormField } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+
+const schema = z.object({
+  gross_salary: z.number().positive(),
+})
+
+export default function SalaryPage() {
+  const form = useForm({
+    resolver: zodResolver(schema),
+  })
+  
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="gross_salary"
+          render={({ field }) => (
+            <div>
+              <FormLabel>Gross Salary (₽)</FormLabel>
+              <FormControl>
+                <Input type="number" {...field} />
+              </FormControl>
+              <FormMessage />
+            </div>
+          )}
+        />
+        <Button type="submit">Save</Button>
+      </form>
+    </Form>
+  )
+}
+```
+
+**When NOT to Use shadcn/ui:**
+- If team has existing design system that's not Tailwind-based
+- If you prefer CSS-in-JS (emotion, styled-components) — shadcn is Tailwind-first, not compatible
+- If you need highly specialized/custom components — build them separately
+
+**Theming (Recommended for Redesign):**
+
+Tailwind 4.x + shadcn support CSS variables theming:
+
+```css
+/* app/globals.css */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.6%;
+  --primary: 200 90% 56%;
+  --primary-foreground: 0 0% 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 0 0% 3.6%;
+    --foreground: 0 0% 98%;
+    --primary: 200 90% 56%;
+  }
+}
+```
+
+Then shadcn components automatically respect the theme.
+
+**Confidence:** HIGH (shadcn/ui is 2026 consensus for Next.js redesigns, overtook MUI, Tailwind 4.x stable with CSS variables, multiple 2026 dev surveys confirm this stack)
+
+---
+
+## Installation Summary
+
+### Complete Command Sequence for v1.1 Additions
+
+```bash
+# Playwright e2e testing
+npm install -D @playwright/test
+npx playwright install
+
+# Playwright MCP (optional, for AI-assisted test writing)
+npm install -D @playwright/mcp
+
+# Tailwind 4 + shadcn/ui (for redesign)
+npm install -D tailwindcss@^4 postcss autoprefixer
+npm install clsx class-variance-authority
+npx shadcn-ui@latest init
+
+# GitHub Actions CI (no install needed, just create .github/workflows/ci.yml)
+```
+
+### GitHub Actions Workflow File
+
+Create `.github/workflows/ci.yml` at project root (see Section 5 above).
+
+### Vercel Configuration
+
+Update Vercel dashboard:
+1. Project Settings → Environment Variables
+2. Add/update `BETTER_AUTH_URL` for Production/Preview scopes (see Section 2)
+
+---
+
+## Version Compatibility with v1.0
+
+| v1.0 Package | v1.0 Version | v1.1 Impact | Change Required? |
+|--------------|--------------|-------------|------------------|
+| Next.js | 16.3.3 | Works natively with Playwright, Tailwind 4, shadcn/ui | NO — keep locked |
+| React | 19.2.8 | Compatible with shadcn/ui, React Hook Form | NO |
+| TypeScript | 6.0.3 | REQUIRED for Playwright + ESLint CI; do NOT upgrade to 7.x | NO — keep locked |
+| Drizzle ORM | 0.45.2 | No changes needed | NO |
+| Better Auth | 1.7.2 | Redesign may wrap auth form in shadcn UI; logic unchanged | NO — keep locked |
+| Serwist | 9.5.12 | Safe-area CSS pairs cleanly with existing manifest config | NO |
+| Recharts | 3.10.1 | Unchanged (shadcn doesn't replace data viz) | NO |
+
+**No Breaking Changes:** All v1.1 additions are backwards-compatible.
+
+---
+
+## Confidence Assessment
+
+| Area | Confidence | Rationale |
+|------|------------|-----------|
+| **iOS Safe-Area CSS** | HIGH | CSS standard (W3C Jan 2026), all browsers support, iOS native feature, documented in MDN + multiple 2026 PWA guides |
+| **Vercel Multi-Environment URLs** | HIGH | VERCEL_URL is first-class system variable (official Vercel docs), Better Auth docs cover deployment patterns, cross-checked across 2026 guides |
+| **Playwright 1.62.1** | HIGH | July 2026 stable, recommended in Next.js 16 official guide, consensus choice for e2e testing (Cypress EOL), multiple 2026 boilerplates use this version |
+| **Playwright MCP** | MEDIUM-HIGH | Official v1.62 release, auto-integrated into GitHub Copilot (2026), but MCP patterns still emerging—test in CI before production use |
+| **GitHub Actions CI** | HIGH | Standard Node.js pattern, documented in ixartz/Next-js-Boilerplate and multiple 2026 CI/CD guides, no exotic dependencies |
+| **shadcn/ui 4.x + Tailwind 4.x** | HIGH | 2026 consensus picks for Next.js redesigns (overtook MUI), Tailwind 4.x stable with native CSS variables, excellent Next.js 16 support |
+
+---
+
+## Phase-Specific Research Flags
+
+1. **Phase 1 (Safe-Area CSS):** Test on real iOS device (iPhone 14+) to verify `env(safe-area-inset-*)` values under dynamic island conditions. Check both `next/link` and raw `<a>` navigation.
+
+2. **Phase 2 (UI Redesign + shadcn/ui):** Consider building `design-tokens.json` from Tailwind config for design system consistency. Test dark mode switching with CSS variables.
+
+3. **Phase 3 (Playwright e2e):** Verify Playwright MCP works reliably in headless GitHub Actions runners before adding to CI. Local dev usage is confirmed; CI use needs validation.
+
+4. **Phase 4 (GitHub Actions + Vercel):** Confirm Neon preview branch auto-creation works with CI webhook (existing in v1.0, but test for v1.1 scope).
+
+5. **Ongoing:** Re-check Playwright 2.0 status at each phase boundary. If 2.0 stable ships, plan an upgrade path (unlikely before Q4 2026).
+
+---
 
 ## Sources
 
-- npm registry (`registry.npmjs.org`, direct queries, Aug 2026) — HIGH confidence — exact current versions for `next`, `react`, `drizzle-orm`, `better-auth`, `recharts`, `serwist`, `typescript`, `zod`, `date-fns`, `pg`, `postgres`, `vitest`, `playwright`
-- nextjs.org/blog/next-16, nextjs.org/docs/app/guides/progressive-web-apps — MEDIUM confidence (web search, official domain)
-- InfoQ, The Register, Visual Studio Magazine, typescript-eslint GitHub issue #12518 — MEDIUM confidence (cross-checked across multiple independent sources) — TypeScript 7.0 native-compiler status and `typescript-eslint` incompatibility
-- Vercel changelog ("Neon now available on Vercel Marketplace"), neon.com/docs (Vercel-managed integration, Vercel Postgres transition guide) — MEDIUM confidence — Vercel Postgres → Neon migration history
-- Bytebase, DEV Community, PkgPulse, MakerKit, TurboStarter comparison articles (Neon vs Supabase vs PlanetScale; Better Auth vs Clerk vs Supabase Auth vs NextAuth; Drizzle vs Prisma; Recharts vs Chart.js vs Nivo; Vercel vs Railway vs Fly.io) — MEDIUM confidence, cross-checked across 3+ independent 2026-dated sources per topic
-- Red-Gate Simple Talk, kindatechnical.com — MEDIUM confidence — Postgres effective-dated/temporal table modeling pattern
-- gomage.com, magicbell.com PWA/iOS guides — MEDIUM confidence — iOS Safari "Add to Home Screen" manifest + meta tag requirements
+- **iOS Safe-Area CSS:**
+  - [MDN: env() CSS function](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/env)
+  - [GitHub: next/link + safe-area issue #81264](https://github.com/vercel/next.js/discussions/81264)
+  - [ITNEXT: Make Your PWAs Look Handsome on iOS](https://itnext.io/make-your-pwas-look-handsome-on-ios-fd8fdfcd5777)
+  - [W3C CSS WG: Safe to Release for env(safe-area-inset-*)](https://lists.w3.org/Archives/Public/public-css-archive/2026Jan/0316.html)
+  - **Confidence: HIGH**
+
+- **Vercel Environment Variables:**
+  - [Vercel Docs: Environment Variables](https://vercel.com/docs/environment-variables)
+  - [Vercel Docs: System Environment Variables](https://vercel.com/docs/environment-variables/system-environment-variables)
+  - [Vercel Docs: Environments](https://vercel.com/docs/deployments/environments)
+  - [Better Auth: Options Reference](https://better-auth.com/docs/reference/options)
+  - **Confidence: HIGH**
+
+- **Playwright 1.62.1 E2E Testing:**
+  - [Next.js: Testing with Playwright](https://nextjs.org/docs/app/guides/testing/playwright)
+  - [Medium: Next.js Testing 2026 — Vitest & Playwright](https://medium.com/@securestartkit/next-js-testing-in-2026-vitest-playwright-0caf6dd1f829)
+  - [Autonoma AI: Next.js Playwright Testing Guide](https://getautonoma.com/blog/nextjs-playwright-testing-guide)
+  - [Safedep.io: E2E Testing with Next.js + Playwright + MSW](https://safedep.io/end-to-end-test-nextjs-msw-playwright/)
+  - **Confidence: HIGH**
+
+- **Playwright MCP:**
+  - [MCP Directory: Playwright MCP Guide 2026](https://mcp.directory/blog/playwright-browser-mcp-guide-2026)
+  - [TestQuality: Playwright MCP Architecture 2026](https://testquality.com/playwright-test-agents-mcp-architecture-2026/)
+  - [Bug0: Playwright MCP for AI Testing](https://bug0.com/blog/playwright-mcp-changes-ai-testing-2026)
+  - **Confidence: MEDIUM-HIGH**
+
+- **GitHub Actions CI:**
+  - [GitHub: ixartz/Next-js-Boilerplate](https://github.com/ixartz/Next-js-Boilerplate)
+  - [Easton Dev: Next.js CI/CD with GitHub Actions](https://eastondev.com/blog/en/posts/dev/20251220-nextjs-cicd-github-actions/)
+  - [Tech Insider: GitHub Actions Tutorial 2026](https://tech-insider.org/github-actions-tutorial-cicd-12-steps-2026/)
+  - **Confidence: HIGH**
+
+- **shadcn/ui 4.x + Tailwind CSS 4.x:**
+  - [shadcn/ui: Installation for Next.js](https://ui.shadcn.com/docs/installation/next)
+  - [shadcn/ui: Component Library](https://ui.shadcn.com/)
+  - [DEV: Best Tailwind CSS UI Libraries 2026](https://dev.to/stacknotice/best-tailwind-css-ui-libraries-in-2026-beyond-shadcnui-f98)
+  - [WrappixeL: Top shadcn/ui Resources 2026](https://wrappixel.com/blog/shadcn-ui-libraries)
+  - **Confidence: HIGH**
 
 ---
-*Stack research for: Russian salary/take-home-pay tracking PWA (НаРуки)*
-*Researched: 2026-08-28*
+
+**Next Steps:** Review this research with the team. Prioritize based on roadmap sequencing:
+1. Vercel URL fix + GitHub Actions CI (unblocks all deployments)
+2. iOS safe-area CSS (UX/visual quality)
+3. Playwright e2e (quality assurance)
+4. shadcn/ui redesign (visual polish)
+5. Playwright MCP (optional enhancement to test writing)
+
+---
+
+*v1.1 Stack Research — НаРуки Milestone*  
+*Researched: 2026-09-01*
