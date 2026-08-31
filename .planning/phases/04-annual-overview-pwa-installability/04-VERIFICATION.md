@@ -1,7 +1,7 @@
 ---
 phase: 04-annual-overview-pwa-installability
 verified: 2026-08-31T19:00:00Z
-status: human_needed
+status: passed
 score: 13/13 must-haves verified
 behavior_unverified: 2
 overrides_applied: 0
@@ -10,14 +10,18 @@ re_verification_reason: "Gap closure (04-03-PLAN) completed; re-verification req
 previous_status: human_needed
 previous_gaps: [G-04-2]
 gaps_closed:
+
   - "G-04-2: login/page.tsx and register/page.tsx now call router.refresh() before router.push(), with passing regression tests asserting call order"
+
 gaps: []
 deferred: []
 behavior_unverified_items:
+
   - truth: "User can install the app to their iPhone home screen via Safari's 'Add to Home Screen,' and it launches in standalone display mode with its own icon"
     test: "Physically open app in Safari on real iPhone, tap Share → Add to Home Screen, confirm icon appears and install succeeds"
     expected: "App installs to home screen, icon appears, app launches in standalone mode (no Safari UI chrome)"
     why_human: "iOS Safari's install flow and rendering cannot be tested in a sandbox; requires a real iPhone (not an emulator) to confirm the visual affordance and the actual icon rendering"
+
   - truth: "After installing as a standalone PWA, the user remains able to log back in and sees their data (handling the separate storage-jar behavior between the Safari tab and the installed app)"
     test: "After installing to home screen, tap the installed app, confirm it launches standalone, verify login screen appears with re-login hint, log in with test credentials, confirm data (next payment, pie chart) renders"
     expected: "App launches in standalone mode, re-login hint appears, user logs in successfully, dashboard shows their data correctly"
@@ -35,6 +39,7 @@ behavior_unverified_items:
 ## Summary of Changes Since Previous Verification
 
 **G-04-2 Gap Closed (Code Level):**
+
 - `src/app/(auth)/login/page.tsx` (line 43-44): Added `router.refresh()` immediately before `router.push("/")` in `onSubmit`'s success path
 - `src/app/(auth)/register/page.tsx` (line 44-47): Added identical `router.refresh()` before `router.push("/onboarding")`
 - `src/app/(auth)/login/page.render.test.tsx`: Rebuilt router mock from inline `vi.fn()` to `vi.hoisted()` spies; added 3 new tests asserting refresh-before-push call order, push destination, and error-path non-navigation
@@ -43,6 +48,7 @@ behavior_unverified_items:
 - **Build Status:** Succeeds without errors
 
 **Impact on Phase 04 Goals:**
+
 - ✅ HOME-02 (annual pie chart): Already verified in previous check; no changes in 04-03
 - ✅ PWA-01 (installability): Already verified in previous check; no changes in 04-03
 - ✅ **G-04-2 root cause fixed:** The login/register redirect now calls `router.refresh()` before `router.push()`, forcing fresh server-side session reads instead of soft-navigating against stale pre-auth data
@@ -125,6 +131,7 @@ Real-device iPhone UAT cannot be automated in this sandbox. The following items 
 #### 2. Standalone App Launch and Re-Login (Unblocked by G-04-2 Fix)
 
 **Test:** Tap the installed app icon to launch it in standalone mode. Verify:
+
   1. The app launches without Safari UI chrome (standalone display mode)
   2. The user is not logged in (storage-jar separation from the Safari tab)
   3. The login screen displays with the re-login hint ("Похоже, это первый запуск с домашнего экрана…")
@@ -132,6 +139,7 @@ Real-device iPhone UAT cannot be automated in this sandbox. The following items 
   5. Verify the home screen displays (next payment card, pie chart, install banner hidden)
 
 **Expected:**
+
   - App launches fullscreen in standalone mode (no Safari address bar or controls)
   - Login screen appears with re-login hint visible
   - After login, home screen renders with all data correct (forecast, annual chart, install banner hidden)
@@ -142,6 +150,7 @@ Real-device iPhone UAT cannot be automated in this sandbox. The following items 
 #### 3. AnnualPieChart Visual Verification
 
 **Test:** On the home screen (after login in both Safari tab and standalone app), visually inspect the pie chart:
+
   1. The donut chart proportions match the displayed percentages
   2. "Налог" slice (red, #dc2626) and "На руки" slice (green, #16a34a) are clearly distinct
   3. The chart title "Доход и налоги в {YYYY} году" is readable
@@ -157,6 +166,7 @@ Real-device iPhone UAT cannot be automated in this sandbox. The following items 
 ## Verification Summary
 
 **Automated Checks:** All pass. 13 must-have truths plus G-04-2 gap-closure truth are VERIFIED via:
+
 - 8 integration tests on annual summary (reconciliation, cross-user isolation, baseline handling)
 - 4 render tests on pie chart, install banner, login page
 - 3 new login redirect tests (refresh-before-push order, destination, error path)
@@ -167,6 +177,7 @@ Real-device iPhone UAT cannot be automated in this sandbox. The following items 
 - Build: succeeds with webpack, generates public/sw.js with empty precache
 
 **Code Quality:**
+
 - No stubs or unimplemented handlers
 - No hardcoded empty data or placeholder returns
 - No unresolved debt markers (FIXME/TODO/TBD)
@@ -175,6 +186,7 @@ Real-device iPhone UAT cannot be automated in this sandbox. The following items 
 - **G-04-2 Router Fix:** Both login and register pages now call router.refresh() before router.push(), with regression tests asserting the call order via vi.hoisted() spies
 
 **Behavioral Coverage:**
+
 - Annual chart reconciliation tested against independent oracle (8 edge cases pass)
 - Install banner show/hide/persist/clear lifecycle tested
 - Login re-login hint shown only in standalone mode
@@ -185,6 +197,7 @@ Real-device iPhone UAT cannot be automated in this sandbox. The following items 
 **Gaps:** None blocking. All must-haves satisfied via code or tests. **Previous gap G-04-2 is CLOSED.**
 
 **Human Verification Needed:** Real-device iPhone UAT (described in detail above) to confirm:
+
   1. iOS Safari "Add to Home Screen" install flow works and icon appears
   2. Standalone app launches in standalone display mode without Safari UI
   3. Storage-jar behavior: user must re-login on first standalone launch

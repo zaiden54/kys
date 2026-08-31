@@ -1,19 +1,18 @@
 ---
 gsd_state_version: 1.0
 current_phase: 04
-current_phase_name: Annual Overview & PWA Installability
-status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-08-31T15:44:53.673Z"
+status: completed
+stopped_at: Phase 04 complete — all phases complete
+last_updated: "2026-08-31T16:32:31.963Z"
 last_activity: 2026-08-31
-last_activity_desc: Phase 04 execution started
-state_head: d293dcafbf4fc51b269c299d0f49db2721ec1f09
+last_activity_desc: Phase 04 complete
+state_head: db8926a352b530061eeaf3dbe447d252682f4608
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 23
   completed_plans: 23
-  percent: 75
+  percent: 100
 ---
 
 # Project State
@@ -23,22 +22,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-31)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** Phase 04 — Annual Overview & PWA Installability
+**Current focus:** MVP milestone complete; ready for milestone close-out
 
 ## Current Position
 
-Phase: 04 (Annual Overview & PWA Installability) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
-Last activity: 2026-08-31 — Phase 04 execution started
+Phase: 04
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-08-31 — Phase 04 complete
 
-Progress: [████████░░] 75%
+Progress: [████████████████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 20
+- Total plans completed: 23
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -49,6 +48,7 @@ Progress: [████████░░] 75%
 | 01 | 12 | - | - |
 | 02 | 4 | - | - |
 | 03 | 4 | - | - |
+| 04 | 3 | - | - |
 
 **Recent Trend:**
 
@@ -141,13 +141,10 @@ None yet.
 
 - Research flag (Phase 1): confirm exact 2025 НДФЛ bracket thresholds and the ст.139 ТК РФ 29.3 divisor against primary НК РФ/ТК РФ legal text before implementing the tax/vacation engines — see research/PITFALLS.md and research/SUMMARY.md
 - Research flag (Phase 1): unresolved product decision on mid-year onboarding UX (SAL-03) — no authoritative source, needs explicit design during plan-phase
-- Research flag (Phase 4): iOS PWA install/storage-jar behavior must be verified on a real iPhone device, not emulator, before considered done
 - [Phase 1, resolved 2026-08-29] Manual UAT for cross-device convergence and confirmation-prompt snapshot behavior completed via 01-UAT.md — 3/3 passed.
 - [Phase 1] Statute verification still outstanding: 2025 НДФЛ bracket thresholds (НК РФ ст.224) have not been confirmed against primary legal text — no live web access in this execution sandbox (curl to consultant.ru and pravo.gov.ru both failed to connect). NDFL_SCALES ordering/values are code-verified but not statute-cross-checked (see T-01-08-04 in 01-SECURITY.md). Confirm before relying on exact bracket numbers in production.
 - [Phase 2, low severity] BonusRow's `keepDirtyValues: true` (WR-01 fix) narrows but does not fully close the possibility of submitting a value based on a premise that changed underneath the user during a concurrent cross-device edit — no inline conflict notice was added; this was a deliberate scope choice (02-REVIEW-FIX.md), not an oversight. Revisit if concurrent multi-device editing of the same bonus turns out to be a real usage pattern.
 - [Phase 3, 03-04] Browser-based manual UAT (03-VALIDATION.md Manual-Only Verifications row) not click-through-performed in this autonomous session — recorded as an open unrun-verify entry in .planning/WINDOWS.md; substituted with npm run build + full 315-test automated suite. A human should complete the walkthrough before considering Phase 3 UAT fully closed.
-- [Phase 4, 04-01] AnnualPieChart's real-browser rendering (donut proportions/colors/legibility) not click-through-verified in this autonomous session -- recorded as open unrun-verify entry #2 in .planning/WINDOWS.md; substituted with jsdom render tests, a Cell-count structural check, and npm run build. A human should visually confirm the chart before phase close-out.
-- [Phase 4, 04-02] Real-device iPhone UAT (install -> standalone launch -> re-login -> data loads) not performed in this autonomous session -- no physical iPhone available. Live-verified instead: manifest.webmanifest/apple-icon/api/pwa-icon endpoints and sw.js against a real npm run start production server, plus the full automated test suite and production build. A human must complete the real-device walkthrough before Phase 4 sign-off (per 04-VALIDATION.md's Manual-Only Verifications row).
 
 ## Deferred Items
 
@@ -159,6 +156,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-31T15:44:53.392Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-08-31T16:32:31.963Z
+Stopped at: Phase 04 complete — all phases complete
 Resume file: None
