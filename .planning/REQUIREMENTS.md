@@ -37,7 +37,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Главный экран
 
 - [x] **HOME-01**: Главный экран показывает сумму и дату ближайшей выплаты
-- [ ] **HOME-02**: Главный экран показывает годовую pie-диаграмму (грязными / налог / на руки) за текущий календарный год
+- [x] **HOME-02**: Главный экран показывает годовую pie-диаграмму (грязными / налог / на руки) за текущий календарный год
 
 ### PWA
 
@@ -96,7 +96,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VAC-02 | Phase 3 | Complete |
 | VAC-03 | Phase 3 | Complete |
 | HOME-01 | Phase 1 | Complete |
-| HOME-02 | Phase 4 | Pending |
+| HOME-02 | Phase 4 | Complete |
 | PWA-01 | Phase 4 | Pending |
 
 **Coverage:**
