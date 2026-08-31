@@ -171,9 +171,12 @@ Plans:
   3. User can install the app to their iPhone home screen via Safari's "Add to Home Screen," and it launches in standalone display mode with its own icon (PWA-01)
   4. After installing as a standalone PWA, the user remains logged in and sees their data (handling the separate storage-jar behavior between the Safari tab and the installed app)
 
-**Plans**: 2/2 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
+
+- [x] 04-03-PLAN.md
+
 **Wave 1**
 
 - [x] 04-01-PLAN.md — Annual summary engine + Recharts chart, wired end-to-end onto the home screen (HOME-02) (wave 1)
@@ -194,4 +197,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Core Payroll Loop | 12/12 | Complete    | 2026-08-29 |
 | 2. Bonuses & One-off Payments | 4/4 | Complete    | 2026-08-30 |
 | 3. Vacation Pay | 4/4 | Complete    | 2026-08-31 |
-| 4. Annual Overview & PWA Installability | 2/2 | In Progress|  |
+| 4. Annual Overview & PWA Installability | 3/3 | In Progress|  |

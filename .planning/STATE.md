@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 current_phase: 04
 current_phase_name: Annual Overview & PWA Installability
-status: verifying
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-08-31T08:00:34.875Z"
+status: executing
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-08-31T15:44:53.673Z"
 last_activity: 2026-08-31
 last_activity_desc: Phase 04 execution started
-state_head: 1ef73298a6dc6234854893583d406e17d5c976f1
+state_head: d293dcafbf4fc51b269c299d0f49db2721ec1f09
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 22
-  completed_plans: 22
+  total_plans: 23
+  completed_plans: 23
   percent: 75
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-08-31)
 ## Current Position
 
 Phase: 04 (Annual Overview & PWA Installability) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-08-31 — Phase 04 execution started
 
 Progress: [████████░░] 75%
@@ -82,6 +82,7 @@ Progress: [████████░░] 75%
 | Phase 03 P04 | 45min | 2 tasks | 9 files |
 | Phase 04 P01 | 20min | 2 tasks | 10 files |
 | Phase 04 P02 | 20min | 3 tasks | 19 files |
+| Phase 04 P03 | 6min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,8 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04][04-02]: package.json's dev/build scripts pinned to --webpack since @serwist/next's service-worker injection is webpack-only (no Turbopack support yet, upstream issue #54)
 - [Phase 04]: [Phase 04][04-02]: next.config.ts needs both exclude:[/.*/] and globPublicPatterns:[] to produce a genuinely empty precache manifest -- exclude alone left 5 default public/*.svg files in self.__SW_MANIFEST
 - [Phase 04]: [Phase 04][04-02]: vitest.config.ts disables Node's built-in global localStorage via execArgv --no-experimental-webstorage so jsdom's window.localStorage is used in tests
+- [Phase 04]: [Phase 04][04-03]: Applied identical router.refresh()-before-router.push() fix independently to both login and register onSubmit (G-04-2), matching the diagnosis that both pages drifted into the same anti-pattern independently since the Phase 01-02 tracer commit — Two-line addition per page per the plan's explicit scope; no shared helper extracted
+- [Phase 04]: [Phase 04][04-03]: Rebuilt login/page.render.test.tsx's router mock from an inline unreachable vi.fn() to vi.hoisted() pushMock/refreshMock spies so tests can assert call order and destination — Closes the structural blind spot named in the root-cause diagnosis: an inline vi.fn() inside a mock factory is a fresh instance per call and cannot be asserted against
 
 ### Pending Todos
 
@@ -156,6 +159,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-08-31T08:00:34.644Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-08-31T15:44:53.392Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
