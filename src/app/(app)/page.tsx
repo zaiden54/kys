@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { requireUserId } from "@/lib/session";
 import { forecastNextPayment } from "@/app/actions/forecast";
+import { computeAnnualSummary } from "@/app/actions/annual-summary";
 import { NextPaymentCard } from "@/components/next-payment-card";
+import { AnnualPieChart } from "@/components/annual-pie-chart";
 import { YtdEstimateBanner } from "@/components/ytd-estimate-banner";
+import { InstallBanner } from "@/components/install-banner";
+import { todayIsoInMoscow } from "@/domain/time";
 
 // HOME-01: shows only the next payment's date and take-home amount. The
 // forecast is computed server-side (see src/app/actions/forecast.ts) during
@@ -24,12 +28,17 @@ const MISSING_COPY: Record<"salary" | "schedule", { title: string; body: string 
 
 export default async function HomePage() {
   const userId = await requireUserId();
-  const result = await forecastNextPayment(userId);
+  const currentYear = Number(todayIsoInMoscow().slice(0, 4));
+  const [result, annualResult] = await Promise.all([
+    forecastNextPayment(userId),
+    computeAnnualSummary(userId, currentYear),
+  ]);
 
   if (!result.configured) {
     const copy = MISSING_COPY[result.missing];
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+        <InstallBanner />
         <h1 className="text-2xl font-semibold">{copy.title}</h1>
         <p className="max-w-sm text-zinc-600">{copy.body}</p>
         <Link
@@ -44,8 +53,30 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-1 flex-col items-center gap-4 px-6 py-16">
+      <InstallBanner />
       {result.forecast.baselineIsEstimated ? <YtdEstimateBanner /> : null}
       <NextPaymentCard forecast={result.forecast} />
+      {annualResult.configured ? (
+        <AnnualPieChart summary={annualResult.summary} taxYear={currentYear} />
+      ) : (
+        // Defensive, forward-compatible fallback: unreachable-by-construction
+        // today (computeAnnualSummary's not-configured gate is byte-for-byte
+        // identical to forecastNextPayment's, and the `!result.configured`
+        // early return above already covers it), but kept as cheap insurance
+        // per 04-01-PLAN.md's "flagged_assumptions" — never a silent `null`.
+        <div className="w-full max-w-sm rounded border border-zinc-300 p-4 text-center">
+          <h2 className="text-lg font-semibold text-zinc-900">Сводка недоступна</h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            Заполните оклад и график выплат, чтобы увидеть годовую сводку.
+          </p>
+          <Link
+            href="/settings/salary"
+            className="mt-3 inline-block rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white"
+          >
+            Настроить оклад
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

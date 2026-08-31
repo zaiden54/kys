@@ -23,6 +23,7 @@ function makeBonus(overrides: Partial<BonusRowData> = {}): BonusRowData {
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
+    type: overrides.type ?? "premium",
   };
 }
 

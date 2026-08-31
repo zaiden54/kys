@@ -24,19 +24,20 @@ export async function saveBonusAction(formData: FormData): Promise<BonusActionRe
     amountRubles: formData.get("amountRubles"),
     date: formData.get("date"),
     note: formData.get("note"),
+    type: formData.get("type") || undefined,
   });
   if (!parsed.success) return { success: false, fieldErrors: parsed.error.flatten().fieldErrors };
   try {
     const amountKopecks = rublesToKopecks(parsed.data.amountRubles);
     if (parsed.data.id) {
       const updated = await updateBonus(
-        userId, parsed.data.id, amountKopecks, parsed.data.date, parsed.data.note,
+        userId, parsed.data.id, amountKopecks, parsed.data.date, parsed.data.note, parsed.data.type,
       );
       if (!updated) {
         return { success: false, fieldErrors: { amountRubles: ["Бонус не найден"] } };
       }
     } else {
-      await createBonus(userId, amountKopecks, parsed.data.date, parsed.data.note);
+      await createBonus(userId, amountKopecks, parsed.data.date, parsed.data.note, parsed.data.type);
     }
   } catch {
     return {

@@ -56,22 +56,33 @@ function isRuPublicHoliday(date: Date): boolean {
 }
 
 /**
+ * Walks `date` one day earlier at a time while it falls on a weekend or an
+ * RU public holiday (D-02), chaining through consecutive non-working days,
+ * and returns the first working day at or before the input. Extracted from
+ * `resolvePaymentDate` (no behavior change) so the ст.136 ТК РФ vacation-pay
+ * payment-date rule (D-V07, `resolveVacationPaymentDate` in
+ * `src/domain/vacation/calculate-average-daily-earnings.ts`) can reuse the
+ * exact same weekend/holiday-shift logic instead of duplicating it.
+ */
+export function shiftOffWeekendsAndHolidays(date: Date): Date {
+  let shifted = date;
+  while (isWeekend(shifted) || isRuPublicHoliday(shifted)) {
+    shifted = new Date(shifted.getFullYear(), shifted.getMonth(), shifted.getDate() - 1);
+  }
+  return shifted;
+}
+
+/**
  * Resolves a day-of-month schedule number for a given year/month to a real,
  * local-midnight calendar `Date`: clamps the day to the month's last valid
- * day (D-03), then walks one day earlier at a time while the date falls on
- * a weekend or an RU public holiday (D-02), chaining through consecutive
- * non-working days.
+ * day (D-03), then shifts off weekends and RU public holidays (D-02) via
+ * `shiftOffWeekendsAndHolidays`.
  */
 export function resolvePaymentDate(year: number, monthIndex: number, dayOfMonth: number): Date {
   const monthLastDay = lastDayOfMonth(new Date(year, monthIndex, 1)).getDate();
   const clampedDay = Math.min(dayOfMonth, monthLastDay);
 
-  let date = new Date(year, monthIndex, clampedDay);
-  while (isWeekend(date) || isRuPublicHoliday(date)) {
-    date = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1);
-  }
-
-  return date;
+  return shiftOffWeekendsAndHolidays(new Date(year, monthIndex, clampedDay));
 }
 
 /**

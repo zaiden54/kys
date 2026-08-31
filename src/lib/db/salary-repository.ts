@@ -31,7 +31,14 @@ import { salaryHistory, paymentSchedule, ytdBaseline } from "@/lib/db/schema";
 import { todayIsoInMoscow } from "@/domain/time";
 import { accruedGrossBetween, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
 import type { PaymentKind } from "@/domain/schedule/resolve-payment-date";
-import { listBonuses } from "@/lib/db/bonus-repository";
+import { listBonuses, type BonusRow } from "@/lib/db/bonus-repository";
+import { listVacations, type VacationRow } from "@/lib/db/vacation-repository";
+import {
+  calculateVacationPayGross,
+  resolveVacationPaymentDate,
+  toPremiumBonusEntries,
+  type PremiumBonusEntry,
+} from "@/domain/vacation/calculate-average-daily-earnings";
 
 export type SalaryHistoryRow = typeof salaryHistory.$inferSelect;
 export type SalaryWriteOutcome =
@@ -289,6 +296,15 @@ export async function upsertYtdBaseline(
 // Cumulative income (feeds the НДФЛ engine)
 // ---------------------------------------------------------------------------
 
+/** Already-fetched rows `computeCumulativeIncome` needs — see its doc comment. */
+export interface CumulativeIncomeInputs {
+  baseline: YtdBaselineRow;
+  schedule: PaymentScheduleRow | null;
+  history: SalaryHistoryRow[];
+  bonusRows: BonusRow[];
+  vacationRows: VacationRow[];
+}
+
 /**
  * Cumulative gross income (in kopecks) earned strictly before `isoDate` for
  * a payment of the given `kind` — the `cumulativeBefore` input to
@@ -307,42 +323,95 @@ export async function upsertYtdBaseline(
  * into the next year's cumulative base.
  *
  * The real accrual is derived by the pure `accruedGrossBetween` engine over
- * the user's own schedule and salary history, read through the existing
- * ownership-scoped `getSchedule`/`listSalaryHistory` functions so a second
- * user's rows can never contribute to this figure. A user with a baseline
- * but no payment schedule gets the baseline amount alone — there is nothing
- * to enumerate without a schedule.
+ * the caller-supplied schedule and salary history. A baseline with no
+ * payment schedule gets the baseline amount alone — there is nothing to
+ * enumerate without a schedule.
+ *
+ * Pure — extracted from `getCumulativeIncomeBeforeDate` so a caller that has
+ * already fetched schedule/history/bonuses/vacations/baseline for the same
+ * user in the same request (`forecastNextPayment`) can reuse those rows
+ * instead of re-querying all five a second time. Closes WR-01
+ * (03-REVIEW.md): the duplicate-read pattern opened a narrow window where a
+ * concurrent write landing between the two independent reads could make
+ * `paymentGrossKopecks` and `cumulativeBeforeKopecks` disagree about which
+ * rows exist. Threading a single fetch through both call sites removes the
+ * duplicate reads (and the inconsistency window with them) for the
+ * `forecastNextPayment` caller; `getCumulativeIncomeBeforeDate` itself still
+ * performs its own fetch for callers that only need this one figure.
  */
-export async function getCumulativeIncomeBeforeDate(
-  userId: string,
+/**
+ * Determines whether `baseline` contributes to a cumulative-income window
+ * ending at/around `isoDate`: the baseline's own `asOfDate` must fall in the
+ * same calendar year as `isoDate` AND be on or before it. When applicable,
+ * the window opens exactly at the baseline's `asOfDate`; otherwise it opens
+ * at 31 December of the year preceding `isoDate` — a baseline entered in a
+ * prior calendar year must never silently carry forward.
+ *
+ * Extracted (04-01-PLAN.md Task 1) from `computeCumulativeIncome`'s
+ * previously-inline 6-line block — pure refactor, no behavior change — so
+ * `src/app/actions/annual-summary.ts`'s whole-year walk shares the EXACT
+ * same baseline-applicability formula as this single-event path, and the two
+ * can never independently drift apart.
+ */
+export function resolveBaselineWindow(
+  baseline: YtdBaselineRow,
   isoDate: string,
-  kind: PaymentKind = "avans",
-): Promise<number> {
-  const [baseline, schedule, history, bonusRows] = await Promise.all([
-    getYtdBaseline(userId),
-    getSchedule(userId),
-    listSalaryHistory(userId),
-    listBonuses(userId),
-  ]);
-
-  const paymentYear = isoDate.slice(0, 4);
+): { baselineApplies: boolean; baselineAmountKopecks: number; windowBoundIso: string } {
+  const targetYear = isoDate.slice(0, 4);
   const baselineApplies =
-    baseline.asOfDate.slice(0, 4) === paymentYear && baseline.asOfDate <= isoDate;
+    baseline.asOfDate.slice(0, 4) === targetYear && baseline.asOfDate <= isoDate;
   const baselineAmountKopecks = baselineApplies ? baseline.amountKopecks : 0;
   const windowBoundIso = baselineApplies
     ? baseline.asOfDate
-    : `${Number(paymentYear) - 1}-12-31`;
+    : `${Number(targetYear) - 1}-12-31`;
+  return { baselineApplies, baselineAmountKopecks, windowBoundIso };
+}
+
+export function computeCumulativeIncome(
+  inputs: CumulativeIncomeInputs,
+  isoDate: string,
+  kind: PaymentKind = "avans",
+): number {
+  const { baseline, schedule, history, bonusRows, vacationRows } = inputs;
+  const { baselineAmountKopecks, windowBoundIso } = resolveBaselineWindow(baseline, isoDate);
   const bonusAccruedKopecks = bonusRows
     .filter((bonus) => bonus.date > windowBoundIso && bonus.date < isoDate)
     .reduce((sum, bonus) => sum + bonus.amountKopecks, 0);
-  if (!schedule) {
-    return baselineAmountKopecks + bonusAccruedKopecks;
-  }
 
   const salaryHistoryEntries: SalaryHistoryEntry[] = history.map((row) => ({
     effectiveFrom: row.effectiveFrom,
     grossAmountKopecks: row.grossAmountKopecks,
   }));
+
+  // Defensive premium filter (D-V03), shared via toPremiumBonusEntries
+  // (closes WR-02, 03-REVIEW.md) rather than copy-pasted here.
+  const premiumBonusEntries: PremiumBonusEntry[] = toPremiumBonusEntries(bonusRows);
+
+  // A vacation whose computed payment date falls strictly between
+  // windowBoundIso and isoDate contributes its own recomputed gross
+  // (never a stored amount, per this plan's prohibition) — the identical
+  // strict-inequality window rule the bonus term above already uses.
+  const vacationAccruedKopecks = vacationRows
+    .map((vacation) => ({
+      vacation,
+      paymentDateIso: resolveVacationPaymentDate(vacation.startDate),
+    }))
+    .filter(({ paymentDateIso }) => paymentDateIso > windowBoundIso && paymentDateIso < isoDate)
+    .reduce(
+      (sum, { vacation }) =>
+        sum +
+        calculateVacationPayGross(
+          vacation.startDate,
+          vacation.endDate,
+          salaryHistoryEntries,
+          premiumBonusEntries,
+        ).grossKopecks,
+      0,
+    );
+
+  if (!schedule) {
+    return baselineAmountKopecks + bonusAccruedKopecks + vacationAccruedKopecks;
+  }
 
   const accruedKopecks = accruedGrossBetween(
     { avansDay: schedule.avansDay, salaryDay: schedule.salaryDay },
@@ -351,5 +420,28 @@ export async function getCumulativeIncomeBeforeDate(
     { dateIso: isoDate, kind },
   );
 
-  return baselineAmountKopecks + accruedKopecks + bonusAccruedKopecks;
+  return baselineAmountKopecks + accruedKopecks + bonusAccruedKopecks + vacationAccruedKopecks;
+}
+
+/**
+ * Fetches this user's baseline/schedule/history/bonuses/vacations and folds
+ * them through `computeCumulativeIncome`. Kept for callers that only need
+ * this one figure and have not already fetched the underlying rows
+ * themselves (see `computeCumulativeIncome`'s doc comment for the
+ * duplicate-read caller, `forecastNextPayment`).
+ */
+export async function getCumulativeIncomeBeforeDate(
+  userId: string,
+  isoDate: string,
+  kind: PaymentKind = "avans",
+): Promise<number> {
+  const [baseline, schedule, history, bonusRows, vacationRows] = await Promise.all([
+    getYtdBaseline(userId),
+    getSchedule(userId),
+    listSalaryHistory(userId),
+    listBonuses(userId),
+    listVacations(userId),
+  ]);
+
+  return computeCumulativeIncome({ baseline, schedule, history, bonusRows, vacationRows }, isoDate, kind);
 }

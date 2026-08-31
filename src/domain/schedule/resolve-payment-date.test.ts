@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { generatePaymentEvents, nextPaymentOnOrAfter, resolvePaymentDate } from "./resolve-payment-date";
+import {
+  generatePaymentEvents,
+  nextPaymentOnOrAfter,
+  resolvePaymentDate,
+  shiftOffWeekendsAndHolidays,
+} from "./resolve-payment-date";
 
 function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -43,6 +48,22 @@ describe("resolvePaymentDate", () => {
   it("returns a working weekday unchanged", () => {
     // 2026-06-19 is a plain Friday, not a holiday
     expect(isoDate(resolvePaymentDate(2026, 5, 19))).toBe("2026-06-19");
+  });
+});
+
+describe("shiftOffWeekendsAndHolidays", () => {
+  it("shifts a plain Saturday back to the preceding Friday", () => {
+    expect(isoDate(shiftOffWeekendsAndHolidays(new Date(2026, 5, 20)))).toBe("2026-06-19");
+  });
+
+  it("returns a working weekday unchanged", () => {
+    // 2026-06-18 is a plain Thursday, not a holiday
+    expect(isoDate(shiftOffWeekendsAndHolidays(new Date(2026, 5, 18)))).toBe("2026-06-18");
+  });
+
+  it("chains backward through the New Year public-holiday block into the prior year", () => {
+    // 2026-01-03 (Sat, holiday) -> 01-02 (Fri, holiday) -> 01-01 (Thu, holiday) -> 2025-12-31 (Wed, working)
+    expect(isoDate(shiftOffWeekendsAndHolidays(new Date(2026, 0, 3)))).toBe("2025-12-31");
   });
 });
 

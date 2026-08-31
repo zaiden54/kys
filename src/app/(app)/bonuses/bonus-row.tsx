@@ -5,24 +5,15 @@ import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { deleteBonusAction, saveBonusAction } from "@/app/actions/bonus";
 import { formatKopecks, kopecksToRubles } from "@/domain/money";
+import { formatIsoDateRu } from "@/domain/time";
 import type { BonusRow as BonusRowData } from "@/lib/db/bonus-repository";
 import { bonusInputSchema, type BonusInput } from "@/lib/validation/bonus";
 
 function toDefaults(bonus: BonusRowData): BonusInput {
   return {
     id: bonus.id, amountRubles: kopecksToRubles(bonus.amountKopecks),
-    date: bonus.date, note: bonus.note ?? "",
+    date: bonus.date, note: bonus.note ?? "", type: bonus.type,
   };
-}
-
-function formatPaymentDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
 }
 
 export function BonusRow({ bonus }: { bonus: BonusRowData }) {
@@ -47,7 +38,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
     try {
       const data = new FormData();
       data.set("id", bonus.id); data.set("amountRubles", String(values.amountRubles));
-      data.set("date", values.date); data.set("note", values.note);
+      data.set("date", values.date); data.set("note", values.note); data.set("type", values.type);
       const result = await saveBonusAction(data);
       if (editSessionRef.current !== session) return; // superseded — do nothing
       if (result.success) {
@@ -67,7 +58,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
   }
 
   async function onDelete() {
-    if (!window.confirm(`Удалить бонус на сумму ${formatKopecks(bonus.amountKopecks)} от ${formatPaymentDate(bonus.date)}?`)) return;
+    if (!window.confirm(`Удалить бонус на сумму ${formatKopecks(bonus.amountKopecks)} от ${formatIsoDateRu(bonus.date)}?`)) return;
     setPending(true); setErrorMessage(null);
     try {
       const result = await deleteBonusAction(bonus.id);
@@ -88,6 +79,11 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
           {errors.amountRubles && <p className="text-sm text-red-600">{errors.amountRubles.message}</p>}
           <input type="text" className="rounded border border-zinc-300 px-3 py-2" {...register("note")} />
           {errors.note && <p className="text-sm text-red-600">{errors.note.message}</p>}
+          <select aria-label="Тип выплаты" className="rounded border border-zinc-300 px-3 py-2" {...register("type")}>
+            <option value="premium">Премия (учитывается при расчёте отпускных)</option>
+            <option value="compensation">Компенсация — например, к отпуску (не учитывается при расчёте отпускных)</option>
+          </select>
+          {errors.type && <p className="text-sm text-red-600">{errors.type.message}</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={isSubmitting} className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">{isSubmitting ? "Сохранение…" : "Сохранить"}</button>
@@ -101,7 +97,7 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
   return (
     <li className="border-b border-zinc-200 py-3">
       <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-2 text-sm sm:grid-cols-[6rem_7rem_minmax(0,1fr)_auto] sm:items-center">
-        <span>{bonus.date}</span>
+        <span>{formatIsoDateRu(bonus.date)}</span>
         <span className="font-semibold">{formatKopecks(bonus.amountKopecks)}</span>
         <span className="col-span-2 truncate text-zinc-600 sm:col-span-1" title={bonus.note ?? undefined}>{bonus.note || "—"}</span>
         <span className="col-span-2 flex justify-end gap-2 sm:col-span-1">

@@ -11,7 +11,7 @@
   "perplexity": false,
   "jina": false,
   "git": {
-    "branching_strategy": "none",
+    "branching_strategy": "phase",
     "create_tag": true,
     "phase_branch_template": "gsd/phase-{phase}-{slug}",
     "milestone_branch_template": "gsd/{milestone}-{slug}",
@@ -47,7 +47,8 @@
     "security_enforcement": true,
     "security_asvs_level": 1,
     "security_block_on": "high",
-    "_auto_chain_active": false
+    "_auto_chain_active": false,
+    "use_worktrees": true
   },
   "ship": {
     "pr_body_sections": [
@@ -81,7 +82,18 @@
   },
   "project_code": null,
   "phase_naming": "sequential",
-  "agent_skills": {},
+  "agent_skills": {
+    "gsd-planner": [
+      "global:frontend-design:frontend-design"
+    ],
+    "gsd-executor": [
+      "global:frontend-design:frontend-design",
+      "global:neon:neon"
+    ],
+    "gsd-verifier": [
+      "global:neon:neon"
+    ]
+  },
   "claude_md_path": "./.claude/CLAUDE.md",
   "plan_review": {
     "source_grounding": true,

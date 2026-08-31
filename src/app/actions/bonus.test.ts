@@ -14,10 +14,11 @@ vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 import { deleteBonusAction, saveBonusAction } from "@/app/actions/bonus";
 
 const bonusId = "11111111-1111-4111-8111-111111111111";
-function formData(id?: string): FormData {
+function formData(id?: string, type?: string): FormData {
   const data = new FormData();
   if (id) data.set("id", id);
   data.set("amountRubles", "25000"); data.set("date", "2026-09-02"); data.set("note", "Проект");
+  data.set("type", type ?? "premium");
   return data;
 }
 
@@ -30,14 +31,19 @@ describe("bonus actions", () => {
 
   it("creates when id is absent", async () => {
     expect(await saveBonusAction(formData())).toEqual({ success: true });
-    expect(mocks.createBonus).toHaveBeenCalledWith("user-01", 2_500_000, "2026-09-02", "Проект");
+    expect(mocks.createBonus).toHaveBeenCalledWith("user-01", 2_500_000, "2026-09-02", "Проект", "premium");
     expect(mocks.updateBonus).not.toHaveBeenCalled();
   });
 
   it("updates when id is present", async () => {
     expect(await saveBonusAction(formData(bonusId))).toEqual({ success: true });
-    expect(mocks.updateBonus).toHaveBeenCalledWith("user-01", bonusId, 2_500_000, "2026-09-02", "Проект");
+    expect(mocks.updateBonus).toHaveBeenCalledWith("user-01", bonusId, 2_500_000, "2026-09-02", "Проект", "premium");
     expect(mocks.createBonus).not.toHaveBeenCalled();
+  });
+
+  it("threads an explicit 'compensation' type through to createBonus", async () => {
+    expect(await saveBonusAction(formData(undefined, "compensation"))).toEqual({ success: true });
+    expect(mocks.createBonus).toHaveBeenCalledWith("user-01", 2_500_000, "2026-09-02", "Проект", "compensation");
   });
 
   it("returns not found without revalidation", async () => {
