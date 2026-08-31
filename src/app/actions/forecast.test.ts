@@ -514,6 +514,76 @@ describe("forecastNextPayment", () => {
     }
   });
 
+  it("composes scheduled pay and vacation pay that land on the same date into one taxable forecast", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T09:00:00Z"));
+    try {
+      await replaceSalaryAt(userAId, 600_000_00, "2025-01-01");
+      await upsertSchedule(userAId, 10, 25);
+      await upsertYtdBaseline(userAId, 0, "2026-01-01", false);
+      const vacation = await createVacation(userAId, "2026-01-12", "2026-01-17");
+      expect(resolveVacationPaymentDate(vacation.startDate)).toBe("2026-01-09");
+
+      const vacationGross = calculateVacationPayGross(
+        vacation.startDate,
+        vacation.endDate,
+        [{ effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 }],
+        [],
+      ).grossKopecks;
+      const combinedGross = 300_000_00 + vacationGross;
+      const expectedTax = calculateNdfl(0, combinedGross, 2026);
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected a configured result");
+      expect(result.forecast).toMatchObject({
+        date: "2026-01-09",
+        kind: "avans",
+        vacationId: vacation.id,
+        grossKopecks: combinedGross,
+        taxKopecks: expectedTax.taxKopecks,
+        netKopecks: expectedTax.netKopecks,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("composes bonus and vacation pay that land on the same date into one taxable forecast", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T09:00:00Z"));
+    try {
+      await replaceSalaryAt(userAId, 600_000_00, "2025-01-01");
+      await upsertYtdBaseline(userAId, 0, "2026-01-01", false);
+      const vacation = await createVacation(userAId, "2026-01-12", "2026-01-17");
+      const paymentDate = resolveVacationPaymentDate(vacation.startDate);
+      await createBonus(userAId, 50_000_00, paymentDate, "Совпадение", "premium");
+
+      const vacationGross = calculateVacationPayGross(
+        vacation.startDate,
+        vacation.endDate,
+        [{ effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 }],
+        [],
+      ).grossKopecks;
+      const combinedGross = 50_000_00 + vacationGross;
+      const expectedTax = calculateNdfl(0, combinedGross, 2026);
+
+      const result = await forecastNextPayment(userAId);
+      expect(result.configured).toBe(true);
+      if (!result.configured) throw new Error("expected a configured result");
+      expect(result.forecast).toMatchObject({
+        date: paymentDate,
+        kind: "bonus",
+        vacationId: vacation.id,
+        grossKopecks: combinedGross,
+        taxKopecks: expectedTax.taxKopecks,
+        netKopecks: expectedTax.netKopecks,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("(18) a vacation saved through the server action appears in the forecast (tracer's end-to-end proof)", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-01T09:00:00Z"));
