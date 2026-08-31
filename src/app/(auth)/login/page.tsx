@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { useIsStandalone } from "@/lib/use-standalone";
 
 // D-05: email + password only. D-08: no password-reset affordance.
 const loginSchema = z.object({
@@ -18,6 +19,7 @@ type LoginInput = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const isStandalone = useIsStandalone();
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -41,6 +43,14 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-4 px-6 py-16">
       <h1 className="text-2xl font-semibold">Вход</h1>
+      {isStandalone && (
+        <div className="rounded bg-blue-50 p-3 text-sm text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+          <p>Похоже, это первый запуск с домашнего экрана — войдите ещё раз.</p>
+          <p className="mt-1">
+            Это нормально: приложение использует отдельное хранилище от браузера.
+          </p>
+        </div>
+      )}
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
         <div className="flex flex-col gap-1">
           <label htmlFor="email" className="text-sm font-medium">
