@@ -1,84 +1,71 @@
 ---
 phase: 02
 slug: bonuses-one-off-payments
-# status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-# audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Phase 02 — Validation Strategy
 
-> Per-phase validation contract for feedback sampling during execution.
-
----
+> Retroactive Nyquist audit of Phase 2 verification coverage.
 
 ## Test Infrastructure
 
 | Property | Value |
 |----------|-------|
-| **Framework** | Vitest 4.1.11 (Phase 1 established) |
+| **Framework** | Vitest 4.1.11; jsdom + Testing Library render tests |
 | **Config file** | `vitest.config.ts` |
-| **Quick run command** | `npm test -- --run src/domain/` |
-| **Full suite command** | `npm test -- --run` |
-| **Estimated runtime** | ~30 seconds (Phase 1 baseline; not yet measured with Phase 2 additions) |
+| **Phase subset** | Bonus validation, repository, actions, forecast, and form/row tests |
+| **Full suite** | `npm run test` |
+| **Audit result** | 8 files passed, 80 tests passed on 2026-08-31 |
 
----
+## Requirement Coverage
 
-## Sampling Rate
+| Requirement | Behavior | Automated Evidence | Status |
+|-------------|----------|--------------------|--------|
+| BON-01 | Create, list, edit, delete, validate, isolate, and resynchronize bonuses | `bonus.test.ts`, `bonus-repository.test.ts`, `bonus.test.ts` validation, `bonus-form.test.ts`, `bonus-row.test.ts`, `bonus-row.render.test.tsx` | covered |
+| BON-02 | Fold bonus income into cumulative tax, choose standalone bonus events, combine same-date scheduled bonuses, and recompute after edits | `forecast.test.ts`, `salary-repository.test.ts`, `bonus-repository.test.ts` | covered |
 
-- **After every task commit:** Run `npm test -- --run src/domain/`
-- **After every plan wave:** Run `npm test -- --run`
-- **Before `/gsd-verify-work`:** Full suite must be green + manual UAT on bonus create/edit/delete/forecast flow
-- **Max feedback latency:** 30 seconds
+## Verification Map
 
----
-
-## Per-Task Verification Map
-
-| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | BON-01 | — | User can add a one-off bonus tied to a date | Integration | `npm test -- bonus.test.ts -t "saveBonusAction"` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | BON-02 | — | Bonus taxed through cumulative НДФЛ; affects take-home for that payment and subsequent payments | Unit + Integration | `npm test -- calculate-ndfl.test.ts -t "bonus"` + `npm test -- salary-repository.test.ts -t "bonus"` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | HOME-01 (amended for bonuses) | — | If bonus lands on next payment, next-payment display reflects it (with breakdown per D-B09) | Integration | `npm test -- forecast.test.ts -t "nextPayment.*bonus"` | ❌ W0 | ⬜ pending |
-
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-*Task ID/Plan/Wave columns are filled in by the planner once PLAN.md tasks exist for each requirement.*
-
----
-
-## Wave 0 Requirements
-
-- [ ] `src/lib/db/salary-repository.test.ts` — extend existing `getCumulativeIncomeBeforeDate` tests to cover bonus events summed into cumulative income (PLAN 02-01 keeps `accruedGrossBetween` unchanged and sums bonus income directly in the repository query instead)
-- [ ] `src/lib/db/bonus-repository.test.ts` — new; CRUD operations, deletion guard, ownership scope
-- [ ] `src/app/actions/bonus.test.ts` — new; saveBonusAction validation and persistence, deleteBonusAction guard
-- [ ] `src/app/actions/forecast.test.ts` — extend existing next-payment tests to cover bonus-only dates, mixed dates, breakdown generation
-- [ ] `src/lib/validation/bonus.test.ts` — new; bonusInputSchema validation (amount > 0, valid ISO date, optional note)
-
----
+| Plan / Task Area | Requirement | Automated Command | Result |
+|------------------|-------------|-------------------|--------|
+| 02-01 schema/repository/validation | BON-01, BON-02 | bonus repository + validation + salary repository tests | green |
+| 02-01 tracer into next-payment forecast | BON-01, BON-02 | forecast tests | green |
+| 02-02 edit/delete repository and actions | BON-01, BON-02 | bonus repository + action tests | green |
+| 02-02 history UI behavior | BON-01 | form/row structural tests | green |
+| 02-03 validation and error containment fixes | BON-01, BON-02 | validation, forecast, form/row tests | green |
+| 02-04 stale-edit and concurrent-resync closure | BON-01, BON-02 | `bonus-row.render.test.tsx` | green |
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| Full bonus create/edit/delete/forecast UX flow (visual breakdown, home screen reflection) | BON-01, BON-02 | UI rendering and cross-device visual correctness are not covered by unit/integration assertions | Add a bonus for the next upcoming payment date; confirm the home screen's next-payment amount and breakdown update correctly. Edit and delete the bonus; confirm the display reverts. |
+None required for Phase 2 Nyquist coverage. The originally planned click-through behaviors are now exercised through action/integration tests and mounted component render tests.
 
----
+The milestone audit's bonus+vacation exact-date collision is a later cross-phase composition gap. It is not a missing Phase 2 test for the Phase 2-delivered bonus-only and bonus+scheduled-payment behavior, and remains tracked in `v1.0-MILESTONE-AUDIT.md` for closure.
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] Every Phase 2 task has automated verification
+- [x] BON-01 has validation, persistence, action, and mounted UI coverage
+- [x] BON-02 has cumulative-tax, standalone-event, same-date scheduled breakdown, and edit-recompute coverage
+- [x] Former CR-01/WR-01/WR-02 form-resync gaps have regression tests
+- [x] Phase subset passes: 8 files, 80 tests
+- [x] No missing or failing Phase 2 tests
+- [x] No watch-mode commands
+- [x] `nyquist_compliant: true`
 
-**Approval:** pending
+**Approval:** validated 2026-08-31
 
----
+## Validation Audit 2026-08-31
 
-*Phase: 02-bonuses-one-off-payments*
-*Derived from: 02-RESEARCH.md § Validation Architecture*
+| Metric | Count |
+|--------|-------|
+| Requirements audited | 2 |
+| Covered | 2 |
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+| Tests passed | 80 |
