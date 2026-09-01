@@ -17,10 +17,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # vitest.config.ts passes `--no-experimental-webstorage` to disable
+      # Node's built-in global localStorage in jsdom tests; that flag only
+      # exists from Node 22.4+ (webstorage landed experimentally in 22.4.0)
+      # — Node 20 rejects it as "bad option" and crashes the test worker.
+      # Next.js 16 itself only requires Node 20+, but this project's test
+      # suite needs 22+.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
 
       - name: Install dependencies
