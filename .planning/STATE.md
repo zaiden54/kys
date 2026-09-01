@@ -159,9 +159,21 @@ None yet.
 - [Phase 1] Statute verification still outstanding: 2025 НДФЛ bracket thresholds (НК РФ ст.224) have not been confirmed against primary legal text — no live web access in this execution sandbox (curl to consultant.ru and pravo.gov.ru both failed to connect). NDFL_SCALES ordering/values are code-verified but not statute-cross-checked (see T-01-08-04 in 01-SECURITY.md). Confirm before relying on exact bracket numbers in production.
 - [Phase 2, low severity] BonusRow's `keepDirtyValues: true` (WR-01 fix) narrows but does not fully close the possibility of submitting a value based on a premise that changed underneath the user during a concurrent cross-device edit — no inline conflict notice was added; this was a deliberate scope choice (02-REVIEW-FIX.md), not an oversight. Revisit if concurrent multi-device editing of the same bonus turns out to be a real usage pattern.
 - [Phase 3, 03-04] Browser-based manual UAT (03-VALIDATION.md Manual-Only Verifications row) not click-through-performed in this autonomous session — recorded as an open unrun-verify entry in .planning/WINDOWS.md; substituted with npm run build + full 315-test automated suite. A human should complete the walkthrough before considering Phase 3 UAT fully closed.
-- Research flag (v1.1, Phase 5): confirm the target Vercel staging domain/branch doesn't already exist before creating it (research/SUMMARY.md Gaps to Address #1)
+- [Phase 5, resolved 2026-09-01] Research flag (confirm target Vercel staging domain/branch doesn't already exist) made moot — the persistent-staging concept itself was dropped mid-execution in favor of per-PR preview isolation (see 05-04-SUMMARY.md key-decisions).
 - Research flag (v1.1, Phase 7): Neon globalSetup for Playwright's isolated-branch-per-CI-run pattern is proven locally but needs validation once it actually runs inside GitHub Actions (research/SUMMARY.md Gaps to Address #2)
 - Research flag (v1.1, Phase 8): visual-regression baseline screenshots need explicit design agreement before the redesign lands, or regressions will pass silently (research/PITFALLS.md #6)
+
+## Deferred Verification
+
+| Phase | State | Resume |
+|-------|-------|--------|
+| 5 | verification_deferred_human | /gsd-verify-work 5 |
+
+Phase 5 is functionally complete and technically verified (VERIFICATION.md: `human_needed`, 0 open gaps — the prior lint regression was found and fixed in this session). Two items need the user's own Vercel-account access, which this session does not have:
+1. Confirm `BETTER_AUTH_SECRET` differs between Production and Preview (Vercel dashboard → `on-hands` project → Settings → Environment Variables). Ledgered as `.planning/WINDOWS.md` #4.
+2. Open PR #2's live preview URL (logged into the project's Vercel account) and confirm register/login succeed end-to-end.
+
+User explicitly asked to stop and verify these personally rather than continue/defer automatically (2026-09-01). Run `/gsd-verify-work 5` after checking both, or address them manually and update `05-VERIFICATION.md`/`WINDOWS.md` #4 directly.
 
 ## Deferred Items
 
@@ -173,10 +185,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-01T13:20:58.094Z
-Stopped at: Phase 5 complete (05-01..05-04) — staging scope revised to per-PR preview
+Last session: 2026-09-01T17:20:00.000Z
+Stopped at: Phase 5 technically verified (human_needed) — stopped at user's request to manually check the 2 deferred human-verification items before continuing
 Resume file: None
 
 ## Operator Next Steps
 
-- Review the v1.1 roadmap draft, then run `/gsd-plan-phase 5` to start Deploy Pipeline & Environment Config
+- Check the 2 deferred items in "Deferred Verification" above (BETTER_AUTH_SECRET Preview scoping in Vercel dashboard; live login on PR #2's preview URL), then run `/gsd-verify-work 5` to close out Phase 5, or `/gsd-autonomous --from 6` to continue the milestone once satisfied
