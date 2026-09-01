@@ -52,7 +52,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 (НДФЛ/премии/отпускные).
 
 - [x] **Phase 5: Deploy Pipeline & Environment Config** - Isolated per-PR preview environments (Vercel + Neon) with correctly scoped env vars, a single deploy owner per environment, and a CI quality gate (completed 2026-09-01)
-- [ ] **Phase 6: Auth Security Hardening** - Login/registration flow verified to leak no credentials, give no enumeration signal, and set correctly-flagged session cookies
+- [x] **Phase 6: Auth Security Hardening** - Login/registration flow verified to leak no credentials, give no enumeration signal, and set correctly-flagged session cookies (completed 2026-09-01)
 - [ ] **Phase 7: E2E Test Suite** - Playwright golden-path coverage of every v1.0 feature, running in CI against an isolated Neon branch, with Playwright MCP wired up
 - [ ] **Phase 8: Visual Redesign, Accessibility & PWA Safe-Area** - Full visual redesign, consistent money formatting, empty/error/loading states, confirmation dialogs, dark mode, accessibility basics, and Dynamic Island-safe layout
 
@@ -148,6 +148,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Vacation Pay | v1.0 | 4/4 | Complete | 2026-08-31 |
 | 4. Annual Overview & PWA Installability | v1.0 | 3/3 | Complete | 2026-08-31 |
 | 5. Deploy Pipeline & Environment Config | v1.1 | 4/4 | Complete    | 2026-09-01 |
-| 6. Auth Security Hardening | v1.1 | 1/1 | In Progress|  |
+| 6. Auth Security Hardening | v1.1 | 1/1 | Complete    | 2026-09-01 |
 | 7. E2E Test Suite | v1.1 | 0/TBD | Not started | - |
 | 8. Visual Redesign, Accessibility & PWA Safe-Area | v1.1 | 0/TBD | Not started | - |
