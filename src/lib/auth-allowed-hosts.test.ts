@@ -43,6 +43,12 @@ describe("ALLOWED_AUTH_HOSTS + matchesHostPattern", () => {
       expect(matchesHostPattern("evil.com", pattern)).toBe(false);
     }
   });
+
+  it("never matches an unrelated Vercel-hosted project against any configured pattern", () => {
+    for (const pattern of ALLOWED_AUTH_HOSTS) {
+      expect(matchesHostPattern("evil-project.vercel.app", pattern)).toBe(false);
+    }
+  });
 });
 
 describe("resolveDynamicBaseURL with ALLOWED_AUTH_HOSTS", () => {
