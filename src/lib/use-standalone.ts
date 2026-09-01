@@ -24,9 +24,15 @@ function detectStandalone(): boolean {
  * on matchMedia "change" events.
  */
 export function useIsStandalone(): boolean {
-  const [isStandalone, setIsStandalone] = useState(detectStandalone);
+  // Initialized to a stable `false` (not detectStandalone()) so the server
+  // render and the client's hydration render always match — `window` is
+  // always undefined on the server, but on the client an actually-standalone
+  // app would otherwise return `true` on that very first hydration pass,
+  // causing a hydration mismatch. The real value is computed after mount.
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
+    setIsStandalone(detectStandalone());
     const mediaQuery = window.matchMedia("(display-mode: standalone)");
     function handleChange() {
       setIsStandalone(detectStandalone());
