@@ -46,10 +46,20 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
         reset(values, { keepDirtyValues: false });
         return;
       }
+      let handled = false;
       for (const [field, messages] of Object.entries(result.fieldErrors)) {
-        if ((field === "amountRubles" || field === "date" || field === "note") && messages?.[0]) {
-          setError(field, { message: messages.join(" ") });
+        if (
+          (field === "amountRubles" || field === "date" || field === "note" || field === "type") &&
+          messages?.[0]
+        ) {
+          setError(field as keyof BonusInput, { message: messages.join(" ") });
+          handled = true;
         }
+      }
+      if (!handled) {
+        setErrorMessage(
+          Object.values(result.fieldErrors).flat().join(" ") || "Не удалось сохранить бонус.",
+        );
       }
     } catch {
       if (editSessionRef.current !== session) return; // superseded — do nothing
