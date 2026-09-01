@@ -51,10 +51,17 @@ export function VacationRow({
         reset(values, { keepDirtyValues: false });
         return;
       }
+      let handled = false;
       for (const [field, messages] of Object.entries(result.fieldErrors)) {
         if ((field === "startDate" || field === "endDate") && messages?.[0]) {
           setError(field, { message: messages.join(" ") });
+          handled = true;
         }
+      }
+      if (!handled) {
+        setErrorMessage(
+          Object.values(result.fieldErrors).flat().join(" ") || "Не удалось сохранить отпуск.",
+        );
       }
     } catch {
       if (editSessionRef.current !== session) return; // superseded — do nothing
