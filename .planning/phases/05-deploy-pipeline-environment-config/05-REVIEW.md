@@ -1,6 +1,6 @@
 ---
 phase: 05-deploy-pipeline-environment-config
-reviewed: 2026-09-01T00:00:00Z
+reviewed: 2026-09-01T18:30:00Z
 depth: standard
 files_reviewed: 14
 files_reviewed_list:
@@ -20,163 +20,187 @@ files_reviewed_list:
   - src/lib/use-standalone.ts
 findings:
   critical: 1
-  warning: 4
-  info: 4
-  total: 9
+  warning: 1
+  info: 6
+  total: 8
 status: issues_found
 ---
 
-# Phase 05: Code Review Report
+# Phase 05: Code Review Report (Re-review)
 
-**Reviewed:** 2026-09-01T00:00:00Z
+**Reviewed:** 2026-09-01T18:30:00Z
 **Depth:** standard
 **Files Reviewed:** 14
 **Status:** issues_found
 
 ## Summary
 
-Reviewed the deploy-pipeline/environment-config phase's file set: CI workflow, env validation, the dynamic Better Auth host allowlist (SEC-04), a large integration test suite for `forecastNextPayment`, two nearly-identical bonus/vacation edit-row client components, the PWA install banner + standalone-detection hook, and project docs/config.
+This is a fresh adversarial pass over the same 14-file scope as the prior `05-REVIEW.md` / `05-REVIEW-FIX.md` cycle. The previously-fixed `WR-01` (vacation-row.tsx unmatched-field-error-swallowing) is confirmed still fixed in current source (`vacation-row.tsx:54-65` has the `handled`-flag fallback). The 5 previously-deferred Info items remain present and unaddressed, as expected (they were explicitly out of the prior fix pass's scope).
 
-The dynamic host-allowlist mechanism (`src/lib/auth-allowed-hosts.ts` + `src/lib/auth.ts`) is the security-critical centerpiece of this phase and is undermined by an overly broad wildcard that trusts far more than "this project's deployments," as its own comment claims — flagged as Critical below. Two further Warning-level correctness bugs were found outside the security surface: a client/server hydration mismatch in the PWA standalone-detection hook (ironic, since this is the exact primary use case the app targets), and a silently-swallowed server validation error path in the bonus edit form. The remaining findings are CI/process/doc hygiene items.
+This pass also found one new **Critical** issue by empirically testing the installed `better-auth@1.7.2` package's actual `matchesHostPattern`/`wildcardMatch` implementation against this project's own documented production hostnames (`.planning/phases/05-deploy-pipeline-environment-config/DEPLOYMENT.md`'s Environments table): the `ALLOWED_AUTH_HOSTS` wildcard pattern does **not** match two of the three live production domains, meaning Better Auth's dynamic `baseURL` resolution fails closed (throws) for real production traffic on those domains — this was not caught by the existing test suite because `auth-allowed-hosts.test.ts` never exercises those exact hostnames. One new Warning (unhandled `localStorage` access in `install-banner.tsx`) and one new Info (stale CI branch trigger) were also found.
 
 ## Critical Issues
 
-### CR-01: `ALLOWED_AUTH_HOSTS` wildcard trusts any Vercel-hosted app, not just this project's deployments
+### CR-01: `ALLOWED_AUTH_HOSTS` wildcard does not match 2 of the 3 documented production domains — breaks auth on production
 
-**File:** `src/lib/auth-allowed-hosts.ts:14` (consumed by `src/lib/auth.ts:27`)
+**File:** `src/lib/auth-allowed-hosts.ts:18-22` (consumed by `src/lib/auth.ts:27`)
 **Issue:**
-```ts
-export const ALLOWED_AUTH_HOSTS: string[] = ["localhost:3000", "*.vercel.app"];
-```
-The file's own docstring claims `*.vercel.app` "covers every Vercel-hosted deployment **for this project**" — but the pattern is not scoped to this project at all. `*.vercel.app` matches literally any hostname on Vercel's shared apex domain, including deployments belonging to completely unrelated Vercel accounts/projects (anyone can claim a free `<anything>.vercel.app` subdomain instantly, with no relationship to this codebase).
 
-This allowlist feeds `betterAuth`'s dynamic `baseURL` resolution (`auth.ts:27`), which determines the trusted origin used to build auth callback/verification URLs and to validate the request. `auth.ts`'s own comment states the `fallback` was *deliberately* omitted so an unrecognized `Host` header "throws instead of silently resolving to a default trusted origin (fail-closed)" — but the wildcard's breadth defeats that fail-closed intent: an incoming request whose `Host` header is any `*.vercel.app` string (not just this project's known deployment hostnames) is accepted as trusted, regardless of whether it actually belongs to this project. If the Host header used for this decision can be influenced by a client (a common risk pattern on CDNs/edge platforms that forward the raw `Host` header rather than validating it against the routing/SNI domain), this allows Host-header-driven trust confusion for a financial application's auth surface (session/callback URL generation).
-
-Notably, `auth-allowed-hosts.test.ts:41-45` ("never matches an untrusted host") only exercises `evil.com` against each pattern — it never asserts that an arbitrary *other* `*.vercel.app` hostname (e.g. `evil-project.vercel.app`, which the wildcard *would* match) is rejected. The test suite as written cannot catch a regression toward, or already-present over-permissiveness of, this exact risk.
-
-**Fix:** Scope the wildcard to this project's actual deployment naming convention instead of the whole `vercel.app` TLD, e.g.:
+The current allowlist is:
 ```ts
 export const ALLOWED_AUTH_HOSTS: string[] = [
   "localhost:3000",
   "on-hands-*-careeremit-9861s-projects.vercel.app", // PR previews + staging alias
-  // add the production custom domain here once one exists, per this file's own comment
 ];
 ```
-and add a regression test asserting `matchesHostPattern("evil-project.vercel.app", pattern)` is `false` for every configured pattern, alongside the existing `evil.com` case, to actually prove the allowlist doesn't trust unrelated Vercel deployments.
+
+`.planning/phases/05-deploy-pipeline-environment-config/DEPLOYMENT.md`'s own Environments table (written during this same phase, "Live as of 2026-09-01") lists **three** production hostnames:
+
+- `on-hands-three.vercel.app`
+- `on-hands-careeremit-9861s-projects.vercel.app`
+- `on-hands-git-main-careeremit-9861s-projects.vercel.app`
+
+I verified empirically against the actual installed package (`better-auth@1.7.2`'s `matchesHostPattern`, which the project's own `auth-allowed-hosts.test.ts` also imports) whether each is matched by the configured pattern:
+
+```
+$ node -e '
+const { matchesHostPattern } = require("better-auth");
+const pattern = "on-hands-*-careeremit-9861s-projects.vercel.app";
+for (const h of [
+  "on-hands-three.vercel.app",
+  "on-hands-careeremit-9861s-projects.vercel.app",
+  "on-hands-git-main-careeremit-9861s-projects.vercel.app",
+]) console.log(h, "=>", matchesHostPattern(h, pattern));
+'
+on-hands-three.vercel.app => false
+on-hands-careeremit-9861s-projects.vercel.app => false
+on-hands-git-main-careeremit-9861s-projects.vercel.app => true
+```
+
+Root cause: `better-auth`'s `wildcardMatch` (`node_modules/better-auth/dist/utils/wildcard.mjs`) compiles `*` into a regex wildcard that still requires the literal `-` characters immediately surrounding it to be present in the input. The pattern `on-hands-*-careeremit-9861s-projects.vercel.app` requires the matched host to contain **two** hyphens between `on-hands` and `careeremit` (one consumed by the `*`, one literal) — but `on-hands-careeremit-9861s-projects.vercel.app` (no branch/hash segment) has only **one**, and `on-hands-three.vercel.app` doesn't contain `careeremit` at all. Only the git-branch-alias-style hostname (`on-hands-git-main-...`, `on-hands-<hash>-...`) satisfies the pattern.
+
+Since `src/lib/auth.ts:27` configures `baseURL: { allowedHosts: ALLOWED_AUTH_HOSTS }` with **no `fallback`** (deliberately, "fail-closed" per the comment on line 25-26), `resolveDynamicBaseURL` throws a `BetterAuthError` for any request whose `Host` header is `on-hands-three.vercel.app` or `on-hands-careeremit-9861s-projects.vercel.app` — i.e. real production traffic arriving via either of those two documented production domains gets every Better Auth-touching request (login, register, session check) failing with a thrown error instead of a resolved base URL. This is a production-breaking regression, not a preview-only edge case: `DEPLOYMENT.md` explicitly documents these as live production domains, and Vercel does not automatically redirect between a project's multiple assigned production domains.
+
+This gap exists because `auth-allowed-hosts.test.ts` only exercises hash-style and branch-alias-style hostnames (`on-hands-6zdzwlrld-careeremit-...`, `on-hands-git-staging-careeremit-...`) — it never asserts against the two "bare" production hostnames that `DEPLOYMENT.md` itself documents as live, so this regression has no test coverage that would have caught it.
+
+**Fix:** Add the two missing production hostnames as explicit exact entries (they're static, known values — no wildcard needed), and add regression tests pinned to the real documented hostnames so this can't silently regress again:
+
+```ts
+export const ALLOWED_AUTH_HOSTS: string[] = [
+  "localhost:3000",
+  "on-hands-*-careeremit-9861s-projects.vercel.app", // PR previews + staging/main branch aliases
+  "on-hands-careeremit-9861s-projects.vercel.app", // production: team-scoped default domain (no branch segment)
+  "on-hands-three.vercel.app", // production: project's short default domain
+];
+```
+
+```ts
+// auth-allowed-hosts.test.ts
+it("matches both bare production domains documented in DEPLOYMENT.md", () => {
+  expect(
+    ALLOWED_AUTH_HOSTS.some((p) => matchesHostPattern("on-hands-three.vercel.app", p)),
+  ).toBe(true);
+  expect(
+    ALLOWED_AUTH_HOSTS.some((p) =>
+      matchesHostPattern("on-hands-careeremit-9861s-projects.vercel.app", p),
+    ),
+  ).toBe(true);
+});
+```
 
 ## Warnings
 
-### WR-01: `useIsStandalone` hydration mismatch defeats its own purpose on first paint
+### WR-01: `install-banner.tsx` has no error handling around `localStorage` access — a thrown storage error crashes the render
 
-**File:** `src/lib/use-standalone.ts:13-19,27`
+**File:** `src/components/install-banner.tsx:11-35`
 **Issue:**
 ```ts
-function detectStandalone(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    (window.navigator.standalone === true ||
-      window.matchMedia("(display-mode: standalone)").matches)
-  );
+function getDismissedSnapshot(): boolean {
+  return window.localStorage.getItem(DISMISSED_KEY) === "1";
+}
+...
+function setDismissedFlag(value: boolean) {
+  if (value) {
+    window.localStorage.setItem(DISMISSED_KEY, "1");
+  } else {
+    window.localStorage.removeItem(DISMISSED_KEY);
+  }
+  window.dispatchEvent(new Event(DISMISSED_CHANGED_EVENT));
+}
+```
+`getDismissedSnapshot` is passed directly as the `getSnapshot` argument to `useSyncExternalStore`, and `setDismissedFlag` is called synchronously from an effect (`isStandalone` becoming true) and from the dismiss button's click handler. Neither call site wraps `localStorage` access in a `try`/`catch`. Safari (the explicit target platform per `.claude/CLAUDE.md`'s PWA constraint) can throw `SecurityError`/`QuotaExceededError` from `localStorage.getItem`/`setItem` when storage is restricted (e.g. "Block All Cookies" enabled, or genuinely full storage) — since `getDismissedSnapshot` runs on every `useSyncExternalStore` render pass, a throw here propagates as an uncaught exception during render, which (absent an error boundary around this component) takes down the entire page, not just the banner.
+**Fix:** Wrap both localStorage accesses defensively and fail to a safe default (banner visible / dismiss no-op) rather than crashing:
+```ts
+function getDismissedSnapshot(): boolean {
+  try {
+    return window.localStorage.getItem(DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
-export function useIsStandalone(): boolean {
-  const [isStandalone, setIsStandalone] = useState(detectStandalone);
-  ...
-```
-`useState(detectStandalone)` runs the lazy initializer on every fresh render pass, including both the server render of this `"use client"` component and the client's hydration render. On the server `window` is undefined, so `detectStandalone()` always returns `false`; on the client, if the app is actually running standalone (the app's primary target scenario per CLAUDE.md — "PWA, устанавливаемое на домашний экран iPhone"), the same initializer returns `true` during hydration. This is the exact class of bug React's own docs warn against (window-dependent state must not be read directly in a lazy `useState` initializer for SSR'd client components) — it produces a client/server output mismatch, causing a hydration error/flash for `InstallBanner` (which renders full banner markup vs. `null` depending on this value) precisely for users running the app as an installed PWA, i.e. the app's flagship use case. Notably, the sibling `dismissed` state in `install-banner.tsx` already handles this correctly via `useSyncExternalStore` with a distinct `getServerSnapshot`; `isStandalone` does not follow the same pattern.
-
-**Fix:** Initialize to a stable `false` and compute the real value only after mount:
-```ts
-export function useIsStandalone(): boolean {
-  const [isStandalone, setIsStandalone] = useState(false);
-
-  useEffect(() => {
-    setIsStandalone(detectStandalone());
-    const mediaQuery = window.matchMedia("(display-mode: standalone)");
-    function handleChange() {
-      setIsStandalone(detectStandalone());
+function setDismissedFlag(value: boolean) {
+  try {
+    if (value) {
+      window.localStorage.setItem(DISMISSED_KEY, "1");
+    } else {
+      window.localStorage.removeItem(DISMISSED_KEY);
     }
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
-  return isStandalone;
-}
-```
-or migrate to `useSyncExternalStore` for consistency with the dismissed-flag implementation in the same feature.
-
-### WR-02: Bonus edit form silently drops server validation errors for the `type` field
-
-**File:** `src/app/(app)/bonuses/bonus-row.tsx:49-53`
-**Issue:**
-```ts
-for (const [field, messages] of Object.entries(result.fieldErrors)) {
-  if ((field === "amountRubles" || field === "date" || field === "note") && messages?.[0]) {
-    setError(field, { message: messages.join(" ") });
+  } catch {
+    // storage unavailable — dismissal simply won't persist across reloads
   }
+  window.dispatchEvent(new Event(DISMISSED_CHANGED_EVENT));
 }
 ```
-`type` is a registered, user-editable field in this form (`<select ... {...register("type")}>`, `toDefaults` includes `type: bonus.type`), but it is excluded from the field-error allowlist above. If `saveBonusAction` ever returns `result.fieldErrors.type` (e.g. schema drift, an unexpected enum value), this loop does nothing with it. Unlike `onDelete` (which surfaces every message via `Object.values(result.fieldErrors).flat().join(" ")`), `onEdit`'s failure path (`result.success === false`) has **no fallback path that sets the top-level `error` state** — that state is only set in the `catch` block for thrown exceptions. The net effect: a save can fail with zero visible feedback — no field error, no banner error, button just stops showing "Сохранение…" — leaving the user unsure whether anything happened. `vacation-row.tsx`'s equivalent loop correctly enumerates all of its editable fields (`startDate`, `endDate`), so this is an inconsistency specific to the bonus row.
-
-**Fix:** Either include `"type"` in the allowlist, or (more robust against future field additions) fall back to a generic message for any unmatched field, mirroring `onDelete`:
-```ts
-let handled = false;
-for (const [field, messages] of Object.entries(result.fieldErrors)) {
-  if ((field === "amountRubles" || field === "date" || field === "note" || field === "type") && messages?.[0]) {
-    setError(field as keyof BonusInput, { message: messages.join(" ") });
-    handled = true;
-  }
-}
-if (!handled) {
-  setErrorMessage(Object.values(result.fieldErrors).flat().join(" ") || "Не удалось сохранить бонус.");
-}
-```
-
-### WR-03: CI workflow does not set an explicit least-privilege `permissions` block
-
-**File:** `.github/workflows/ci.yml:1-14`
-**Issue:** The workflow has no top-level `permissions:` key, so the `GITHUB_TOKEN` used by `actions/checkout`/`actions/setup-node` gets whatever default scope the repository/org settings grant (which can be broader than `contents: read`, e.g. `write` on some org defaults). None of the steps in this workflow need anything beyond read access to check out the repo.
-**Fix:**
-```yaml
-permissions:
-  contents: read
-```
-added at the workflow (or job) level, per standard GitHub Actions hardening guidance.
-
-### WR-04: README's local setup instructions omit the Node.js version requirement needed to actually run the test suite
-
-**File:** `README.md:1-9`
-**Issue:** `.github/workflows/ci.yml:20-25` documents in detail that this project's test suite requires **Node 22.4+** because `vitest.config.ts` passes `--no-experimental-webstorage`, which Node 20 rejects outright ("Next.js 16 itself only requires Node 20+, but this project's test suite needs 22+"). The README's "Running locally" section (steps 1-4) never mentions a Node version requirement at all. A contributor following just the README on Node 20/21 (satisfying Next.js's own stated minimum) would hit a confusing worker crash the first time they run `npm test`, with no clue from project docs about why.
-**Fix:** Add a Node version line to the README's setup steps, e.g. "Requires Node.js 22.4+ (see `.github/workflows/ci.yml` for why)", or add an `"engines"` field to `package.json` so `npm install`/`npm ci` warn/fail loudly instead of failing silently at test time.
 
 ## Info
 
-### IN-01: Inconsistent dependency version pinning in `package.json`
+### IN-01: `useIsStandalone`'s hydration-safety fix has no regression test (carried forward, unresolved)
+
+**File:** `src/lib/use-standalone.ts` (whole file)
+**Issue:** The hook's stable-`false` initial `useState` value (the SSR-hydration-mismatch fix from an earlier review iteration) is not covered by a dedicated unit test asserting the hook's synchronous first-render value is `false` even when `detectStandalone()` would return `true`. A future refactor reintroducing a lazy `useState(detectStandalone)` initializer would not be caught by any test in this scope.
+**Fix:** Add a unit test that mocks `matchMedia`/`navigator.standalone` to report standalone `true` before mount and asserts the hook's first returned value is still `false`.
+
+### IN-02: Inconsistent dependency version pinning in `package.json` (carried forward, unresolved)
 
 **File:** `package.json:26-28,46`
-**Issue:** `next` (`16.3.3`), `react`/`react-dom` (`19.2.8`), and `typescript` (`6.0.3`) are pinned to exact versions while every other dependency uses a caret range (`^...`). For `typescript` this is clearly intentional (AGENTS.md explicitly calls out staying on the `6.0.x` line until `typescript-eslint` supports 7.x), but `next`/`react`/`react-dom` have no such documented rationale in this file, making the inconsistency look accidental rather than deliberate.
-**Fix:** Either add a short comment explaining the exact pins (consistent with the `typescript` precedent) or switch them to caret ranges if there's no reason to block patch upgrades.
+**Issue:** `next` (`16.3.3`) and `react`/`react-dom` (`19.2.8`) are pinned to exact versions with no comment explaining why, while every other dependency uses a caret range. `typescript` (`6.0.3`) is also pinned exactly but *is* documented (AGENTS.md explains the `typescript-eslint` 7.x incompatibility).
+**Fix:** Add a short comment explaining the `next`/`react`/`react-dom` pins, or switch them to caret ranges if there's no reason to block patch upgrades.
 
-### IN-02: `as Resolver<...>` type assertion around `zodResolver` in both edit-row components
+### IN-03: `as Resolver<...>` type assertion around `zodResolver` in both edit-row components (carried forward, unresolved)
 
 **File:** `src/app/(app)/bonuses/bonus-row.tsx:25`, `src/app/(app)/vacations/vacation-row.tsx:29`
-**Issue:** `resolver: zodResolver(bonusInputSchema) as Resolver<BonusInput>` (and the vacation equivalent) casts around a type mismatch between the resolver's inferred type and the form's `BonusInput`/`VacationInput` type rather than resolving it structurally. This is a common `react-hook-form` + `zod` v4 friction point, but as written it silently suppresses whatever real mismatch triggered the need for the cast, and would mask a genuine field-shape drift between the zod schema and the form type in the future.
-**Fix:** If the mismatch is a known library-type limitation, consider isolating it in a single shared typed-resolver helper (`function typedResolver<T>(schema) { ... }`) with an explanatory comment, rather than repeating an unexplained `as` cast in each row component.
+**Issue:** Both components cast `zodResolver(...)`'s result with `as Resolver<...>`, silently suppressing whatever structural type mismatch triggered the need for the cast.
+**Fix:** Isolate the cast in a single shared typed-resolver helper with an explanatory comment, rather than repeating an unexplained `as` cast in each row component.
 
-### IN-03: `forecast.test.ts`'s `requireUserId` mock is never reset between tests
+### IN-04: `forecast.test.ts`'s `requireUserId` mock is never reset between tests (carried forward, unresolved)
 
 **File:** `src/app/actions/forecast.test.ts:36`
-**Issue:** `vi.mock("@/lib/session", () => ({ requireUserId: vi.fn() }))` is declared once at module scope with no `afterEach(() => vi.clearAllMocks())`/`mockReset()`. Only tests (12) and (18) actually depend on this mock, and both correctly set their own `mockResolvedValue` immediately before use, so there's no current failure — but the mock's return value silently persists across all other tests in the file with no test-order independence guarantee if a future test is added that relies on this mock's default (unset) state.
-**Fix:** Add `afterEach(() => vi.mocked(requireUserId).mockReset())` (or a file-level `afterEach(() => vi.clearAllMocks())`) for test isolation hygiene going forward.
+**Issue:** `vi.mock("@/lib/session", () => ({ requireUserId: vi.fn() }))` is declared once at module scope with no `afterEach` reset. Only tests (12) and (18) depend on it and both set their own value immediately before use, so there's no current failure, but there's no isolation guarantee for tests added later in this file.
+**Fix:** Add `afterEach(() => vi.mocked(requireUserId).mockReset())`.
 
-### IN-04: README retains generic `create-next-app` boilerplate inconsistent with this project's npm-only workflow
+### IN-05: README retains generic `create-next-app` boilerplate inconsistent with this project's actual workflow (carried forward, unresolved)
 
-**File:** `README.md:14-22`
-**Issue:** The "Getting Started" section still lists `yarn dev` / `pnpm dev` / `bun dev` as interchangeable alternatives to `npm run dev`, despite the repo only having a `package-lock.json` (no `yarn.lock`/`pnpm-lock.yaml`/`bun.lockb`) and CI exclusively using `npm ci`/`npm run ...`. A contributor who follows the yarn/pnpm/bun path would get a lockfile out of sync with what CI and other contributors use.
-**Fix:** Trim the boilerplate "Getting Started"/"Learn More"/"Deploy on Vercel" sections down to the npm-only workflow already established in the project-specific "Running locally" section at the top, or explicitly note npm as the only supported package manager.
+**File:** `README.md:14-45`
+**Issue:** The "Getting Started" section still lists `yarn dev`/`pnpm dev`/`bun dev` as interchangeable alternatives to `npm run dev`, despite the repo having only a `package-lock.json` and CI exclusively using `npm ci`/`npm run ...`. The "Deploy on Vercel" section is also unmodified `create-next-app` boilerplate ("The easiest way to deploy... use the Vercel Platform") that doesn't reflect this project's actual, more specific release procedure (PR-preview manual check → branch-protected merge to `main`, documented in `.planning/phases/05-deploy-pipeline-environment-config/DEPLOYMENT.md`, which the README never references).
+**Fix:** Trim the boilerplate package-manager alternatives down to the npm-only workflow already established in "Running locally", and either replace the "Deploy on Vercel" boilerplate with a short pointer to the project's actual release procedure or remove it.
+
+### IN-06: CI workflow still triggers on pushes to a `staging` branch that no longer exists
+
+**File:** `.github/workflows/ci.yml:9-10`
+**Issue:**
+```yaml
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, staging]
+```
+Per this same phase's own `DEPLOYMENT.md` ("The `staging` git branch and its Neon branch were deleted after this decision"), the standalone `staging` branch concept was explicitly dropped during Phase 5 execution and the branch was deleted. The `push: branches: [main, staging]` trigger is now dead configuration — harmless (it simply never fires, since the branch doesn't exist), but misleading to a future reader who doesn't know to cross-reference `DEPLOYMENT.md` to learn the `staging` entry is stale.
+**Fix:** Remove `staging` from the push trigger's branch list (`push: branches: [main]`), or add a one-line comment noting it's kept intentionally in case the branch is recreated.
 
 ---
 
-_Reviewed: 2026-09-01T00:00:00Z_
+_Reviewed: 2026-09-01T18:30:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
