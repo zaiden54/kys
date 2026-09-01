@@ -34,7 +34,7 @@ export default function LoginPage() {
       password: values.password,
     });
     if (error) {
-      setFormError(error.message ?? "Не удалось войти");
+      setFormError("Неверный email или пароль");
       return;
     }
     // G-04-2: refresh before push so (app)/layout.tsx's server-side
