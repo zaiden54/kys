@@ -1,8 +1,9 @@
 ---
 phase: 05-deploy-pipeline-environment-config
 verified: 2026-09-01T17:15:00Z
-status: human_needed
-score: 5/5 truths verified (1 additional truth partially verified via disclosed, ledgered gap)
+human_confirmed: 2026-09-01
+status: passed
+score: 6/6 truths verified
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -16,9 +17,11 @@ human_verification:
   - test: "Confirm BETTER_AUTH_SECRET differs between Production and Preview in the Vercel dashboard (on-hands project → Settings → Environment Variables)"
     expected: "BETTER_AUTH_SECRET has a distinct value for Preview vs. Production — no shared production secret leaking into Preview"
     why_human: "No available tool (Neon MCP, Vercel MCP, or an authenticated vercel CLI session) can read or write Vercel project environment variables in this environment. This is a disclosed, ledgered gap (WINDOWS.md entry #4, open) with DATABASE_URL already confirmed auto-scoped per-branch — only BETTER_AUTH_SECRET is unverified."
+    result: "confirmed 2026-09-01 — user set separate BETTER_AUTH_SECRET values for Preview and Production in the Vercel dashboard (screenshot: two distinct entries, added/updated minutes apart). WINDOWS.md #4 marked fixed; DEPLOY-02 marked Complete."
   - test: "Open PR #2's preview URL while logged into the project's Vercel account and exercise register/login now that CI is green"
     expected: "App loads, register/login succeed, no cross-environment redirect or cookie failures — confirming SEC-04's dynamic allowedHosts resolution end-to-end on a live deployment, not just via the unit test"
     why_human: "Vercel Authentication (SSO) is enabled project-wide and blocks unauthenticated/scripted access to every non-custom-domain deployment URL, including PR-previews. This is why DEPLOYMENT.md's release procedure explicitly documents this step as manual. The unit test (auth-allowed-hosts.test.ts) proves the resolution logic is correct against the installed better-auth package, but does not exercise a live HTTP request/response/cookie cycle."
+    result: "confirmed 2026-09-01 — user completed a real registration on the PR-preview deployment (https://on-hands-git-gsd-phase-05-depl-ae5802-careeremit-9861s-projects.vercel.app/), proving SEC-04's dynamic allowedHosts resolution end-to-end on a live deployment."
 ---
 
 # Phase 5: Deploy Pipeline & Environment Config Verification Report
@@ -26,8 +29,18 @@ human_verification:
 **Phase Goal:** Changes move from feature branch to production through one safe, unambiguous pipeline — isolated per-PR preview environments separate from production, environment-scoped configuration, and no double-deploy races — with `BETTER_AUTH_URL`/allowed-hosts resolving correctly everywhere.
 
 **Verified:** 2026-09-01T17:15:00Z
-**Status:** human_needed
-**Re-verification:** Yes — after gap closure
+**Human-confirmed:** 2026-09-01
+**Status:** passed
+**Re-verification:** Yes — after gap closure, then human confirmation of both deferred items
+
+## Human Confirmation (2026-09-01)
+
+Both deferred human-verification items are now confirmed by the user directly:
+
+1. **BETTER_AUTH_SECRET Preview/Production scoping** — user set separate values via the Vercel dashboard (screenshot confirms two distinct `BETTER_AUTH_SECRET` entries, one scoped to Preview, one to Production). `WINDOWS.md` #4 marked fixed; `REQUIREMENTS.md` DEPLOY-02 marked Complete.
+2. **Live register/login on PR #2's preview URL** — user completed a real registration at `https://on-hands-git-gsd-phase-05-depl-ae5802-careeremit-9861s-projects.vercel.app/`, confirming SEC-04's dynamic `allowedHosts` resolution works end-to-end on a live deployment, not just in the unit test.
+
+All 6 truths (DEPLOY-01 through DEPLOY-05, SEC-04) are now fully verified. Phase 5 is complete.
 
 **Note on scope revision:** Phase 5's goal and DEPLOY-01/DEPLOY-04 wording were deliberately, user-approved revised mid-execution — a standalone persistent `staging` environment was dropped in favor of the already-live Vercel↔Neon per-PR preview isolation (see `05-04-SUMMARY.md` key-decisions, `ROADMAP.md` Phase 5 section, `DEPLOYMENT.md`). This verification checks the revised scope as the operative contract, not the original "persistent staging" wording. This revision itself is well-documented, cross-referenced consistently across `ROADMAP.md`, `REQUIREMENTS.md`, `DEPLOYMENT.md`, and `05-04-SUMMARY.md`, and is treated as legitimate — it is not counted as a gap.
 
