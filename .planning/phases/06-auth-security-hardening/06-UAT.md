@@ -1,15 +1,16 @@
 ---
-status: testing
+status: complete
 phase: 06-auth-security-hardening
 source: [06-VERIFICATION.md]
 started: 2026-09-02T00:05:00Z
-updated: 2026-09-02T00:05:00Z
+updated: 2026-09-02T00:12:00Z
 ---
 
 ## Current Test
 
 number: 1
 name: Task 3 Live HTTPS Cookie & Network Inspection
+result: pass
 expected: |
   Open PR #3's Vercel preview URL (https://on-hands-git-gsd-phase-06-auth-bca434-careeremit-9861s-projects.vercel.app) while logged into your Vercel account. Navigate to /login, open DevTools → Network tab.
   1. Submit the login form once with a wrong password for any account.
@@ -28,14 +29,14 @@ awaiting: user response
 
 ### 1. Task 3 Live HTTPS Cookie & Network Inspection
 expected: Password never in URL/query string (SEC-01); identical generic error text for both failure cases (SEC-02); session cookie has __Secure- prefix + HttpOnly + Secure + Path=/ (SEC-03) — all confirmed on the live PR-preview deployment via DevTools.
-result: [pending]
+result: pass — user confirmed all expected behaviors on the live PR #3 preview deployment 2026-09-02T00:12:00Z
 
 ## Summary
 
 total: 1
-passed: 0
+passed: 1
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
