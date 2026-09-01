@@ -9,7 +9,11 @@ const DISMISSED_KEY = "__pwa_install_banner_dismissed";
 const DISMISSED_CHANGED_EVENT = "install-banner-dismissed-changed";
 
 function getDismissedSnapshot(): boolean {
-  return window.localStorage.getItem(DISMISSED_KEY) === "1";
+  try {
+    return window.localStorage.getItem(DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 function getDismissedServerSnapshot(): boolean {
@@ -26,10 +30,14 @@ function subscribeToDismissed(onStoreChange: () => void): () => void {
 }
 
 function setDismissedFlag(value: boolean) {
-  if (value) {
-    window.localStorage.setItem(DISMISSED_KEY, "1");
-  } else {
-    window.localStorage.removeItem(DISMISSED_KEY);
+  try {
+    if (value) {
+      window.localStorage.setItem(DISMISSED_KEY, "1");
+    } else {
+      window.localStorage.removeItem(DISMISSED_KEY);
+    }
+  } catch {
+    // storage unavailable — dismissal simply won't persist across reloads
   }
   window.dispatchEvent(new Event(DISMISSED_CHANGED_EVENT));
 }
