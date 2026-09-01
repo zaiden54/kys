@@ -98,12 +98,12 @@ Plans:
   2. Submitting a wrong password and submitting a non-existent email both return the same generic error message and response shape, so an attacker cannot distinguish the two cases (SEC-02)
   3. The session cookie set after login is confirmed via its actual `Set-Cookie` header (on a PR-preview deployment) to have `httpOnly`, `secure`, and a correctly scoped `path`/`domain` (SEC-03)
 
-**Plans**: 1 plan
+**Plans**: 1/1 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — SEC-02 hardcoded generic login error (tracer) + local automated proof of SEC-01/SEC-02/SEC-03 + live PR-preview verification of SEC-01/SEC-03's HTTPS-only guarantees
+- [x] 06-01-PLAN.md — SEC-02 hardcoded generic login error (tracer) + local automated proof of SEC-01/SEC-02/SEC-03 + live PR-preview verification of SEC-01/SEC-03's HTTPS-only guarantees
 
 ### Phase 7: E2E Test Suite
 
@@ -148,6 +148,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Vacation Pay | v1.0 | 4/4 | Complete | 2026-08-31 |
 | 4. Annual Overview & PWA Installability | v1.0 | 3/3 | Complete | 2026-08-31 |
 | 5. Deploy Pipeline & Environment Config | v1.1 | 4/4 | Complete    | 2026-09-01 |
-| 6. Auth Security Hardening | v1.1 | 0/1 | Planned | - |
+| 6. Auth Security Hardening | v1.1 | 1/1 | In Progress|  |
 | 7. E2E Test Suite | v1.1 | 0/TBD | Not started | - |
 | 8. Visual Redesign, Accessibility & PWA Safe-Area | v1.1 | 0/TBD | Not started | - |

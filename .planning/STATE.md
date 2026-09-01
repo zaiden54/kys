@@ -4,17 +4,17 @@ milestone: v1.1
 milestone_name: Полировка MVP
 current_phase: 6
 current_phase_name: Auth Security Hardening
-status: planning
-stopped_at: Phase 5 complete, ready to plan Phase 6
-last_updated: "2026-09-01T14:56:15.766Z"
+status: verifying
+stopped_at: "Completed 06-01-PLAN.md (auth security hardening: SEC-01/02/03); end-of-phase human DevTools check on PR #3 preview still pending"
+last_updated: "2026-09-01T20:28:41.129Z"
 last_activity: 2026-09-01
-last_activity_desc: Phase 5 complete, transitioned to Phase 6
-state_head: 29ecec5a0790854d08ca435d134986cfb468ee3c
+last_activity_desc: Phase 6 plan 01 executed (auth security hardening)
+state_head: 76883a8c0643049279286ab285bef81705aba576
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 5
+  completed_plans: 5
   percent: 25
 ---
 
@@ -29,12 +29,12 @@ See: .planning/PROJECT.md (updated 2026-09-01)
 
 ## Current Position
 
-Phase: 6 — Auth Security Hardening
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-01 — Phase 5 complete, transitioned to Phase 6
+Phase: 6 (Auth Security Hardening) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-09-01 — Phase 6 plan 01 executed (auth security hardening SEC-01/02/03)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -90,6 +90,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 05 P01 | 8min | 2 tasks | 6 files |
 | Phase 05 P02 | 15min | 2 tasks | 7 files |
 | Phase 05 P03 | 51min | 2 tasks | 2 files |
+| Phase 06 P01 | 65min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -147,6 +148,9 @@ Recent decisions affecting current work:
 - [Phase 5]: [Phase 05][05-02]: 2 pre-existing forecast.test.ts failures (bonus/scheduled + same-date vacation composition) marked it.skip with tracking comments rather than fixed — root cause is domain logic in forecastNextPayment, out of scope for a deploy-pipeline cleanup plan
 - [Phase 5]: [Phase 5]: [Phase 05][05-03]: CI database strategy resolved as Option A (scope CI to lint+typecheck+build+pure-domain-tests, no DB in CI at all) after neon-http driver proved incompatible with a vanilla postgres:17 container; repo search expanded the DB-test exclusion list from the user's 3 named files to 6 (schema.test.ts, annual-summary.test.ts, forecast.test.ts also unmocked db importers). Coverage gap tracked in WINDOWS.md #3, deferred to Phase 7's isolated-branch-per-CI-run.
 - [Phase 5]: [Phase 5]: [05-04]: Dropped the persistent staging environment concept — relies on Vercel's per-PR preview deployments instead, which already get isolated Neon branches via an existing Vercel-Neon Marketplace integration discovered mid-execution. DEPLOY-01/DEPLOY-04 wording revised in REQUIREMENTS.md/ROADMAP.md accordingly. Deleted the partially-provisioned staging git branch and its Neon branch. — The Vercel-Neon integration already isolates every branch (contradicting 05-RESEARCH.md's assumption of no such integration); making a persistent staging domain reachable would have required disabling Vercel Authentication project-wide (no "production only" API mode exists), a security-posture change the user declined once the trade-off was clear.
+- [Phase 6]: [Phase 6]: [06-01]: Login's onSubmit hardcodes the generic error string ("Неверный email или пароль") instead of passing through Better Auth's error.message/code — closes SEC-02's UI-layer enumeration vector; registration's page.tsx left untouched per locked scope decision
+- [Phase 6]: [Phase 6]: [06-01]: scripts/verify-auth-security.mjs uses raw fetch() (not Playwright) to empirically prove SEC-01/SEC-02(server)/SEC-03(structural) against a live dev server, matching the existing verify-auth-flow.mjs pattern and deferring Playwright's introduction to Phase 7
+- [Phase 6]: [Phase 6]: [06-01]: PR #3 (gsd/phase-06-auth-security-hardening -> main) confirmed open with CI green and live preview URL captured; the SEC-01/SEC-03 live DevTools human-check is deferred to end-of-phase UAT per workflow.human_verify_mode=end-of-phase
 
 ### Pending Todos
 
@@ -163,6 +167,7 @@ None yet.
 - [Phase 5, resolved 2026-09-01] Research flag (confirm target Vercel staging domain/branch doesn't already exist) made moot — the persistent-staging concept itself was dropped mid-execution in favor of per-PR preview isolation (see 05-04-SUMMARY.md key-decisions).
 - Research flag (v1.1, Phase 7): Neon globalSetup for Playwright's isolated-branch-per-CI-run pattern is proven locally but needs validation once it actually runs inside GitHub Actions (research/SUMMARY.md Gaps to Address #2)
 - Research flag (v1.1, Phase 8): visual-regression baseline screenshots need explicit design agreement before the redesign lands, or regressions will pass silently (research/PITFALLS.md #6)
+- [Phase 6, open] End-of-phase human DevTools check outstanding: PR #3 preview (https://on-hands-git-gsd-phase-06-auth-bca434-careeremit-9861s-projects.vercel.app) needs a logged-in Vercel account holder to confirm SEC-01 (password never in Network tab URL/query for wrong-password + unknown-email login attempts), SEC-02 (identical generic error text live), and SEC-03 (session cookie shows __Secure- prefix + HttpOnly + Secure + Path=/) per 06-01-PLAN.md Task 3's human-check, deferred per workflow.human_verify_mode=end-of-phase
 
 ## Deferred Items
 
@@ -174,8 +179,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-01T17:20:00.000Z
-Stopped at: Phase 5 complete, ready to plan Phase 6
+Last session: 2026-09-01T20:28:41.038Z
+Stopped at: Completed 06-01-PLAN.md (auth security hardening: SEC-01/02/03); end-of-phase human DevTools check on PR #3 preview still pending
 Resume file: None
 
 ## Operator Next Steps
