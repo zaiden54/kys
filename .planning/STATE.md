@@ -5,16 +5,16 @@ milestone_name: Полировка MVP
 current_phase: 5
 current_phase_name: Deploy Pipeline & Environment Config
 status: executing
-stopped_at: "Completed 05-02-PLAN.md (CI baseline cleanup: lint/typecheck/test all green)"
-last_updated: "2026-09-01T11:08:06.225Z"
+stopped_at: Completed 05-03-PLAN.md (CI pipeline scoped to Option A, branch protection live on main)
+last_updated: "2026-09-01T12:08:13.508Z"
 last_activity: 2026-09-01
 last_activity_desc: Phase 5 execution started
-state_head: a2a94c0216ff4fd21fdbaf3b054704a223509d89
+state_head: c24ff677093e01aebc2b782f747a2df5354d9bd3
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-01)
 ## Current Position
 
 Phase: 5 (Deploy Pipeline & Environment Config) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-09-01 — Phase 5 execution started
 
@@ -88,6 +88,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04 P03 | 6min | 2 tasks | 4 files |
 | Phase 05 P01 | 8min | 2 tasks | 6 files |
 | Phase 05 P02 | 15min | 2 tasks | 7 files |
+| Phase 05 P03 | 51min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,7 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04][04-03]: Rebuilt login/page.render.test.tsx's router mock from an inline unreachable vi.fn() to vi.hoisted() pushMock/refreshMock spies so tests can assert call order and destination — Closes the structural blind spot named in the root-cause diagnosis: an inline vi.fn() inside a mock factory is a fresh instance per call and cannot be asserted against
 - [Phase 5]: [Phase 05][05-01]: Better Auth baseURL resolved dynamically via ALLOWED_AUTH_HOSTS allowlist (localhost:3000, *.vercel.app) instead of static BETTER_AUTH_URL — protocol defaults to auto, no fallback set so unrecognized hosts fail closed (SEC-04)
 - [Phase 5]: [Phase 05][05-02]: 2 pre-existing forecast.test.ts failures (bonus/scheduled + same-date vacation composition) marked it.skip with tracking comments rather than fixed — root cause is domain logic in forecastNextPayment, out of scope for a deploy-pipeline cleanup plan
+- [Phase 5]: [Phase 5]: [Phase 05][05-03]: CI database strategy resolved as Option A (scope CI to lint+typecheck+build+pure-domain-tests, no DB in CI at all) after neon-http driver proved incompatible with a vanilla postgres:17 container; repo search expanded the DB-test exclusion list from the user's 3 named files to 6 (schema.test.ts, annual-summary.test.ts, forecast.test.ts also unmocked db importers). Coverage gap tracked in WINDOWS.md #3, deferred to Phase 7's isolated-branch-per-CI-run.
 
 ### Pending Todos
 
@@ -170,8 +172,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-01T11:08:06.203Z
-Stopped at: Completed 05-02-PLAN.md (CI baseline cleanup: lint/typecheck/test all green)
+Last session: 2026-09-01T12:08:13.474Z
+Stopped at: Completed 05-03-PLAN.md (CI pipeline scoped to Option A, branch protection live on main)
 Resume file: None
 
 ## Operator Next Steps

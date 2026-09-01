@@ -44,7 +44,7 @@ Requirements for the "Полировка MVP" milestone. Each maps to roadmap ph
 - [ ] **DEPLOY-02**: Переменные окружения (`BETTER_AUTH_URL`, `DATABASE_URL` и др.) корректно скоуплены по окружениям (Preview/Staging/Prod)
 - [x] **DEPLOY-03**: GitHub Actions запускает lint + typecheck + unit-тесты на каждый PR и блокирует мердж при ошибке
 - [ ] **DEPLOY-04**: Релизный цикл — feature-branch → staging (ручная проверка) → production — задокументирован и соблюдается
-- [ ] **DEPLOY-05**: Vercel auto-deploy и GitHub Actions не конфликтуют (double-deploy race устранён, чёткий владелец на каждое окружение)
+- [x] **DEPLOY-05**: Vercel auto-deploy и GitHub Actions не конфликтуют (double-deploy race устранён, чёткий владелец на каждое окружение)
 
 ## v2 Requirements
 
@@ -109,7 +109,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPLOY-02 | Phase 5 | Pending |
 | DEPLOY-03 | Phase 5 | Complete |
 | DEPLOY-04 | Phase 5 | Pending |
-| DEPLOY-05 | Phase 5 | Pending |
+| DEPLOY-05 | Phase 5 | Complete |
 
 **Coverage:**
 
