@@ -2,7 +2,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Running locally
 
-1. Copy `.env.example` to `.env.local` and fill in the three variables (`DATABASE_URL` from your Neon project's pooled connection string, `BETTER_AUTH_SECRET` generated via `openssl rand -base64 32`, `BETTER_AUTH_URL` as `http://localhost:3000` for local dev).
+1. Copy `.env.example` to `.env.local` and fill in the two required variables (`DATABASE_URL` from your Neon project's pooled connection string, `BETTER_AUTH_SECRET` generated via `openssl rand -base64 32`).
 2. `npm install`
 3. `npm run db:push` — applies the Drizzle schema to your Neon database.
 4. `npm run dev` — starts the full stack against the real Neon database.

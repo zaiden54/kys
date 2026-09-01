@@ -6,7 +6,11 @@ export const env = createEnv({
   server: {
     DATABASE_URL: z.string().url(),
     BETTER_AUTH_SECRET: betterAuthSecretSchema,
-    BETTER_AUTH_URL: z.string().url(),
+    // No longer consumed by src/lib/auth.ts — SEC-04's dynamic
+    // ALLOWED_AUTH_HOSTS baseURL config replaced it. Kept optional (no
+    // .default(...), since a default would misleadingly imply it's still
+    // read) only for backward compatibility with any existing .env.local.
+    BETTER_AUTH_URL: z.string().url().optional(),
   },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
