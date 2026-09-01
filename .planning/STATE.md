@@ -169,11 +169,11 @@ None yet.
 |-------|-------|--------|
 | 5 | verification_deferred_human | /gsd-verify-work 5 |
 
-Phase 5 is functionally complete and technically verified (VERIFICATION.md: `human_needed`, 0 open gaps — the prior lint regression was found and fixed in this session). Two items need the user's own Vercel-account access, which this session does not have:
-1. Confirm `BETTER_AUTH_SECRET` differs between Production and Preview (Vercel dashboard → `on-hands` project → Settings → Environment Variables). Ledgered as `.planning/WINDOWS.md` #4.
+Phase 5 is functionally complete and technically verified (VERIFICATION.md: `human_needed`, 0 open gaps — the prior lint regression was found and fixed in this session). One item needs the user's own Vercel-account access, which this session does not have:
+1. ~~Confirm `BETTER_AUTH_SECRET` differs between Production and Preview~~ — **done 2026-09-01**: user set separate values in Vercel Dashboard (confirmed via screenshot: two distinct `BETTER_AUTH_SECRET` entries scoped to Preview/Production). `.planning/WINDOWS.md` #4 marked fixed; `DEPLOY-02` marked Complete in REQUIREMENTS.md.
 2. Open PR #2's live preview URL (logged into the project's Vercel account) and confirm register/login succeed end-to-end.
 
-User explicitly asked to stop and verify these personally rather than continue/defer automatically (2026-09-01). Run `/gsd-verify-work 5` after checking both, or address them manually and update `05-VERIFICATION.md`/`WINDOWS.md` #4 directly.
+User explicitly asked to stop and verify these personally rather than continue/defer automatically (2026-09-01). Run `/gsd-verify-work 5` after checking #2, or address it manually and update `05-VERIFICATION.md` directly.
 
 ## Deferred Items
 

@@ -41,7 +41,7 @@ Requirements for the "Полировка MVP" milestone. Each maps to roadmap ph
 ### Деплой и релизный процесс
 
 - [x] **DEPLOY-01**: *(2026-09-01, скорректировано)* Каждый feature-branch/PR получает изолированное preview-окружение (свой Vercel branch-alias домен + своя Neon-ветка через существующую Vercel↔Neon Marketplace-интеграцию), отделённое от прода. Отдельный постоянный `staging`-стенд сознательно не заводится — пользователь отказался от него в пользу уже работающих per-PR preview-деплоев (см. Key Decisions).
-- [ ] **DEPLOY-02**: Переменные окружения (`BETTER_AUTH_URL`, `DATABASE_URL` и др.) корректно скоуплены по окружениям (Preview/Prod) — DATABASE_URL уже авто-скоуплен интеграцией Vercel↔Neon per-branch; BETTER_AUTH_SECRET для Preview не проверен (нет write-доступа к Vercel env vars через доступные MCP-инструменты) — открытый пункт, см. WINDOWS.md
+- [x] **DEPLOY-02**: *(2026-09-01)* Переменные окружения корректно скоуплены по окружениям (Preview/Prod): DATABASE_URL авто-скоуплен интеграцией Vercel↔Neon per-branch; BETTER_AUTH_SECRET разведён пользователем вручную через Vercel Dashboard — отдельные значения для Preview и Production подтверждены (WINDOWS.md #4 закрыт)
 - [x] **DEPLOY-03**: GitHub Actions запускает lint + typecheck + unit-тесты на каждый PR и блокирует мердж при ошибке
 - [x] **DEPLOY-04**: *(2026-09-01, скорректировано)* Релизный цикл — feature-branch → PR-preview (ручная проверка разработчиком через собственную Vercel-сессию) → production — задокументирован в DEPLOYMENT.md и реально пройден на PR #2 этой же фазы
 - [x] **DEPLOY-05**: Vercel auto-deploy и GitHub Actions не конфликтуют (double-deploy race устранён, чёткий владелец на каждое окружение)
@@ -106,7 +106,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | E2E-05 | Phase 7 | Pending |
 | E2E-06 | Phase 7 | Pending |
 | DEPLOY-01 | Phase 5 | Complete |
-| DEPLOY-02 | Phase 5 | Partial |
+| DEPLOY-02 | Phase 5 | Complete |
 | DEPLOY-03 | Phase 5 | Complete |
 | DEPLOY-04 | Phase 5 | Complete |
 | DEPLOY-05 | Phase 5 | Complete |
