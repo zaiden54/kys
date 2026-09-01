@@ -29,12 +29,17 @@ export default function LoginPage() {
 
   async function onSubmit(values: LoginInput) {
     setFormError(null);
-    const { error } = await authClient.signIn.email({
-      email: values.email,
-      password: values.password,
-    });
-    if (error) {
-      setFormError("Неверный email или пароль");
+    try {
+      const { error } = await authClient.signIn.email({
+        email: values.email,
+        password: values.password,
+      });
+      if (error) {
+        setFormError("Неверный email или пароль");
+        return;
+      }
+    } catch {
+      setFormError("Не удалось войти. Проверьте соединение и попробуйте снова.");
       return;
     }
     // G-04-2: refresh before push so (app)/layout.tsx's server-side
