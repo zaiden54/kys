@@ -2,7 +2,7 @@
 status: resolved
 trigger: "Пароль отправляется в незашифрованном виде (например в этом запросе https://on-hands-git-gsd-phase-06-auth-bca434-careeremit-9861s-projects.vercel.app/api/auth/sign-in/email)"
 created: 2026-09-01T16:34:15Z
-updated: 2026-09-01T16:55:40Z
+updated: 2026-09-01T16:56:32Z
 ---
 
 ## Current Focus
@@ -12,7 +12,7 @@ bug_class: bohrbug
 hypothesis: "Confirmed: the reported browser DevTools behavior is expected local observability, not plaintext network transport; the password is encrypted by TLS after DevTools renders the POST body."
 test: "Completed: compare HTTP and HTTPS behavior, inspect the complete application auth path for credential escape, and inspect installed Better Auth password handling."
 expecting: "Observed: HTTP redirects permanently to HTTPS; HTTPS sends HSTS; app code keeps passwords in POST JSON; Better Auth hashes them with scrypt and omits password fields from output."
-next_action: "Archive the confirmed no-code resolution and record the prevention pattern in the debug knowledge base."
+next_action: "Completed: session archived, knowledge-base entry committed, and semantic indexing skipped because MemPalace is unavailable."
 
 reasoning_checkpoint:
   hypothesis: "The password's visibility in the browser owner's DevTools is local pre-TLS inspection, while the deployed endpoint uses TLS-protected transport and Better Auth safely handles the credential server-side."
@@ -99,6 +99,7 @@ verification: |
   revert_and_reconfirm: "skipped — no code change exists to revert; transport behavior was directly re-checked."
   guardrail_verdict: "accepted — no-code resolution; applicable checks passed or were explicitly inapplicable."
   limitation: "The Vercel preview is SSO-gated, preventing unauthenticated automated sign-in verification of that deployment."
+  semantic_index: "skipped — the MemPalace CLI is unavailable; the committed knowledge base is the durable fallback."
 files_changed: []
 
 ## Prevention
