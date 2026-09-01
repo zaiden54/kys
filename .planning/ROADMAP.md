@@ -68,7 +68,13 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. Every PR runs lint + typecheck + unit tests via GitHub Actions, and a failing check blocks merge (DEPLOY-03)
   5. A documented feature-branch → staging (manual check) → production release procedure exists, has been followed for a real deploy, and environment variables are confirmed correctly scoped per environment (DEPLOY-04, DEPLOY-02)
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — SEC-04 tracer: dynamic Better Auth baseURL/allowedHosts resolution, proven by a DB-independent unit test
+- [ ] 05-02-PLAN.md — CI baseline cleanup: fix 4 pre-existing ESLint errors, ignore generated files, add typecheck script, track 2 pre-existing test failures
+- [ ] 05-03-PLAN.md — GitHub Actions CI workflow (lint/typecheck/test/build), exercised via a real PR, enforced via branch protection
+- [ ] 05-04-PLAN.md — Persistent Neon staging branch + Vercel env-var scoping + DEPLOYMENT.md, exercised once for real
 
 ### Phase 6: Auth Security Hardening
 
