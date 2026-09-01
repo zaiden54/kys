@@ -85,7 +85,7 @@ export function VacationRow({
   if (mode === "editing") {
     return (
       <li className="border-b border-zinc-200 py-3">
-        <form onSubmit={handleSubmit(onEdit)} className="grid gap-2" noValidate>
+        <form onSubmit={(e) => handleSubmit(onEdit)(e)} className="grid gap-2" noValidate>
           <input type="hidden" {...register("id")} />
           <input type="date" className="rounded border border-zinc-300 px-3 py-2" {...register("startDate")} />
           {errors.startDate && <p className="text-sm text-red-600">{errors.startDate.message}</p>}

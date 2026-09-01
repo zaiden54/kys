@@ -1,9 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useIsStandalone } from "@/lib/use-standalone";
 
 const DISMISSED_KEY = "__pwa_install_banner_dismissed";
+// Native "storage" events only fire in OTHER tabs, never the tab that made
+// the write — this synthetic event lets same-tab writers self-notify.
+const DISMISSED_CHANGED_EVENT = "install-banner-dismissed-changed";
+
+function getDismissedSnapshot(): boolean {
+  return window.localStorage.getItem(DISMISSED_KEY) === "1";
+}
+
+function getDismissedServerSnapshot(): boolean {
+  return false;
+}
+
+function subscribeToDismissed(onStoreChange: () => void): () => void {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(DISMISSED_CHANGED_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(DISMISSED_CHANGED_EVENT, onStoreChange);
+  };
+}
+
+function setDismissedFlag(value: boolean) {
+  if (value) {
+    window.localStorage.setItem(DISMISSED_KEY, "1");
+  } else {
+    window.localStorage.removeItem(DISMISSED_KEY);
+  }
+  window.dispatchEvent(new Event(DISMISSED_CHANGED_EVENT));
+}
 
 /**
  * Install-instruction banner shown whenever the app is not running in
@@ -14,15 +43,15 @@ const DISMISSED_KEY = "__pwa_install_banner_dismissed";
  */
 export function InstallBanner() {
   const isStandalone = useIsStandalone();
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    setDismissed(window.localStorage.getItem(DISMISSED_KEY) === "1");
-  }, []);
+  const dismissed = useSyncExternalStore(
+    subscribeToDismissed,
+    getDismissedSnapshot,
+    getDismissedServerSnapshot,
+  );
 
   useEffect(() => {
     if (isStandalone) {
-      window.localStorage.removeItem(DISMISSED_KEY);
+      setDismissedFlag(false);
     }
   }, [isStandalone]);
 
@@ -31,8 +60,7 @@ export function InstallBanner() {
   }
 
   function handleDismiss() {
-    window.localStorage.setItem(DISMISSED_KEY, "1");
-    setDismissed(true);
+    setDismissedFlag(true);
   }
 
   return (

@@ -27,8 +27,6 @@ export function useIsStandalone(): boolean {
   const [isStandalone, setIsStandalone] = useState(detectStandalone);
 
   useEffect(() => {
-    setIsStandalone(detectStandalone());
-
     const mediaQuery = window.matchMedia("(display-mode: standalone)");
     function handleChange() {
       setIsStandalone(detectStandalone());
