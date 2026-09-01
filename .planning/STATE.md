@@ -5,16 +5,16 @@ milestone_name: Полировка MVP
 current_phase: 5
 current_phase_name: Deploy Pipeline & Environment Config
 status: executing
-stopped_at: v1.1 ROADMAP.md created (Phases 5-8, 24/24 requirements mapped) — ready for /gsd-plan-phase 5
-last_updated: "2026-09-01T10:46:49.908Z"
+stopped_at: Completed 05-01-PLAN.md (SEC-04 dynamic Better Auth baseURL)
+last_updated: "2026-09-01T11:00:10.758Z"
 last_activity: 2026-09-01
-last_activity_desc: ROADMAP.md created for v1.1 (Phases 5-8), 24/24 requirements mapped
-state_head: ebe1b99d1997b00790bab6d321e636c241cb5bbe
+last_activity_desc: Phase 5 execution started
+state_head: 2a242b5a431443ce3e87ab6d7bbc6c7a9b21f6b4
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-01)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** v1.1 Полировка MVP — Phase 5 (Deploy Pipeline & Environment Config) ready to plan
+**Current focus:** Phase 5 — Deploy Pipeline & Environment Config
 
 ## Current Position
 
-Phase: 5 (Deploy Pipeline & Environment Config) — READY TO EXECUTE
-Plan: — of TBD in current phase
+Phase: 5 (Deploy Pipeline & Environment Config) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-09-01 — ROADMAP.md created for v1.1 (Phases 5-8), 24/24 requirements mapped
+Last activity: 2026-09-01 — Phase 5 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -86,6 +86,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04 P01 | 20min | 2 tasks | 10 files |
 | Phase 04 P02 | 20min | 3 tasks | 19 files |
 | Phase 04 P03 | 6min | 2 tasks | 4 files |
+| Phase 05 P01 | 8min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,7 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04][04-02]: vitest.config.ts disables Node's built-in global localStorage via execArgv --no-experimental-webstorage so jsdom's window.localStorage is used in tests
 - [Phase 04]: [Phase 04][04-03]: Applied identical router.refresh()-before-router.push() fix independently to both login and register onSubmit (G-04-2), matching the diagnosis that both pages drifted into the same anti-pattern independently since the Phase 01-02 tracer commit — Two-line addition per page per the plan's explicit scope; no shared helper extracted
 - [Phase 04]: [Phase 04][04-03]: Rebuilt login/page.render.test.tsx's router mock from an inline unreachable vi.fn() to vi.hoisted() pushMock/refreshMock spies so tests can assert call order and destination — Closes the structural blind spot named in the root-cause diagnosis: an inline vi.fn() inside a mock factory is a fresh instance per call and cannot be asserted against
+- [Phase 5]: [Phase 05][05-01]: Better Auth baseURL resolved dynamically via ALLOWED_AUTH_HOSTS allowlist (localhost:3000, *.vercel.app) instead of static BETTER_AUTH_URL — protocol defaults to auto, no fallback set so unrecognized hosts fail closed (SEC-04)
 
 ### Pending Todos
 
@@ -166,8 +168,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-01T00:00:00.000Z
-Stopped at: v1.1 ROADMAP.md created (Phases 5-8, 24/24 requirements mapped) — ready for /gsd-plan-phase 5
+Last session: 2026-09-01T11:00:10.736Z
+Stopped at: Completed 05-01-PLAN.md (SEC-04 dynamic Better Auth baseURL)
 Resume file: None
 
 ## Operator Next Steps

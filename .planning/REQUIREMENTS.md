@@ -27,7 +27,7 @@ Requirements for the "Полировка MVP" milestone. Each maps to roadmap ph
 - [ ] **SEC-01**: Флоу логина и регистрации проверены (браузерным DevTools/Playwright), что пароль никогда не попадает в URL, query-строку или логи
 - [ ] **SEC-02**: Ошибки аутентификации — обобщённые (без user enumeration) при неверном логине/пароле
 - [ ] **SEC-03**: Сессионные cookie подтверждены как httpOnly + secure + с корректным scope
-- [ ] **SEC-04**: `BETTER_AUTH_URL`/allowed-hosts корректно и динамически резолвятся на PR-preview, staging и production
+- [x] **SEC-04**: `BETTER_AUTH_URL`/allowed-hosts корректно и динамически резолвятся на PR-preview, staging и production
 
 ### E2E-тестирование
 
@@ -98,7 +98,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-01 | Phase 6 | Pending |
 | SEC-02 | Phase 6 | Pending |
 | SEC-03 | Phase 6 | Pending |
-| SEC-04 | Phase 5 | Pending |
+| SEC-04 | Phase 5 | Complete |
 | E2E-01 | Phase 7 | Pending |
 | E2E-02 | Phase 7 | Pending |
 | E2E-03 | Phase 7 | Pending |
@@ -112,6 +112,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPLOY-05 | Phase 5 | Pending |
 
 **Coverage:**
+
 - v1.1 requirements: 24 total
 - Mapped to phases: 24
 - Unmapped: 0 ✓
