@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Полировка MVP
-current_phase: 5
-current_phase_name: Deploy Pipeline & Environment Config
-status: verifying
-stopped_at: Phase 5 complete (05-01..05-04) — staging scope revised to per-PR preview
-last_updated: "2026-09-01T13:20:58.133Z"
+current_phase: 6
+current_phase_name: Auth Security Hardening
+status: planning
+stopped_at: Phase 5 complete, ready to plan Phase 6
+last_updated: "2026-09-01T14:56:15.766Z"
 last_activity: 2026-09-01
-last_activity_desc: Phase 5 execution started
-state_head: a8654459177fd8a9558be91c6e8e1e4b75bd9f48
+last_activity_desc: Phase 5 complete, transitioned to Phase 6
+state_head: 29ecec5a0790854d08ca435d134986cfb468ee3c
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
   completed_plans: 4
-  percent: 0
+  percent: 25
 ---
 
 # Project State
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-09-01)
 
 ## Current Position
 
-Phase: 5 (Deploy Pipeline & Environment Config) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-09-01 — Phase 5 execution started
+Phase: 6 — Auth Security Hardening
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-09-01 — Phase 5 complete, transitioned to Phase 6
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -40,7 +40,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 23
+- Total plans completed: 27
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 | 02 | 4 | - | - |
 | 03 | 4 | - | - |
 | 04 | 3 | - | - |
+| 5 | 4 | - | - |
 
 **Recent Trend:**
 
@@ -163,18 +164,6 @@ None yet.
 - Research flag (v1.1, Phase 7): Neon globalSetup for Playwright's isolated-branch-per-CI-run pattern is proven locally but needs validation once it actually runs inside GitHub Actions (research/SUMMARY.md Gaps to Address #2)
 - Research flag (v1.1, Phase 8): visual-regression baseline screenshots need explicit design agreement before the redesign lands, or regressions will pass silently (research/PITFALLS.md #6)
 
-## Deferred Verification
-
-| Phase | State | Resume |
-|-------|-------|--------|
-| 5 | verification_deferred_human | /gsd-verify-work 5 |
-
-Phase 5 is functionally complete and technically verified (VERIFICATION.md: `human_needed`, 0 open gaps — the prior lint regression was found and fixed in this session). One item needs the user's own Vercel-account access, which this session does not have:
-1. ~~Confirm `BETTER_AUTH_SECRET` differs between Production and Preview~~ — **done 2026-09-01**: user set separate values in Vercel Dashboard (confirmed via screenshot: two distinct `BETTER_AUTH_SECRET` entries scoped to Preview/Production). `.planning/WINDOWS.md` #4 marked fixed; `DEPLOY-02` marked Complete in REQUIREMENTS.md.
-2. Open PR #2's live preview URL (logged into the project's Vercel account) and confirm register/login succeed end-to-end.
-
-User explicitly asked to stop and verify these personally rather than continue/defer automatically (2026-09-01). Run `/gsd-verify-work 5` after checking #2, or address it manually and update `05-VERIFICATION.md` directly.
-
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:
@@ -186,9 +175,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-09-01T17:20:00.000Z
-Stopped at: Phase 5 technically verified (human_needed) — stopped at user's request to manually check the 2 deferred human-verification items before continuing
+Stopped at: Phase 5 complete, ready to plan Phase 6
 Resume file: None
 
 ## Operator Next Steps
 
-- Check the 2 deferred items in "Deferred Verification" above (BETTER_AUTH_SECRET Preview scoping in Vercel dashboard; live login on PR #2's preview URL), then run `/gsd-verify-work 5` to close out Phase 5, or `/gsd-autonomous --from 6` to continue the milestone once satisfied
+- Phase 5 is complete and fully verified (both deferred human-verification items confirmed 2026-09-01). Run `/gsd-discuss-phase 6` or `/gsd-plan-phase 6` to start Phase 6 (Auth Security Hardening), or `/gsd-autonomous --from 6` to continue the milestone autonomously.
