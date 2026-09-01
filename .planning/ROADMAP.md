@@ -68,13 +68,13 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. Every PR runs lint + typecheck + unit tests via GitHub Actions, and a failing check blocks merge (DEPLOY-03)
   5. A documented feature-branch → staging (manual check) → production release procedure exists, has been followed for a real deploy, and environment variables are confirmed correctly scoped per environment (DEPLOY-04, DEPLOY-02)
 
-**Plans**: 1/4 plans executed
+**Plans**: 2/4 plans executed
 
 Plans:
 **Wave 1**
 
 - [x] 05-01-PLAN.md — SEC-04 tracer: dynamic Better Auth baseURL/allowedHosts resolution, proven by a DB-independent unit test
-- [ ] 05-02-PLAN.md — CI baseline cleanup: fix 4 pre-existing ESLint errors, ignore generated files, add typecheck script, track 2 pre-existing test failures
+- [x] 05-02-PLAN.md — CI baseline cleanup: fix 4 pre-existing ESLint errors, ignore generated files, add typecheck script, track 2 pre-existing test failures
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -139,7 +139,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Bonuses & One-off Payments | v1.0 | 4/4 | Complete | 2026-08-30 |
 | 3. Vacation Pay | v1.0 | 4/4 | Complete | 2026-08-31 |
 | 4. Annual Overview & PWA Installability | v1.0 | 3/3 | Complete | 2026-08-31 |
-| 5. Deploy Pipeline & Environment Config | v1.1 | 1/4 | In Progress|  |
+| 5. Deploy Pipeline & Environment Config | v1.1 | 2/4 | In Progress|  |
 | 6. Auth Security Hardening | v1.1 | 0/TBD | Not started | - |
 | 7. E2E Test Suite | v1.1 | 0/TBD | Not started | - |
 | 8. Visual Redesign, Accessibility & PWA Safe-Area | v1.1 | 0/TBD | Not started | - |
