@@ -49,6 +49,17 @@ describe("ALLOWED_AUTH_HOSTS + matchesHostPattern", () => {
       expect(matchesHostPattern("evil-project.vercel.app", pattern)).toBe(false);
     }
   });
+
+  it("matches all three real production domains documented in DEPLOYMENT.md (CR-01 regression)", () => {
+    const productionHosts = [
+      "on-hands-three.vercel.app",
+      "on-hands-careeremit-9861s-projects.vercel.app",
+      "on-hands-git-main-careeremit-9861s-projects.vercel.app",
+    ];
+    for (const host of productionHosts) {
+      expect(ALLOWED_AUTH_HOSTS.some((pattern) => matchesHostPattern(host, pattern))).toBe(true);
+    }
+  });
 });
 
 describe("resolveDynamicBaseURL with ALLOWED_AUTH_HOSTS", () => {
@@ -61,6 +72,20 @@ describe("resolveDynamicBaseURL with ALLOWED_AUTH_HOSTS", () => {
     expect(url).toBe(
       "https://on-hands-git-staging-careeremit-9861s-projects.vercel.app/api/auth",
     );
+  });
+
+  it("resolves the correct https origin for both bare production hostnames (CR-01 regression)", () => {
+    for (const host of [
+      "on-hands-three.vercel.app",
+      "on-hands-careeremit-9861s-projects.vercel.app",
+    ]) {
+      const url = resolveDynamicBaseURL(
+        { allowedHosts: ALLOWED_AUTH_HOSTS },
+        new Headers({ host }),
+        "/api/auth",
+      );
+      expect(url).toBe(`https://${host}/api/auth`);
+    }
   });
 
   it("resolves http for localhost (auto protocol defaults to the request's own scheme)", () => {
