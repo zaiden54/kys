@@ -167,3 +167,19 @@ describe("LoginPage generic auth error (SEC-02)", () => {
     });
   });
 });
+
+describe("LoginPage network failure (WR-01)", () => {
+  it("shows a connectivity message when sign-in rejects (network failure)", async () => {
+    vi.mocked(authClient.signIn.email).mockRejectedValueOnce(new Error("network error"));
+
+    await submitLoginForm();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Не удалось войти. Проверьте соединение и попробуйте снова."),
+      ).not.toBeNull();
+    });
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+});
