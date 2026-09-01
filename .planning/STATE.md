@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-01)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** Phase 5 — Deploy Pipeline & Environment Config
+**Current focus:** Phase 7 — E2E Test Suite
 
 ## Current Position
 
@@ -34,7 +34,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-09-01 — Phase 6 complete, transitioned to Phase 7
 
-Progress: [███░░░░░░░] 25%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -168,7 +168,8 @@ None yet.
 - [Phase 5, resolved 2026-09-01] Research flag (confirm target Vercel staging domain/branch doesn't already exist) made moot — the persistent-staging concept itself was dropped mid-execution in favor of per-PR preview isolation (see 05-04-SUMMARY.md key-decisions).
 - Research flag (v1.1, Phase 7): Neon globalSetup for Playwright's isolated-branch-per-CI-run pattern is proven locally but needs validation once it actually runs inside GitHub Actions (research/SUMMARY.md Gaps to Address #2)
 - Research flag (v1.1, Phase 8): visual-regression baseline screenshots need explicit design agreement before the redesign lands, or regressions will pass silently (research/PITFALLS.md #6)
-- [Phase 6, open] End-of-phase human DevTools check outstanding: PR #3 preview (https://on-hands-git-gsd-phase-06-auth-bca434-careeremit-9861s-projects.vercel.app) needs a logged-in Vercel account holder to confirm SEC-01 (password never in Network tab URL/query for wrong-password + unknown-email login attempts), SEC-02 (identical generic error text live), and SEC-03 (session cookie shows __Secure- prefix + HttpOnly + Secure + Path=/) per 06-01-PLAN.md Task 3's human-check, deferred per workflow.human_verify_mode=end-of-phase
+- [Phase 6, resolved 2026-09-02] End-of-phase human DevTools check on PR #3 preview confirmed by user: password never in Network tab URL/query for either failure case, identical generic error text live, session cookie carried __Secure- prefix + HttpOnly + Secure + Path=/. SEC-01/02/03 fully closed.
+- [Phase 6, low severity] 3 Info-tier code-review findings deliberately left unfixed (06-REVIEW.md IN-01/02/03, out of `fix_scope: critical_warning`): verify-auth-security.mjs exercises the raw Better Auth HTTP API rather than authClient (coverage gap vs. the real browser path); the login page's generic-error `<p>` has no role="alert"/aria-live for assistive tech; the WR-01 network-failure `catch {}` has no bound error/logging, so any thrown exception is labeled a connectivity issue. None are security- or correctness-relevant; revisit during Phase 8 (Visual Redesign & Accessibility) or on a future `--all` code-review pass.
 
 ## Deferred Items
 
@@ -180,10 +181,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-01T20:28:41.038Z
-Stopped at: Phase 6 complete, ready to plan Phase 7
+Last session: 2026-09-02T00:15:00.000Z
+Stopped at: Phase 6 complete and fully verified (human UAT confirmed), ready to plan Phase 7
 Resume file: None
 
 ## Operator Next Steps
 
-- Phase 5 is complete and fully verified (both deferred human-verification items confirmed 2026-09-01). Run `/gsd-discuss-phase 6` or `/gsd-plan-phase 6` to start Phase 6 (Auth Security Hardening), or `/gsd-autonomous --from 6` to continue the milestone autonomously.
+- Phase 6 is complete and fully verified (SEC-01/02/03 all confirmed, including the end-of-phase human DevTools check on the live PR #3 preview, confirmed 2026-09-02). Run `/gsd-discuss-phase 7` or `/gsd-plan-phase 7` to start Phase 7 (E2E Test Suite), or `/gsd-autonomous --from 7` to continue the milestone autonomously.
