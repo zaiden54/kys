@@ -8,12 +8,15 @@
 ## Overview
 
 v1.1 takes the shipped v1.0 MVP to production quality without touching the tax/vacation
-calculation engines. Phase 5 stands up a persistent staging environment and release pipeline
-(separate Vercel domain + Neon branch, scoped env vars, a single owner per environment for
-deploys, a CI gate) and fixes `BETTER_AUTH_URL`/allowed-hosts dynamic resolution as part of that
-work, since research flags it as a hard blocker for staging UAT if left unfixed. Phase 6 hardens
-the login/registration flow itself (no credential leaks, no account-enumeration signal, correct
-cookie flags) now that a real staging environment exists to verify it against. Phase 7 locks in a
+calculation engines. Phase 5 stands up isolated per-PR preview environments and a release pipeline
+(each PR gets its own Vercel domain + Neon branch via an existing Marketplace integration, scoped
+env vars, a single owner per environment for deploys, a CI gate) and fixes `BETTER_AUTH_URL`/
+allowed-hosts dynamic resolution as part of that work, since research flags it as a hard blocker
+for pre-production UAT if left unfixed. *(2026-09-01: a standalone persistent staging environment
+was planned initially but dropped in favor of the already-isolated per-PR previews — see Phase 5's
+Key Decisions.)* Phase 6 hardens the login/registration flow itself (no credential leaks, no
+account-enumeration signal, correct cookie flags) now that a real pre-production environment exists
+to verify it against. Phase 7 locks in a
 Playwright e2e suite covering every v1.0 golden path, running in CI against its own isolated Neon
 branch — this suite exists specifically as a regression safety net *before* Phase 8's redesign,
 not as a final validation pass. Phase 8 is the longest pole: a full visual redesign, consistent
@@ -48,7 +51,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 автотестовому покрытию и по надёжности релизного процесса, без изменения расчётной модели
 (НДФЛ/премии/отпускные).
 
-- [ ] **Phase 5: Deploy Pipeline & Environment Config** - Persistent staging (Vercel + Neon) with correctly scoped env vars, a single deploy owner per environment, and a CI quality gate
+- [ ] **Phase 5: Deploy Pipeline & Environment Config** - Isolated per-PR preview environments (Vercel + Neon) with correctly scoped env vars, a single deploy owner per environment, and a CI quality gate
 - [ ] **Phase 6: Auth Security Hardening** - Login/registration flow verified to leak no credentials, give no enumeration signal, and set correctly-flagged session cookies
 - [ ] **Phase 7: E2E Test Suite** - Playwright golden-path coverage of every v1.0 feature, running in CI against an isolated Neon branch, with Playwright MCP wired up
 - [ ] **Phase 8: Visual Redesign, Accessibility & PWA Safe-Area** - Full visual redesign, consistent money formatting, empty/error/loading states, confirmation dialogs, dark mode, accessibility basics, and Dynamic Island-safe layout
@@ -57,18 +60,18 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 
 ### Phase 5: Deploy Pipeline & Environment Config
 
-**Goal**: Changes move from feature branch to production through one safe, unambiguous pipeline — a persistent staging environment separate from production, environment-scoped configuration, and no double-deploy races — with `BETTER_AUTH_URL`/allowed-hosts resolving correctly everywhere before staging goes live.
+**Goal**: Changes move from feature branch to production through one safe, unambiguous pipeline — isolated per-PR preview environments separate from production, environment-scoped configuration, and no double-deploy races — with `BETTER_AUTH_URL`/allowed-hosts resolving correctly everywhere. *(2026-09-01: "persistent staging environment" narrowed to "isolated per-PR preview environments" — see Key Decisions.)*
 **Depends on**: Phase 4
 **Requirements**: DEPLOY-01, DEPLOY-02, DEPLOY-03, DEPLOY-04, DEPLOY-05, SEC-04
 **Success Criteria** (what must be TRUE):
 
-  1. A persistent staging URL (its own Vercel domain + its own Neon branch) exists, is reachable independent of production, and shows its own data (DEPLOY-01)
-  2. Login/register succeed on PR-preview, staging, and production alike, with `BETTER_AUTH_URL` and allowed-hosts resolving to the right origin on each — no cross-environment redirect or cookie failures (SEC-04)
+  1. Every PR gets its own isolated preview URL (its own Vercel branch-alias domain + its own Neon branch via the existing Vercel↔Neon Marketplace integration), reachable independent of production, and shows its own data (DEPLOY-01)
+  2. Login/register succeed on PR-preview and production alike, with `BETTER_AUTH_URL` and allowed-hosts resolving to the right origin on each — no cross-environment redirect or cookie failures (SEC-04)
   3. Opening a PR triggers exactly one deploy path per environment; GitHub Actions and Vercel auto-deploy never both deploy the same environment (DEPLOY-05)
   4. Every PR runs lint + typecheck + unit tests via GitHub Actions, and a failing check blocks merge (DEPLOY-03)
-  5. A documented feature-branch → staging (manual check) → production release procedure exists, has been followed for a real deploy, and environment variables are confirmed correctly scoped per environment (DEPLOY-04, DEPLOY-02)
+  5. A documented feature-branch → PR-preview (manual check) → production release procedure exists, has been followed for a real deploy, and environment variables are confirmed correctly scoped per environment (DEPLOY-04, DEPLOY-02)
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans:
 **Wave 1**
@@ -82,7 +85,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-04-PLAN.md — Persistent Neon staging branch + Vercel env-var scoping + DEPLOYMENT.md, exercised once for real
+- [x] 05-04-PLAN.md — *(revised)* Confirmed the existing Vercel↔Neon per-branch preview isolation + DEPLOYMENT.md (feature-branch → PR-preview → production), exercised once for real on PR #2
 
 ### Phase 6: Auth Security Hardening
 
@@ -93,7 +96,7 @@ Plans:
 
   1. Inspecting the browser Network tab and server logs during login/registration shows the password only inside the encrypted POST body — never in a URL, query string, or log line (SEC-01)
   2. Submitting a wrong password and submitting a non-existent email both return the same generic error message and response shape, so an attacker cannot distinguish the two cases (SEC-02)
-  3. The session cookie set after login is confirmed via its actual `Set-Cookie` header (on staging) to have `httpOnly`, `secure`, and a correctly scoped `path`/`domain` (SEC-03)
+  3. The session cookie set after login is confirmed via its actual `Set-Cookie` header (on a PR-preview deployment) to have `httpOnly`, `secure`, and a correctly scoped `path`/`domain` (SEC-03)
 
 **Plans**: TBD
 
@@ -139,7 +142,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Bonuses & One-off Payments | v1.0 | 4/4 | Complete | 2026-08-30 |
 | 3. Vacation Pay | v1.0 | 4/4 | Complete | 2026-08-31 |
 | 4. Annual Overview & PWA Installability | v1.0 | 3/3 | Complete | 2026-08-31 |
-| 5. Deploy Pipeline & Environment Config | v1.1 | 3/4 | In Progress|  |
+| 5. Deploy Pipeline & Environment Config | v1.1 | 4/4 | In Progress|  |
 | 6. Auth Security Hardening | v1.1 | 0/TBD | Not started | - |
 | 7. E2E Test Suite | v1.1 | 0/TBD | Not started | - |
 | 8. Visual Redesign, Accessibility & PWA Safe-Area | v1.1 | 0/TBD | Not started | - |

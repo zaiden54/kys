@@ -4,17 +4,17 @@ milestone: v1.1
 milestone_name: Полировка MVP
 current_phase: 5
 current_phase_name: Deploy Pipeline & Environment Config
-status: executing
-stopped_at: Completed 05-03-PLAN.md (CI pipeline scoped to Option A, branch protection live on main)
-last_updated: "2026-09-01T12:08:13.508Z"
+status: verifying
+stopped_at: Phase 5 complete (05-01..05-04) — staging scope revised to per-PR preview
+last_updated: "2026-09-01T13:20:58.133Z"
 last_activity: 2026-09-01
 last_activity_desc: Phase 5 execution started
-state_head: c24ff677093e01aebc2b782f747a2df5354d9bd3
+state_head: a8654459177fd8a9558be91c6e8e1e4b75bd9f48
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-09-01)
 
 Phase: 5 (Deploy Pipeline & Environment Config) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-01 — Phase 5 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -145,6 +145,7 @@ Recent decisions affecting current work:
 - [Phase 5]: [Phase 05][05-01]: Better Auth baseURL resolved dynamically via ALLOWED_AUTH_HOSTS allowlist (localhost:3000, *.vercel.app) instead of static BETTER_AUTH_URL — protocol defaults to auto, no fallback set so unrecognized hosts fail closed (SEC-04)
 - [Phase 5]: [Phase 05][05-02]: 2 pre-existing forecast.test.ts failures (bonus/scheduled + same-date vacation composition) marked it.skip with tracking comments rather than fixed — root cause is domain logic in forecastNextPayment, out of scope for a deploy-pipeline cleanup plan
 - [Phase 5]: [Phase 5]: [Phase 05][05-03]: CI database strategy resolved as Option A (scope CI to lint+typecheck+build+pure-domain-tests, no DB in CI at all) after neon-http driver proved incompatible with a vanilla postgres:17 container; repo search expanded the DB-test exclusion list from the user's 3 named files to 6 (schema.test.ts, annual-summary.test.ts, forecast.test.ts also unmocked db importers). Coverage gap tracked in WINDOWS.md #3, deferred to Phase 7's isolated-branch-per-CI-run.
+- [Phase 5]: [Phase 5]: [05-04]: Dropped the persistent staging environment concept — relies on Vercel's per-PR preview deployments instead, which already get isolated Neon branches via an existing Vercel-Neon Marketplace integration discovered mid-execution. DEPLOY-01/DEPLOY-04 wording revised in REQUIREMENTS.md/ROADMAP.md accordingly. Deleted the partially-provisioned staging git branch and its Neon branch. — The Vercel-Neon integration already isolates every branch (contradicting 05-RESEARCH.md's assumption of no such integration); making a persistent staging domain reachable would have required disabling Vercel Authentication project-wide (no "production only" API mode exists), a security-posture change the user declined once the trade-off was clear.
 
 ### Pending Todos
 
@@ -172,8 +173,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-01T12:08:13.474Z
-Stopped at: Completed 05-03-PLAN.md (CI pipeline scoped to Option A, branch protection live on main)
+Last session: 2026-09-01T13:20:58.094Z
+Stopped at: Phase 5 complete (05-01..05-04) — staging scope revised to per-PR preview
 Resume file: None
 
 ## Operator Next Steps
