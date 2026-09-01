@@ -84,17 +84,20 @@ async function main() {
 
   const wrongCode = wrongPasswordResult.jsonBody?.code;
   const unknownCode = unknownEmailResult.jsonBody?.code;
+  const wrongBody = JSON.stringify(wrongPasswordResult.jsonBody);
+  const unknownBody = JSON.stringify(unknownEmailResult.jsonBody);
   if (
     wrongPasswordResult.response.status !== unknownEmailResult.response.status ||
     typeof wrongCode !== "string" ||
-    wrongCode !== unknownCode
+    wrongCode !== unknownCode ||
+    wrongBody !== unknownBody
   ) {
     fail(
       "4",
-      `login failures differed: status ${wrongPasswordResult.response.status}/${unknownEmailResult.response.status}, code ${JSON.stringify(wrongCode)}/${JSON.stringify(unknownCode)}`,
+      `login failures differed: status ${wrongPasswordResult.response.status}/${unknownEmailResult.response.status}, body ${wrongBody}/${unknownBody}`,
     );
   }
-  console.log("PASS [4] login failures have identical HTTP status and error code");
+  console.log("PASS [4] login failures have identical HTTP status and response body");
 
   const observedOutsidePostBody = [
     wrongPasswordResult.url,
