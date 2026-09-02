@@ -39,12 +39,16 @@ export function AnnualPieChart({ summary, taxYear }: { summary: AnnualSummary; t
   ];
 
   return (
-    <section className="w-full max-w-sm rounded border border-zinc-300 p-4">
-      <h2 className="text-lg font-semibold text-zinc-900">Годовая сводка</h2>
-      <p className="mt-1 text-sm text-zinc-600">Доход и налоги в {taxYear} году</p>
+    <section className="w-full max-w-sm rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-4">
+      <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
+        Годовая сводка
+      </h2>
+      <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+        Доход и налоги в {taxYear} году
+      </p>
 
       {baselineIsEstimated ? (
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">
           Примечание: начальное значение дохода — это ваша оценка.
         </p>
       ) : null}
@@ -58,21 +62,22 @@ export function AnnualPieChart({ summary, taxYear }: { summary: AnnualSummary; t
         </PieChart>
       </div>
 
-      <p className="mt-4 text-lg font-semibold text-zinc-900">
-        {formatKopecks(grossKopecks)} <span className="text-sm font-normal text-zinc-500">Грязными</span>
+      <p className="mt-4 text-lg font-semibold text-[color:var(--color-text-primary)]">
+        <span className="tabular-nums">{formatKopecks(grossKopecks)}</span>{" "}
+        <span className="text-sm font-normal text-[color:var(--color-text-secondary)]">Грязными</span>
       </p>
 
-      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-zinc-600">
+      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-[color:var(--color-text-secondary)]">
         <dt>Грязными</dt>
-        <dd className="text-right">
+        <dd className="text-right tabular-nums">
           {formatKopecks(grossKopecks)} · {formatPercent(grossKopecks, grossKopecks)}
         </dd>
         <dt>Налог</dt>
-        <dd className="text-right">
+        <dd className="text-right tabular-nums">
           {formatKopecks(taxKopecks)} · {formatPercent(taxKopecks, grossKopecks)}
         </dd>
         <dt>На руки</dt>
-        <dd className="text-right">
+        <dd className="text-right tabular-nums">
           {formatKopecks(netKopecks)} · {formatPercent(netKopecks, grossKopecks)}
         </dd>
       </dl>
