@@ -55,26 +55,26 @@ export function BonusForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
       <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">Бонус или компенсация</h2>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
         <label htmlFor="amountRubles" className={labelClassName}>Сумма, ₽</label>
         <input id="amountRubles" type="number" step="0.01" placeholder="Например, 10000"
           className={inputClassName} {...register("amountRubles")} />
         {errors.amountRubles && <p className="text-sm text-[color:var(--color-destructive)]">{errors.amountRubles.message}</p>}
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
         <label htmlFor="date" className={labelClassName}>Дата выплаты</label>
         <input id="date" type="date" className={inputClassName}
           {...register("date")} />
         <p className="text-[length:var(--font-size-caption)] text-[color:var(--color-text-secondary)]">День, когда бонус будет выплачен</p>
         {errors.date && <p className="text-sm text-[color:var(--color-destructive)]">{errors.date.message}</p>}
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
         <label htmlFor="note" className={labelClassName}>Заметка (необязательно)</label>
         <input id="note" type="text" placeholder={'Например, "13-я зарплата" или "бонус за проект"'}
           className={inputClassName} {...register("note")} />
         {errors.note && <p className="text-sm text-[color:var(--color-destructive)]">{errors.note.message}</p>}
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
         <label htmlFor="type" className={labelClassName}>Тип выплаты</label>
         <select id="type" className={inputClassName} {...register("type")}>
           <option value="premium">Премия (учитывается при расчёте отпускных)</option>

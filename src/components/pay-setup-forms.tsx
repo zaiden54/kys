@@ -127,7 +127,7 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
       <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
         Оклад
       </h2>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
         <label
           htmlFor="grossRubles"
           className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
@@ -147,7 +147,7 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
           </p>
         )}
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
         <label
           htmlFor="effectiveFrom"
           className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
@@ -253,7 +253,7 @@ export function ScheduleForm({ defaultAvansDay, defaultSalaryDay }: ScheduleForm
       <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
         График выплат
       </h2>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
         <label
           htmlFor="avansDay"
           className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
@@ -274,7 +274,7 @@ export function ScheduleForm({ defaultAvansDay, defaultSalaryDay }: ScheduleForm
           </p>
         )}
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
         <label
           htmlFor="salaryDay"
           className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
@@ -388,7 +388,7 @@ export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: Y
           не укажете реальную сумму.
         </p>
       )}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
         <label
           htmlFor="amountRubles"
           className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
@@ -409,7 +409,7 @@ export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: Y
           </p>
         )}
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
         <label
           htmlFor="asOfDate"
           className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
