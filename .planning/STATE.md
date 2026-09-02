@@ -5,11 +5,11 @@ milestone_name: Полировка MVP
 current_phase: 8
 current_phase_name: Visual Redesign, Accessibility & PWA Safe-Area
 status: planning
-stopped_at: Phase 07 complete, ready to plan Phase 8
-last_updated: "2026-09-02T15:00:57.972Z"
+stopped_at: Phase 08 UI-SPEC approved
+last_updated: "2026-09-02T15:15:32.744Z"
 last_activity: 2026-09-02
 last_activity_desc: Phase 07 complete, transitioned to Phase 8
-state_head: d8989afd31bb4671a3b6d5e52bda2ef0c3fbff4c
+state_head: 291dff0e88e7640f4ca8811a1abee48bfc343d7e
 progress:
   total_phases: 4
   completed_phases: 3
@@ -189,9 +189,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-02T15:00:57.972Z
-Stopped at: Phase 07 complete, ready to plan Phase 8
-Resume file: None
+Last session: 2026-09-02T15:15:32.589Z
+Stopped at: Phase 08 UI-SPEC approved
+Resume file: /home/zaiden/code/kys/.planning/phases/08-visual-redesign-accessibility-pwa-safe-area/08-UI-SPEC.md
 
 ## Operator Next Steps
 
