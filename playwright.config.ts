@@ -23,6 +23,8 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
   workers: 1,
+  globalSetup: require.resolve("./e2e/global-setup.ts"),
+  globalTeardown: require.resolve("./e2e/global-teardown.ts"),
   use: {
     // Never hardcode localhost directly here — Plan 07-05's CI job can
     // override this without editing this file again.
