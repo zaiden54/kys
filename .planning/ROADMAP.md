@@ -118,12 +118,12 @@ Plans:
   4. Playwright MCP is wired into the repo so a developer can drive or author new tests against the running app through it (E2E-05)
   5. The full suite runs in CI against its own isolated Neon branch — a CI run never reads or writes staging/production data (E2E-06)
 
-**Plans**: 5 plans
+**Plans**: 1/5 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — Playwright scaffold + E2E-01 golden path (tracer) + storageState setup infra
+- [x] 07-01-PLAN.md — Playwright scaffold + E2E-01 golden path (tracer) + storageState setup infra
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -164,5 +164,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Annual Overview & PWA Installability | v1.0 | 3/3 | Complete | 2026-08-31 |
 | 5. Deploy Pipeline & Environment Config | v1.1 | 4/4 | Complete    | 2026-09-01 |
 | 6. Auth Security Hardening | v1.1 | 1/1 | Complete    | 2026-09-01 |
-| 7. E2E Test Suite | v1.1 | 0/TBD | Not started | - |
+| 7. E2E Test Suite | v1.1 | 1/5 | In Progress|  |
 | 8. Visual Redesign, Accessibility & PWA Safe-Area | v1.1 | 0/TBD | Not started | - |

@@ -31,7 +31,7 @@ Requirements for the "Полировка MVP" milestone. Each maps to roadmap ph
 
 ### E2E-тестирование
 
-- [ ] **E2E-01**: Playwright настроен в репозитории, golden-path smoke-тест покрывает регистрация → вход → ввод оклада → прогноз следующей выплаты
+- [x] **E2E-01**: Playwright настроен в репозитории, golden-path smoke-тест покрывает регистрация → вход → ввод оклада → прогноз следующей выплаты
 - [ ] **E2E-02**: E2E-тесты покрывают добавление/редактирование/удаление бонуса и его влияние на прогноз
 - [ ] **E2E-03**: E2E-тесты покрывают добавление/редактирование/удаление отпуска и расчёт отпускных
 - [ ] **E2E-04**: E2E-тесты покрывают годовую pie-сводку и установку PWA
@@ -99,7 +99,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-02 | Phase 6 | Complete |
 | SEC-03 | Phase 6 | Complete |
 | SEC-04 | Phase 5 | Complete |
-| E2E-01 | Phase 7 | Pending |
+| E2E-01 | Phase 7 | Complete |
 | E2E-02 | Phase 7 | Pending |
 | E2E-03 | Phase 7 | Pending |
 | E2E-04 | Phase 7 | Pending |
