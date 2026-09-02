@@ -26,7 +26,8 @@ export function SkeletonLoader({
   variant: SkeletonVariant;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" role="status" aria-live="polite">
+      <span className="sr-only">Загрузка…</span>
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
