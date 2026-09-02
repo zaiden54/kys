@@ -61,8 +61,21 @@
   :root {
     --color-dominant: #ffffff;
     --color-secondary: #f9fafb;
-    --color-accent: #10b981;
-    --color-destructive: #ef4444;
+    /*
+     * --color-accent/--color-destructive are used directly as TEXT color
+     * (hero take-home amount, "Удалить …" links, field-error text) as well as
+     * a focus-ring color. The dark-mode values (#10b981 on #1a1a1a = 6.86:1,
+     * #ef4444 on #1a1a1a = 4.62:1) pass WCAG AA, but reusing them unchanged
+     * against the light-mode surfaces below fails: #10b981 on #ffffff/#f9fafb
+     * is only 2.43-2.54:1, and #ef4444 is only 3.60-3.76:1. Darker
+     * light-mode-tuned shades (emerald-700 / red-700) restore >=4.5:1 for
+     * normal text (and comfortably clear the 3:1 large-text threshold for the
+     * Display-role hero figure). See 08-REVIEW.md CR-02. Button backgrounds
+     * use the separate --color-accent-button token (CR-01) and are
+     * unaffected by this fork.
+     */
+    --color-accent: #047857;
+    --color-destructive: #b91c1c;
     --color-text-primary: #171717;
     --color-text-secondary: #6b7280;
     --color-tertiary-surface: #f3f4f6;
