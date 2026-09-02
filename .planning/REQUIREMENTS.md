@@ -9,18 +9,18 @@ Requirements for the "Полировка MVP" milestone. Each maps to roadmap ph
 
 ### UI/UX (визуальный редизайн)
 
-- [ ] **UI-01**: Пользователь видит понятные empty/loading/error-состояния вместо пустых экранов и технических ошибок (логин, главная, бонусы, отпуска, сводка)
-- [ ] **UI-02**: Все денежные суммы форматируются единообразно (locale-aware, табличные цифры) по всему приложению
+- [x] **UI-01**: Пользователь видит понятные empty/loading/error-состояния вместо пустых экранов и технических ошибок (логин, главная, бонусы, отпуска, сводка)
+- [x] **UI-02**: Все денежные суммы форматируются единообразно (locale-aware, табличные цифры) по всему приложению
 - [ ] **UI-03**: Разрушающие действия (перезапись оклада, удаление бонуса/отпуска) показывают диалог подтверждения с значением до/после
-- [ ] **UI-04**: Пользователь может вернуться на главный экран с любого экрана приложения
-- [ ] **UI-05**: Визуальный дизайн приложения (типографика, цвета, компоненты) полностью переработан через `frontend-design` skill
-- [ ] **UI-06**: Приложение поддерживает тёмную тему по системной настройке
-- [ ] **UI-07**: Интерактивные элементы соответствуют базовым требованиям доступности (контраст, focus-индикаторы, подписанные поля форм)
+- [x] **UI-04**: Пользователь может вернуться на главный экран с любого экрана приложения
+- [x] **UI-05**: Визуальный дизайн приложения (типографика, цвета, компоненты) полностью переработан через `frontend-design` skill
+- [x] **UI-06**: Приложение поддерживает тёмную тему по системной настройке
+- [x] **UI-07**: Интерактивные элементы соответствуют базовым требованиям доступности (контраст, focus-индикаторы, подписанные поля форм)
 
 ### PWA
 
-- [ ] **PWA-01**: Хедер/навигация уважают `env(safe-area-inset-top/bottom)` — контент не пересекается с dynamic island/home indicator на iPhone
-- [ ] **PWA-02**: Viewport настроен с `viewport-fit=cover`, safe-area отступы проверены на реальном/симулированном iPhone с Dynamic Island
+- [x] **PWA-01**: Хедер/навигация уважают `env(safe-area-inset-top/bottom)` — контент не пересекается с dynamic island/home indicator на iPhone
+- [x] **PWA-02**: Viewport настроен с `viewport-fit=cover`, safe-area отступы проверены на реальном/симулированном iPhone с Dynamic Island
 
 ### Безопасность
 
@@ -86,15 +86,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UI-01 | Phase 8 | Pending |
-| UI-02 | Phase 8 | Pending |
+| UI-01 | Phase 8 | Complete |
+| UI-02 | Phase 8 | Complete |
 | UI-03 | Phase 8 | Pending |
-| UI-04 | Phase 8 | Pending |
-| UI-05 | Phase 8 | Pending |
-| UI-06 | Phase 8 | Pending |
-| UI-07 | Phase 8 | Pending |
-| PWA-01 | Phase 8 | Pending |
-| PWA-02 | Phase 8 | Pending |
+| UI-04 | Phase 8 | Complete |
+| UI-05 | Phase 8 | Complete |
+| UI-06 | Phase 8 | Complete |
+| UI-07 | Phase 8 | Complete |
+| PWA-01 | Phase 8 | Complete |
+| PWA-02 | Phase 8 | Complete |
 | SEC-01 | Phase 6 | Complete |
 | SEC-02 | Phase 6 | Complete |
 | SEC-03 | Phase 6 | Complete |

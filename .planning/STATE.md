@@ -5,17 +5,17 @@ milestone_name: Полировка MVP
 current_phase: 08
 current_phase_name: Visual Redesign, Accessibility & PWA Safe-Area
 status: executing
-stopped_at: Phase 08 UI-SPEC approved
-last_updated: "2026-09-02T16:02:26.773Z"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-09-02T19:38:57.103Z"
 last_activity: 2026-09-02
 last_activity_desc: Phase 07 complete, transitioned to Phase 8
-state_head: 4b13aa61fc2e58b2d6644d8553894a674c9de292
+state_head: ff700089c27c7f9697cb6828957e887c7f0a351a
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 16
-  completed_plans: 10
-  percent: 63
+  completed_plans: 11
+  percent: 69
 ---
 
 # Project State
@@ -29,12 +29,12 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 
 ## Current Position
 
-Phase: 08 (Visual Redesign, Accessibility & PWA Safe-Area) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-09-02 — Phase 07 complete, transitioned to Phase 8
+Phase: 08 (Visual Redesign, Accessibility & PWA Safe-Area) — EXECUTING
+Plan: 01 of 6 complete (design tokens, shared shell, home screen tracer)
+Status: Executing
+Last activity: 2026-09-02 — Completed 08-01-PLAN.md
 
-Progress: [███████░░░] 75%
+Progress: [███████░░░] 69%
 
 ## Performance Metrics
 
@@ -95,6 +95,7 @@ Progress: [███████░░░] 75%
 | Phase 06 P01 | 65min | 3 tasks | 4 files |
 | Phase 07 P01 | 25min | 3 tasks | 7 files |
 | Phase 07 P05 | 35min | 3 tasks | 9 files |
+| Phase 08 P01 | 55min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -159,6 +160,8 @@ Recent decisions affecting current work:
 - [Phase 07]: [Phase 7]: [07-01]: Tracer feedback gate satisfied by the already-passing automated npm run test:e2e -- e2e/auth.spec.ts run against a live Neon database before proceeding to Task 3, since AUTO_CFG/AUTO_CHAIN both read false but the orchestrator's explicit resume instructions directed completing both tasks in one pass
 - [Phase 07]: Moved Neon branch provisioning out of Playwright's globalSetup hook into a standalone e2e/ci-branch-setup.mjs run as its own CI step before test:e2e, since Playwright starts webServer before the user's globalSetup file (confirmed on a real CI run)
 - [Phase 07]: Added a CI-level if:always() backstop cleanup step (e2e/ci-branch-teardown.mjs) alongside Playwright's own globalTeardown, since a webServer startup failure after branch creation would otherwise leak a billed Neon branch
+- [Phase 08]: [Phase 08]: [08-01]: skeleton-loader.tsx created in Task 1 (not Task 2) since Task 1's page.tsx Suspense fallbacks require it to compile — Rule 3 blocking-issue fix, not an architectural change
+- [Phase 08]: [Phase 08]: [08-01]: manifest.test.ts's stale #18181b theme_color/background_color assertions updated to #1a1a1a to match the new --color-dominant token value
 
 ### Pending Todos
 
@@ -189,9 +192,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-02T15:15:32.589Z
-Stopped at: Phase 08 UI-SPEC approved
-Resume file: /home/zaiden/code/kys/.planning/phases/08-visual-redesign-accessibility-pwa-safe-area/08-UI-SPEC.md
+Last session: 2026-09-02T19:38:56.968Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
