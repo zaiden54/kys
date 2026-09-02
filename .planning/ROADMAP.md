@@ -148,7 +148,7 @@ Plans:
   4. The app reflects the redesigned visual system (typography, color, components via `frontend-design`), follows the system dark/light theme, and meets basic accessibility requirements — contrast, focus indicators, labeled form fields (UI-05, UI-06, UI-07)
   5. On an iPhone with a Dynamic Island, the header/nav never overlaps it or the home indicator — verified with `viewport-fit=cover` configured and `env(safe-area-inset-*)` applied (PWA-01, PWA-02)
 
-**Plans**: 1/6 plans executed
+**Plans**: 5/6 plans executed
 
 Plans:
 **Wave 1**
@@ -157,10 +157,10 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 08-02-PLAN.md — Bonuses screen restyle (bonus-row, bonus-form, bonuses/page) + Suspense loading skeleton
-- [ ] 08-03-PLAN.md — Vacations screen restyle (vacation-row, vacation-form, vacations/page) + Suspense loading skeleton
-- [ ] 08-04-PLAN.md — Salary/onboarding restyle (shared pay-setup-forms.tsx confirmation panel, settings/salary/page, onboarding/page)
-- [ ] 08-05-PLAN.md — Auth screens restyle (login/page, register/page)
+- [x] 08-02-PLAN.md — Bonuses screen restyle (bonus-row, bonus-form, bonuses/page) + Suspense loading skeleton
+- [x] 08-03-PLAN.md — Vacations screen restyle (vacation-row, vacation-form, vacations/page) + Suspense loading skeleton
+- [x] 08-04-PLAN.md — Salary/onboarding restyle (shared pay-setup-forms.tsx confirmation panel, settings/salary/page, onboarding/page)
+- [x] 08-05-PLAN.md — Auth screens restyle (login/page, register/page)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -182,4 +182,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Deploy Pipeline & Environment Config | v1.1 | 4/4 | Complete    | 2026-09-01 |
 | 6. Auth Security Hardening | v1.1 | 1/1 | Complete    | 2026-09-01 |
 | 7. E2E Test Suite | v1.1 | 5/5 | Complete    | 2026-09-02 |
-| 8. Visual Redesign, Accessibility & PWA Safe-Area | v1.1 | 1/6 | In Progress|  |
+| 8. Visual Redesign, Accessibility & PWA Safe-Area | v1.1 | 5/6 | In Progress|  |
