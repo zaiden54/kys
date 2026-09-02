@@ -118,7 +118,22 @@ Plans:
   4. Playwright MCP is wired into the repo so a developer can drive or author new tests against the running app through it (E2E-05)
   5. The full suite runs in CI against its own isolated Neon branch — a CI run never reads or writes staging/production data (E2E-06)
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 07-01-PLAN.md — Playwright scaffold + E2E-01 golden path (tracer) + storageState setup infra
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 07-02-PLAN.md — E2E-02 bonus add/edit/delete + forecast-update coverage
+- [ ] 07-03-PLAN.md — E2E-03 vacation add/edit/delete + overlap validation + отпускные coverage
+- [ ] 07-04-PLAN.md — E2E-04 annual pie-chart + PWA manifest/install-banner coverage
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 07-05-PLAN.md — E2E-06 CI isolation (Neon globalSetup/globalTeardown, new `e2e` required job) + E2E-05 Playwright MCP wiring
 
 ### Phase 8: Visual Redesign, Accessibility & PWA Safe-Area
 
