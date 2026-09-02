@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 // Next 14+ and are silently ignored inside `metadata` (confirmed via
 // node_modules/next/dist/docs/.../generate-viewport.md).
 export const viewport: Viewport = {
-  themeColor: "#18181b",
+  themeColor: "#1a1a1a",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

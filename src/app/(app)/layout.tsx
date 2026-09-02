@@ -15,15 +15,26 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-zinc-600">{user.email}</span>
-          <Link href="/bonuses" className="text-sm font-medium text-zinc-800 underline">Бонусы</Link>
-          <Link href="/vacations" className="text-sm font-medium text-zinc-800 underline">Отпуска</Link>
+      <header
+        className="border-b border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)]"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <div className="flex h-14 items-center justify-between px-6">
+          <Link
+            href="/"
+            className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+          >
+            НаРуки
+          </Link>
+          <SignOutButton />
         </div>
-        <SignOutButton />
       </header>
-      <main className="flex flex-1 flex-col">{children}</main>
+      <main
+        className="flex flex-1 flex-col"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        {children}
+      </main>
     </div>
   );
 }
