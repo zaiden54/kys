@@ -5,17 +5,17 @@ milestone_name: Полировка MVP
 current_phase: 08
 current_phase_name: Visual Redesign, Accessibility & PWA Safe-Area
 status: executing
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-09-02T19:38:57.103Z"
-last_activity: 2026-09-02
-last_activity_desc: Phase 07 complete, transitioned to Phase 8
-state_head: ff700089c27c7f9697cb6828957e887c7f0a351a
+stopped_at: Completed 08-06-PLAN.md
+last_updated: "2026-09-02T21:02:28.308Z"
+last_activity: 2026-09-03
+last_activity_desc: Phase 8 whole-phase regression + verification closure complete (08-06); all 6 plans done, 1 structural gap filed (annual chart zero-income empty state), live-visual pass still pending
+state_head: 0d065c5864e68c908d5adac0bfa57cfc859498c9
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 16
-  completed_plans: 11
-  percent: 69
+  completed_plans: 16
+  percent: 75
 ---
 
 # Project State
@@ -29,12 +29,12 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 
 ## Current Position
 
-Phase: 08 (Visual Redesign, Accessibility & PWA Safe-Area) — EXECUTING
-Plan: 01 of 6 complete (design tokens, shared shell, home screen tracer)
-Status: Executing
-Last activity: 2026-09-02 — Completed 08-01-PLAN.md
+Phase: 08 (Visual Redesign, Accessibility & PWA Safe-Area) — ALL PLANS EXECUTED
+Plan: 6 of 6 complete (design tokens/shell/tracer, bonuses, vacations, salary/onboarding, login/register, whole-phase regression + verification closure)
+Status: Regression green; one structural gap filed (annual chart zero-income empty state); live-visual pass (safe-area/dark-light/keyboard) pending before phase fully closes
+Last activity: 2026-09-03 — Completed 08-06-PLAN.md
 
-Progress: [███████░░░] 69%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -96,6 +96,7 @@ Progress: [███████░░░] 69%
 | Phase 07 P01 | 25min | 3 tasks | 7 files |
 | Phase 07 P05 | 35min | 3 tasks | 9 files |
 | Phase 08 P01 | 55min | 3 tasks | 14 files |
+| Phase 08 P06 | 35min | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -162,6 +163,9 @@ Recent decisions affecting current work:
 - [Phase 07]: Added a CI-level if:always() backstop cleanup step (e2e/ci-branch-teardown.mjs) alongside Playwright's own globalTeardown, since a webServer startup failure after branch creation would otherwise leak a billed Neon branch
 - [Phase 08]: [Phase 08]: [08-01]: skeleton-loader.tsx created in Task 1 (not Task 2) since Task 1's page.tsx Suspense fallbacks require it to compile — Rule 3 blocking-issue fix, not an architectural change
 - [Phase 08]: [Phase 08]: [08-01]: manifest.test.ts's stale #18181b theme_color/background_color assertions updated to #1a1a1a to match the new --color-dominant token value
+- [Phase 08]: [Phase 08]: [Phase 08][08-06]: Task 2's five human-check items verified structurally (code/CSS/markup review) rather than live, since the execution environment has no browser tooling — findings reported honestly per-check rather than assumed passing
+- [Phase 08]: [Phase 08]: [Phase 08][08-06]: UI-SPEC backstop #1 (annual chart zero-income empty state) found structurally unimplemented — filed to STATE.md Blockers/Concerns per the plan's own designed failure-handling path rather than fixed inline (task scope locked to files_modified: [])
+- [Phase 08]: [Phase 08]: [Phase 08][08-06]: UI-03 marked complete in REQUIREMENTS.md as part of this plan's closure pass — functionally implemented in Plan 08-04's pay-setup-forms.tsx overwrite confirmation panel but never previously marked
 
 ### Pending Todos
 
@@ -181,6 +185,8 @@ None yet.
 - [Phase 6, resolved 2026-09-02] End-of-phase human DevTools check on PR #3 preview confirmed by user: password never in Network tab URL/query for either failure case, identical generic error text live, session cookie carried __Secure- prefix + HttpOnly + Secure + Path=/. SEC-01/02/03 fully closed.
 - [Phase 6, low severity] 3 Info-tier code-review findings deliberately left unfixed (06-REVIEW.md IN-01/02/03, out of `fix_scope: critical_warning`): verify-auth-security.mjs exercises the raw Better Auth HTTP API rather than authClient (coverage gap vs. the real browser path); the login page's generic-error `<p>` has no role="alert"/aria-live for assistive tech; the WR-01 network-failure `catch {}` has no bound error/logging, so any thrown exception is labeled a connectivity issue. None are security- or correctness-relevant; revisit during Phase 8 (Visual Redesign & Accessibility) or on a future `--all` code-review pass.
 - [Phase 7, low severity] 4 Info-tier code-review findings deliberately left unfixed (07-REVIEW.md IN-01..IN-04, out of `fix_scope: critical_warning` — all 4 Warning-tier findings WERE fixed and verified in a second review pass, see 07-REVIEW-FIX.md): an unreachable defensive branch in `e2e/global-teardown.ts`, a non-null assertion on `DATABASE_URL` in `e2e/fixtures.ts` that could give a clearer error message, dead `localStorage.removeItem` cleanup in `e2e/pwa.spec.ts`, and an unconditional-finally-unlink pattern in `e2e/ci-branch-teardown.mjs` (harmless here — last backstop step, no downstream consumer of the marker file). None are security- or correctness-relevant.
+- [Phase 8, 08-06] UI-SPEC backstop #1 (annual-summary-chart zero-income empty state) found structurally UNIMPLEMENTED during whole-phase regression closure: `src/components/annual-pie-chart.tsx` has no `grossKopecks === 0` branch, and `computeAnnualSummary` (`src/app/actions/annual-summary.ts`) returns `configured: true` whenever a schedule + salary history exist, even if zero events actually fall within the requested tax year (e.g. a salary configured with a future `effectiveFrom`, or a brand-new account before its first payment). Result: a genuine zero-income year renders a degenerate 0%/0% pie chart on the home screen instead of a distinct empty-state message — exactly the failure mode 08-UI-SPEC.md's backstop row was written to catch. Not fixed in 08-06 (task scope locked to `files_modified: []`, verification-only); needs a follow-up plan/task to design and implement the empty-state variant on `annual-pie-chart.tsx` and/or its caller in `src/app/(app)/page.tsx`.
+- [Phase 8, 08-06] End-of-phase human-check (PWA-01/02 safe-area on a real/simulated notched device, UI-06 OS dark/light toggle across all 7 screens, UI-07 keyboard-only Tab-through, UI-SPEC backstop #2 nav-header overflow at 375px) was verified structurally only (code/CSS/markup review) — this executor's environment has no browser/visual-inspection tooling. All four items are structurally strong (single-source-of-truth `env(safe-area-inset-*)` wiring, zero raw Tailwind color utilities remaining anywhere in `src/app`/`src/components`, full `focus-visible` coverage audited across all 14 interactive-element files, short fixed-string nav header well under 375px available width). A live visual/device pass is still needed to fully close PWA-01/02, UI-06, and UI-07 per 08-06-PLAN.md's own acceptance criteria — expected to be completed by the orchestrator (which has real browser tooling) immediately after this plan closes.
 
 ## Deferred Items
 
@@ -192,8 +198,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-02T19:38:56.968Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-09-02T21:02:28.125Z
+Stopped at: Completed 08-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
