@@ -85,7 +85,7 @@ export function BonusForm() {
       {serverError && <p className="text-sm text-[color:var(--color-destructive)]">{serverError}</p>}
       {message && <p className="text-sm text-[color:var(--color-accent)]">{message}</p>}
       <button type="submit" disabled={isSubmitting}
-        className="rounded-lg bg-[color:var(--color-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]">
+        className="rounded-lg bg-[color:var(--color-accent-button)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]">
         {isSubmitting ? "Сохранение…" : "Сохранить бонус"}
       </button>
     </form>

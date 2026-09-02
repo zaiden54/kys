@@ -17,7 +17,7 @@ async function BonusListContent() {
           <p className="text-sm text-[color:var(--color-text-secondary)]">Добавьте разовый бонус или компенсацию, привязав его к дате выплаты. Сумма будет включена в расчёт налога.</p>
           <a
             href="#bonus-form"
-            className="rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+            className="rounded-[8px] bg-[color:var(--color-accent-button)] px-4 py-2 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
           >
             Добавить бонус
           </a>

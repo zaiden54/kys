@@ -190,7 +190,7 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
             type="button"
             onClick={onConfirmReplace}
             disabled={confirming}
-            className="mt-2 rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+            className="mt-2 rounded-[8px] bg-[color:var(--color-accent-button)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
           >
             {confirming ? "Заменяем…" : "Подтвердить и заменить"}
           </button>
@@ -201,7 +201,7 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
       <button
         type="submit"
         disabled={isSubmitting}
-        className="rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+        className="rounded-[8px] bg-[color:var(--color-accent-button)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
       >
         {isSubmitting ? "Сохраняем…" : "Сохранить оклад"}
       </button>
@@ -301,7 +301,7 @@ export function ScheduleForm({ defaultAvansDay, defaultSalaryDay }: ScheduleForm
       <button
         type="submit"
         disabled={isSubmitting}
-        className="rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+        className="rounded-[8px] bg-[color:var(--color-accent-button)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
       >
         {isSubmitting ? "Сохраняем…" : "Сохранить график"}
       </button>
@@ -438,7 +438,7 @@ export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: Y
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+          className="rounded-[8px] bg-[color:var(--color-accent-button)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
         >
           {isSubmitting ? "Сохраняем…" : "Сохранить"}
         </button>

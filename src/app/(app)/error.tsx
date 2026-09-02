@@ -24,7 +24,7 @@ export default function AppError({
       <button
         type="button"
         onClick={() => reset()}
-        className="mt-2 rounded-lg bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+        className="mt-2 rounded-lg bg-[color:var(--color-accent-button)] px-4 py-2 text-sm font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
       >
         Повторить
       </button>

@@ -11,6 +11,14 @@
   --color-dominant: #1a1a1a;
   --color-secondary: #242424;
   --color-accent: #10b981;
+  /*
+   * Button-background-specific shade (emerald-700). White button text on the
+   * lighter --color-accent (#10b981) is only 2.54:1 (fails WCAG AA's 4.5:1 for
+   * normal text) — #047857 reaches ~5.5:1 with white text and is identical in
+   * both color schemes, so it is declared once here rather than forked.
+   * See 08-REVIEW.md CR-01.
+   */
+  --color-accent-button: #047857;
   --color-destructive: #ef4444;
   --color-text-primary: #f5f5f5;
   --color-text-secondary: #9ca3af;

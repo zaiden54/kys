@@ -93,7 +93,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+          className="rounded-[8px] bg-[color:var(--color-accent-button)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
         >
           {isSubmitting ? "Создаём аккаунт…" : "Зарегистрироваться"}
         </button>
