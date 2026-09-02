@@ -21,9 +21,25 @@
  * does not pre-set — see Task 1's read_first note and .github/workflows/ci.yml's
  * `e2e` job) and used to call `GET /projects/{id}/connection_uri` for the
  * actual connection string.
+ *
+ * DEVIATION (Task 2, live-CI proof): Playwright's own task order starts
+ * `config.webServer` BEFORE running this file (confirmed against a real
+ * GitHub Actions run — playwright/lib/runner/index.js's
+ * `createGlobalSetupTasks` runs the webServer plugin's setup before
+ * `config.globalSetups`), so by the time this function used to run, the
+ * webServer's `next build`/`next start` had already failed for lack of a
+ * real DATABASE_URL. The actual provisioning now happens earlier, in
+ * e2e/ci-branch-setup.mjs, run as its own GitHub Actions step *before*
+ * `npm run test:e2e` (see .github/workflows/ci.yml's `e2e` job). This
+ * function is left in place as a defensive no-op/fallback: if
+ * e2e/.ci-branch.json already exists (the CI step already provisioned
+ * everything), it does nothing; otherwise it still performs the full
+ * branch-creation flow itself, so this file's original contract keeps
+ * working for any future caller that invokes Playwright without the
+ * preceding CI step.
  */
 import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const NEON_API_BASE = "https://console.neon.tech/api/v2";
@@ -58,6 +74,12 @@ async function neonApi<T>(pathname: string, init?: RequestInit): Promise<T> {
 
 export default async function globalSetup(): Promise<void> {
   if (!process.env.CI) {
+    return;
+  }
+
+  if (existsSync(BRANCH_ID_FILE)) {
+    // e2e/ci-branch-setup.mjs already provisioned and wrote this file as an
+    // earlier CI step (before webServer/next build ran) — nothing to do.
     return;
   }
 

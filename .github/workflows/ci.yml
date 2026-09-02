@@ -99,14 +99,41 @@ jobs:
       # This job runs on its own runner with its own process env — it does
       # NOT inherit the `ci` job's $GITHUB_ENV additions across jobs, so a
       # fresh BETTER_AUTH_SECRET is generated here too. No dummy DATABASE_URL
-      # is set: e2e/global-setup.ts supplies the real, isolated-branch value
-      # at runtime when CI is set.
+      # is set here: the next step provisions the real, isolated-branch value.
       - name: Configure environment
         run: |
           echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
 
+      # Runs BEFORE `npm run test:e2e` (not inside Playwright's own
+      # globalSetup hook) because Playwright starts `config.webServer`
+      # before running the user's globalSetup file — confirmed against a
+      # real run of this exact job. `next build`/`next start` (spawned by
+      # webServer) need a real DATABASE_URL already present at spawn time,
+      # so the isolated Neon branch must exist and be exported to
+      # $GITHUB_ENV before this step, not from inside it. See
+      # e2e/ci-branch-setup.mjs's own header comment.
+      - name: Provision isolated Neon branch
+        run: node e2e/ci-branch-setup.mjs
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+
       - name: E2E tests (isolated Neon branch)
         run: npm run test:e2e
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+
+      # Backstop only — e2e/global-teardown.ts (Playwright's own
+      # globalTeardown hook) is the primary deletion path and already runs
+      # on both pass and fail. This step exists for the case where
+      # Playwright's own teardown chain never gets reached at all (e.g. a
+      # webServer startup failure aborts the run before any of Playwright's
+      # tasks execute). Idempotent — no-ops if the branch was already
+      # deleted.
+      - name: Backstop Neon branch cleanup
+        if: always()
+        run: node e2e/ci-branch-teardown.mjs
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
