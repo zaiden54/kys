@@ -17,14 +17,17 @@ export function YtdEstimateBanner() {
   return (
     <div
       role="status"
-      className="w-full max-w-sm rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+      className="w-full max-w-sm rounded-lg border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] px-4 py-3 text-sm text-[color:var(--color-text-primary)]"
     >
       <p>
         Прогноз пока считается так, будто с 1 января доход был нулевым — вы ещё не указали
         сумму дохода с начала года.
       </p>
       <p className="mt-1">
-        <Link href="/settings/salary" className="font-medium underline">
+        <Link
+          href="/settings/salary"
+          className="font-medium text-[color:var(--color-accent)] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+        >
           Указать доход с начала года
         </Link>
       </p>

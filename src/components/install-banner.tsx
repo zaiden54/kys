@@ -72,11 +72,13 @@ export function InstallBanner() {
   }
 
   return (
-    <div className="w-full max-w-sm rounded border-l-4 border-zinc-900 bg-zinc-100 p-3 dark:bg-zinc-800">
+    <div className="w-full max-w-sm rounded border-l-4 border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold">Установить приложение</h2>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+          <h2 className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+            Установить приложение
+          </h2>
+          <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
             Поделиться → На экран «Домой»
           </p>
         </div>
@@ -84,7 +86,7 @@ export function InstallBanner() {
           type="button"
           onClick={handleDismiss}
           aria-label="Скрыть"
-          className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+          className="text-sm text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
         >
           ✕
         </button>
