@@ -65,7 +65,10 @@ export default async function HomePage() {
 
   if (fetchFailed || !result || !annualResult) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+      <div
+        role="alert"
+        className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center"
+      >
         <InstallBanner />
         <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
           Не удалось загрузить данные

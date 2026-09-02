@@ -16,7 +16,10 @@ export default function AppError({
   reset: () => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+    <div
+      role="alert"
+      className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center"
+    >
       <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
         Ошибка при загрузке сводки
       </h1>
