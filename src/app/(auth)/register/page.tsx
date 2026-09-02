@@ -49,46 +49,61 @@ export default function RegisterPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-4 px-6 py-16">
-      <h1 className="text-2xl font-semibold">Регистрация</h1>
+      <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+        Регистрация
+      </h1>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
         <div className="flex flex-col gap-1">
-          <label htmlFor="email" className="text-sm font-medium">
+          <label
+            htmlFor="email"
+            className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
+          >
             Email
           </label>
           <input
             id="email"
             type="email"
             autoComplete="email"
-            className="rounded border border-zinc-300 px-3 py-2"
+            className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
             {...register("email")}
           />
-          {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
+          {errors.email && (
+            <p className="text-sm text-[color:var(--color-destructive)]">{errors.email.message}</p>
+          )}
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="password" className="text-sm font-medium">
+          <label
+            htmlFor="password"
+            className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
+          >
             Пароль
           </label>
           <input
             id="password"
             type="password"
             autoComplete="new-password"
-            className="rounded border border-zinc-300 px-3 py-2"
+            className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
             {...register("password")}
           />
-          {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
+          {errors.password && (
+            <p className="text-sm text-[color:var(--color-destructive)]">{errors.password.message}</p>
+          )}
         </div>
-        {formError && <p className="text-sm text-red-600">{formError}</p>}
+        {formError && <p className="text-sm text-[color:var(--color-destructive)]">{formError}</p>}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+          className="rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
         >
           {isSubmitting ? "Создаём аккаунт…" : "Зарегистрироваться"}
         </button>
       </form>
-      <p className="text-sm text-zinc-600">
+      <p className="text-sm text-[color:var(--color-text-secondary)]">
         Уже есть аккаунт?{" "}
-        <Link href="/login" className="underline">
+        <Link
+          href="/login"
+          className="text-[color:var(--color-accent)] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+        >
           Войти
         </Link>
       </p>
