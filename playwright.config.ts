@@ -42,12 +42,31 @@ export default defineConfig({
   },
   projects: [
     {
+      // Runs e2e/auth.setup.ts, which registers a persistent fixture user
+      // and saves its session to playwright/.auth/user.json for the
+      // `authenticated` project below.
+      name: "setup",
+      testMatch: /auth\.setup\.ts$/,
+    },
+    {
+      // auth.spec.ts (E2E-01) deliberately runs unauthenticated from its
+      // own fresh registration — it must never depend on `setup` or share
+      // storageState with the `authenticated` project.
       name: "chromium",
-      // Pre-set to cover bonus/vacation/pie-chart/pwa spec filenames (which
-      // don't exist yet) so Plans 07-02/03/04 never need to touch this file
-      // again.
-      testMatch: /(auth\.spec|bonus\.spec|vacation\.spec|pie-chart\.spec|pwa\.spec)\.ts$/,
+      testMatch: /auth\.spec\.ts$/,
+      testIgnore: /auth\.setup\.ts$/,
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      // Bonus/vacation/pie-chart/pwa specs (Plans 07-02/03/04) declare this
+      // project so they get a logged-in session for free via
+      // dependencies: ["setup"] + storageState, without re-implementing
+      // login. None of these spec files exist yet, so this project
+      // currently matches zero test files (a harmless no-op).
+      name: "authenticated",
+      testMatch: /(bonus|vacation|pie-chart|pwa)\.spec\.ts$/,
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], storageState: "playwright/.auth/user.json" },
     },
   ],
 });
