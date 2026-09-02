@@ -37,7 +37,7 @@ export default defineConfig({
     // worker actually registers — next.config.ts's `disable:
     // process.env.NODE_ENV === "development"` flag silently skips SW
     // registration under `next dev`, which Plan 07-04's PWA test needs.
-    command: "npm run build --webpack && npm run start",
+    command: "npm run build && npm run start",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
