@@ -124,60 +124,84 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
-      <h2 className="text-lg font-semibold">Оклад</h2>
+      <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
+        Оклад
+      </h2>
       <div className="flex flex-col gap-1">
-        <label htmlFor="grossRubles" className="text-sm font-medium">
+        <label
+          htmlFor="grossRubles"
+          className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
+        >
           Оклад «грязными», ₽
         </label>
         <input
           id="grossRubles"
           type="number"
           step="0.01"
-          className="rounded border border-zinc-300 px-3 py-2"
+          className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
           {...register("grossRubles")}
         />
-        {errors.grossRubles && <p className="text-sm text-red-600">{errors.grossRubles.message}</p>}
+        {errors.grossRubles && (
+          <p className="text-sm text-[color:var(--color-destructive)]">
+            {errors.grossRubles.message}
+          </p>
+        )}
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="effectiveFrom" className="text-sm font-medium">
+        <label
+          htmlFor="effectiveFrom"
+          className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
+        >
           Дата вступления в силу
         </label>
         <input
           id="effectiveFrom"
           type="date"
-          className="rounded border border-zinc-300 px-3 py-2"
+          className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
           {...register("effectiveFrom")}
         />
-        <p className="text-xs text-zinc-500">
+        <p className="text-[length:var(--font-size-caption)] text-[color:var(--color-text-secondary)]">
           Можно указать дату в прошлом — например, чтобы исправить ранее введённое значение.
         </p>
         {errors.effectiveFrom && (
-          <p className="text-sm text-red-600">{errors.effectiveFrom.message}</p>
+          <p className="text-sm text-[color:var(--color-destructive)]">
+            {errors.effectiveFrom.message}
+          </p>
         )}
       </div>
       {pendingConfirmation && (
-        <div className="rounded border border-amber-400 bg-amber-50 p-3 text-sm">
+        <div className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-4 text-sm">
           <p>
-            На {pendingConfirmation.effectiveFrom} уже сохранён оклад{" "}
-            {pendingConfirmation.existingAmountRubles} ₽. Он будет безвозвратно заменён на{" "}
-            {pendingConfirmation.submittedAmountRubles} ₽.
+            На{" "}
+            <span className="tabular-nums">{pendingConfirmation.effectiveFrom}</span> уже сохранён
+            оклад{" "}
+            <span className="tabular-nums line-through text-[color:var(--color-text-secondary)]">
+              {pendingConfirmation.existingAmountRubles} ₽
+            </span>
+            . Он будет безвозвратно заменён на{" "}
+            <span
+              className={`font-semibold tabular-nums ${pendingConfirmation.submittedAmountRubles > pendingConfirmation.existingAmountRubles ? "text-[color:var(--color-accent)]" : "text-[color:var(--color-text-primary)]"}`}
+            >
+              {pendingConfirmation.submittedAmountRubles} ₽
+            </span>
+            .
           </p>
           <button
             type="button"
             onClick={onConfirmReplace}
             disabled={confirming}
-            className="mt-2 rounded bg-black px-3 py-1.5 text-white disabled:opacity-50"
+            className="mt-2 rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
           >
             {confirming ? "Заменяем…" : "Подтвердить и заменить"}
           </button>
         </div>
       )}
-      {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-      {message && <p className="text-sm text-green-700">{message}</p>}
+      {serverError && <p className="text-sm text-[color:var(--color-destructive)]">{serverError}</p>}
+      {message && <p className="text-sm text-[color:var(--color-accent)]">{message}</p>}
       <button
         type="submit"
         disabled={isSubmitting}
-        className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+        className="rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
       >
         {isSubmitting ? "Сохраняем…" : "Сохранить оклад"}
       </button>
@@ -226,9 +250,14 @@ export function ScheduleForm({ defaultAvansDay, defaultSalaryDay }: ScheduleForm
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
-      <h2 className="text-lg font-semibold">График выплат</h2>
+      <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
+        График выплат
+      </h2>
       <div className="flex flex-col gap-1">
-        <label htmlFor="avansDay" className="text-sm font-medium">
+        <label
+          htmlFor="avansDay"
+          className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
+        >
           День аванса (число месяца)
         </label>
         <input
@@ -236,13 +265,20 @@ export function ScheduleForm({ defaultAvansDay, defaultSalaryDay }: ScheduleForm
           type="number"
           min={1}
           max={31}
-          className="rounded border border-zinc-300 px-3 py-2"
+          className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
           {...register("avansDay")}
         />
-        {errors.avansDay && <p className="text-sm text-red-600">{errors.avansDay.message}</p>}
+        {errors.avansDay && (
+          <p className="text-sm text-[color:var(--color-destructive)]">
+            {errors.avansDay.message}
+          </p>
+        )}
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="salaryDay" className="text-sm font-medium">
+        <label
+          htmlFor="salaryDay"
+          className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
+        >
           День зарплаты (число месяца)
         </label>
         <input
@@ -250,18 +286,22 @@ export function ScheduleForm({ defaultAvansDay, defaultSalaryDay }: ScheduleForm
           type="number"
           min={1}
           max={31}
-          className="rounded border border-zinc-300 px-3 py-2"
+          className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
           {...register("salaryDay")}
         />
-        {errors.salaryDay && <p className="text-sm text-red-600">{errors.salaryDay.message}</p>}
+        {errors.salaryDay && (
+          <p className="text-sm text-[color:var(--color-destructive)]">
+            {errors.salaryDay.message}
+          </p>
+        )}
       </div>
-      {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-      {message && <p className="text-sm text-green-700">{message}</p>}
-      {warning && <p className="text-sm text-amber-700">{warning}</p>}
+      {serverError && <p className="text-sm text-[color:var(--color-destructive)]">{serverError}</p>}
+      {message && <p className="text-sm text-[color:var(--color-accent)]">{message}</p>}
+      {warning && <p className="text-sm text-[color:var(--color-text-secondary)]">{warning}</p>}
       <button
         type="submit"
         disabled={isSubmitting}
-        className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+        className="rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
       >
         {isSubmitting ? "Сохраняем…" : "Сохранить график"}
       </button>
@@ -335,19 +375,24 @@ export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: Y
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
-      <h2 className="text-lg font-semibold">Доход с начала года</h2>
-      <p className="text-xs text-zinc-500">
+      <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
+        Доход с начала года
+      </h2>
+      <p className="text-[length:var(--font-size-caption)] text-[color:var(--color-text-secondary)]">
         Нужно, чтобы правильно посчитать НДФЛ нарастающим итогом, если вы регистрируетесь не в
         январе.
       </p>
       {isEstimated && (
-        <p className="text-sm text-amber-700">
+        <p className="text-sm text-[color:var(--color-text-secondary)]">
           Сейчас используется нулевое значение по умолчанию — прогноз может быть неточным, пока вы
           не укажете реальную сумму.
         </p>
       )}
       <div className="flex flex-col gap-1">
-        <label htmlFor="amountRubles" className="text-sm font-medium">
+        <label
+          htmlFor="amountRubles"
+          className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
+        >
           Сумма дохода с 1 января, ₽
         </label>
         <input
@@ -355,36 +400,45 @@ export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: Y
           type="number"
           step="0.01"
           min={0}
-          className="rounded border border-zinc-300 px-3 py-2"
+          className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
           {...register("amountRubles")}
         />
         {errors.amountRubles && (
-          <p className="text-sm text-red-600">{errors.amountRubles.message}</p>
+          <p className="text-sm text-[color:var(--color-destructive)]">
+            {errors.amountRubles.message}
+          </p>
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="asOfDate" className="text-sm font-medium">
+        <label
+          htmlFor="asOfDate"
+          className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
+        >
           По состоянию на
         </label>
         <input
           id="asOfDate"
           type="date"
-          className="rounded border border-zinc-300 px-3 py-2"
+          className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
           {...register("asOfDate")}
         />
-        <p className="text-xs text-zinc-500">
+        <p className="text-[length:var(--font-size-caption)] text-[color:var(--color-text-secondary)]">
           Сумма выше — это доход с 1 января по указанную дату включительно. Выплаты по графику
           после этой даты добавляются автоматически.
         </p>
-        {errors.asOfDate && <p className="text-sm text-red-600">{errors.asOfDate.message}</p>}
+        {errors.asOfDate && (
+          <p className="text-sm text-[color:var(--color-destructive)]">
+            {errors.asOfDate.message}
+          </p>
+        )}
       </div>
-      {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-      {message && <p className="text-sm text-green-700">{message}</p>}
+      {serverError && <p className="text-sm text-[color:var(--color-destructive)]">{serverError}</p>}
+      {message && <p className="text-sm text-[color:var(--color-accent)]">{message}</p>}
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+          className="rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-white font-semibold disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
         >
           {isSubmitting ? "Сохраняем…" : "Сохранить"}
         </button>
@@ -392,7 +446,7 @@ export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: Y
           type="button"
           onClick={onSkip}
           disabled={skipping}
-          className="rounded border border-zinc-300 px-4 py-2 disabled:opacity-50"
+          className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] px-4 py-2 text-[color:var(--color-text-primary)] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
         >
           {skipping ? "…" : "Пропустить"}
         </button>

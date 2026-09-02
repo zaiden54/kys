@@ -25,7 +25,9 @@ export default async function SalarySettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-6 py-12">
-      <h1 className="text-2xl font-semibold">Оклад и график выплат</h1>
+      <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+        Оклад и график выплат
+      </h1>
 
       <SalaryForm
         defaultGrossRubles={
@@ -43,15 +45,22 @@ export default async function SalarySettingsPage() {
       />
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">История окладов</h2>
+        <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
+          История окладов
+        </h2>
         {history.length === 0 ? (
-          <p className="text-sm text-zinc-600">Пока нет сохранённых значений оклада.</p>
+          <p className="text-sm text-[color:var(--color-text-secondary)]">
+            Пока нет сохранённых значений оклада.
+          </p>
         ) : (
           <ul className="flex flex-col gap-1 text-sm">
             {history.map((row) => (
-              <li key={row.id} className="flex justify-between border-b border-zinc-100 py-1">
-                <span>{row.effectiveFrom}</span>
-                <span>{formatKopecks(row.grossAmountKopecks)}</span>
+              <li
+                key={row.id}
+                className="flex justify-between border-b border-[color:var(--color-tertiary-surface)] py-1"
+              >
+                <span className="tabular-nums">{row.effectiveFrom}</span>
+                <span className="tabular-nums">{formatKopecks(row.grossAmountKopecks)}</span>
               </li>
             ))}
           </ul>
