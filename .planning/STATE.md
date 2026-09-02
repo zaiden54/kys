@@ -22,10 +22,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-01)
+See: .planning/PROJECT.md (updated 2026-09-02)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** Phase 07 — E2E Test Suite
+**Current focus:** Phase 8 — Visual Redesign, Accessibility & PWA Safe-Area
 
 ## Current Position
 
@@ -34,7 +34,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-09-02 — Phase 07 complete, transitioned to Phase 8
 
-Progress: [█████░░░░░] 50%
+Progress: [███████░░░] 75%
 
 ## Performance Metrics
 
@@ -173,10 +173,11 @@ None yet.
 - [Phase 2, low severity] BonusRow's `keepDirtyValues: true` (WR-01 fix) narrows but does not fully close the possibility of submitting a value based on a premise that changed underneath the user during a concurrent cross-device edit — no inline conflict notice was added; this was a deliberate scope choice (02-REVIEW-FIX.md), not an oversight. Revisit if concurrent multi-device editing of the same bonus turns out to be a real usage pattern.
 - [Phase 3, 03-04] Browser-based manual UAT (03-VALIDATION.md Manual-Only Verifications row) not click-through-performed in this autonomous session — recorded as an open unrun-verify entry in .planning/WINDOWS.md; substituted with npm run build + full 315-test automated suite. A human should complete the walkthrough before considering Phase 3 UAT fully closed.
 - [Phase 5, resolved 2026-09-01] Research flag (confirm target Vercel staging domain/branch doesn't already exist) made moot — the persistent-staging concept itself was dropped mid-execution in favor of per-PR preview isolation (see 05-04-SUMMARY.md key-decisions).
-- Research flag (v1.1, Phase 7): Neon globalSetup for Playwright's isolated-branch-per-CI-run pattern is proven locally but needs validation once it actually runs inside GitHub Actions (research/SUMMARY.md Gaps to Address #2)
+- [Phase 7, resolved 2026-09-02] Research flag (v1.1, Phase 7): Neon globalSetup CI validation — the pattern needed a real fix once run in GitHub Actions: Playwright starts `webServer` before `globalSetup`, so branch provisioning was moved to a standalone `e2e/ci-branch-setup.mjs` CI step run before `test:e2e`. Second live CI run passed green (`gh run 33641989899`, 2m6s). `main`'s required_status_checks now includes both `ci` and `e2e`.
 - Research flag (v1.1, Phase 8): visual-regression baseline screenshots need explicit design agreement before the redesign lands, or regressions will pass silently (research/PITFALLS.md #6)
 - [Phase 6, resolved 2026-09-02] End-of-phase human DevTools check on PR #3 preview confirmed by user: password never in Network tab URL/query for either failure case, identical generic error text live, session cookie carried __Secure- prefix + HttpOnly + Secure + Path=/. SEC-01/02/03 fully closed.
 - [Phase 6, low severity] 3 Info-tier code-review findings deliberately left unfixed (06-REVIEW.md IN-01/02/03, out of `fix_scope: critical_warning`): verify-auth-security.mjs exercises the raw Better Auth HTTP API rather than authClient (coverage gap vs. the real browser path); the login page's generic-error `<p>` has no role="alert"/aria-live for assistive tech; the WR-01 network-failure `catch {}` has no bound error/logging, so any thrown exception is labeled a connectivity issue. None are security- or correctness-relevant; revisit during Phase 8 (Visual Redesign & Accessibility) or on a future `--all` code-review pass.
+- [Phase 7, low severity] 4 Info-tier code-review findings deliberately left unfixed (07-REVIEW.md IN-01..IN-04, out of `fix_scope: critical_warning` — all 4 Warning-tier findings WERE fixed and verified in a second review pass, see 07-REVIEW-FIX.md): an unreachable defensive branch in `e2e/global-teardown.ts`, a non-null assertion on `DATABASE_URL` in `e2e/fixtures.ts` that could give a clearer error message, dead `localStorage.removeItem` cleanup in `e2e/pwa.spec.ts`, and an unconditional-finally-unlink pattern in `e2e/ci-branch-teardown.mjs` (harmless here — last backstop step, no downstream consumer of the marker file). None are security- or correctness-relevant.
 
 ## Deferred Items
 
@@ -188,10 +189,10 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-02T14:33:58.180Z
+Last session: 2026-09-02T15:00:57.972Z
 Stopped at: Phase 07 complete, ready to plan Phase 8
 Resume file: None
 
 ## Operator Next Steps
 
-- Phase 6 is complete and fully verified (SEC-01/02/03 all confirmed, including the end-of-phase human DevTools check on the live PR #3 preview, confirmed 2026-09-02). Run `/gsd-discuss-phase 7` or `/gsd-plan-phase 7` to start Phase 7 (E2E Test Suite), or `/gsd-autonomous --from 7` to continue the milestone autonomously.
+- Phase 7 (E2E Test Suite) is complete and fully verified (6/6 must-haves, all requirements E2E-01..E2E-06 confirmed live — local suite 13/13 passing, CI `e2e` job green on a real run, `main` branch protection requires both `ci` and `e2e`). Run `/gsd-discuss-phase 8` or `/gsd-plan-phase 8` to start Phase 8 (Visual Redesign, Accessibility & PWA Safe-Area), or `/gsd-autonomous --from 8` to continue the milestone autonomously. Note the open research flag above: visual-regression baseline screenshots need explicit design agreement before this phase lands.
