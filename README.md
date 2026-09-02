@@ -9,6 +9,14 @@ Requires Node.js 22.4+ (the test suite uses `--no-experimental-webstorage`, a fl
 3. `npm run db:push` — applies the Drizzle schema to your Neon database.
 4. `npm run dev` — starts the full stack against the real Neon database.
 
+## E2E tests
+
+`npm run test:e2e` runs the full Playwright suite locally against whatever `DATABASE_URL` is already configured in `.env.local` — there is no isolated branch when run locally (see `e2e/global-setup.ts`'s CI-only guard).
+
+In CI, the same suite runs against a throwaway, isolated Neon branch that is created before the run and destroyed afterward, whether the tests pass or fail (see the `e2e` job in `.github/workflows/ci.yml`).
+
+This repo also ships a pre-configured `.mcp.json` for `@playwright/mcp`, so a Claude Code (or other MCP-aware) session can drive/inspect the running dev server directly for interactive test authoring/debugging — start `npm run dev` first, then the Playwright MCP tools become available in-session.
+
 ## Getting Started
 
 First, run the development server:
