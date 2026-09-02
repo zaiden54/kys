@@ -66,30 +66,41 @@ export function VacationForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
-      <h2 className="text-lg font-semibold">Отпуск</h2>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="startDate" className="text-sm font-medium">Дата начала отпуска</label>
-        <input id="startDate" type="date" className="rounded border border-zinc-300 px-3 py-2"
-          {...register("startDate")} />
-        <p className="text-xs text-zinc-500">День, когда начинается отпуск</p>
-        {errors.startDate && <p className="text-sm text-red-600">{errors.startDate.message}</p>}
+      <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">Отпуск</h2>
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
+        <label htmlFor="startDate" className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]">Дата начала отпуска</label>
+        <input
+          id="startDate"
+          type="date"
+          className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+          {...register("startDate")}
+        />
+        <p className="text-[length:var(--font-size-caption)] text-[color:var(--color-text-secondary)]">День, когда начинается отпуск</p>
+        {errors.startDate && <p className="text-sm text-[color:var(--color-destructive)]">{errors.startDate.message}</p>}
       </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="endDate" className="text-sm font-medium">Дата окончания отпуска</label>
-        <input id="endDate" type="date" className="rounded border border-zinc-300 px-3 py-2"
-          {...register("endDate")} />
-        <p className="text-xs text-zinc-500">День, когда заканчивается отпуск</p>
-        {errors.endDate && <p className="text-sm text-red-600">{errors.endDate.message}</p>}
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
+        <label htmlFor="endDate" className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]">Дата окончания отпуска</label>
+        <input
+          id="endDate"
+          type="date"
+          className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+          {...register("endDate")}
+        />
+        <p className="text-[length:var(--font-size-caption)] text-[color:var(--color-text-secondary)]">День, когда заканчивается отпуск</p>
+        {errors.endDate && <p className="text-sm text-[color:var(--color-destructive)]">{errors.endDate.message}</p>}
         {dayCount !== null && (
-          <p className="text-xs text-zinc-500">
+          <p className="text-[length:var(--font-size-caption)] text-[color:var(--color-text-secondary)]">
             {dayCount} {pluralizeRu(dayCount, ["день", "дня", "дней"])} отпуска
           </p>
         )}
       </div>
-      {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-      {message && <p className="text-sm text-green-700">{message}</p>}
-      <button type="submit" disabled={isSubmitting}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+      {serverError && <p className="text-sm text-[color:var(--color-destructive)]">{serverError}</p>}
+      {message && <p className="text-sm text-[color:var(--color-accent)]">{message}</p>}
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="rounded-[8px] bg-[color:var(--color-accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+      >
         {isSubmitting ? "Сохранение…" : "Сохранить отпуск"}
       </button>
     </form>
