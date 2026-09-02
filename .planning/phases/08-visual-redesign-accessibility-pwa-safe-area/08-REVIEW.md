@@ -30,236 +30,149 @@ files_reviewed_list:
   - src/components/skeleton-loader.tsx
   - src/components/ytd-estimate-banner.tsx
 findings:
-  critical: 2
-  warning: 4
-  info: 4
-  total: 10
-status: issues_found
+  critical: 0
+  warning: 0
+  info: 5
+  total: 5
+status: clean
 ---
 
-# Phase 08: Code Review Report
+# Phase 08: Code Review Report (iteration 2)
 
 **Reviewed:** 2026-09-03T00:00:00Z
 **Depth:** standard
 **Files Reviewed:** 25
-**Status:** issues_found
+**Status:** clean
 
 ## Summary
 
-Reviewed all 25 changed source files for the visual/CSS/accessibility redesign at standard depth.
-Confirmed via `git diff`/`git log` that `src/domain/**`, `src/lib/db/**`, and `src/app/actions/**`
-were untouched by this phase, and traced the four explicitly-flagged risk areas:
+This is iteration 2 of the review/fix loop. Re-read all 25 in-scope files from scratch (not a diff-only
+pass) and independently re-derived every finding rather than trusting the iteration-1 report or the
+08-REVIEW-FIX.md summary.
 
-- **Salary-overwrite confirmation panel** (`pay-setup-forms.tsx`): diffed the phase-08 commit
-  (`d35c1fc`) against the prior version — `submit`/`onConfirmReplace`, the `confirmationClaim`
-  compare-and-swap payload, and all `SalaryActionResult`/`ScheduleActionResult`/
-  `YtdBaselineActionResult` handling are byte-for-byte unchanged; only `className` values and JSX
-  wrapping changed.
-- **Phase 6 SEC-02 string** (`login/page.tsx`): diffed against the prior version (`7f21663`) —
-  `setFormError("Неверный email или пароль")` and the surrounding `onSubmit` branch logic are
-  byte-for-byte unchanged, confirmed by the commit's own message.
-- **`window.confirm()` delete flows** (`bonus-row.tsx`, `vacation-row.tsx`): diffed both restyle
-  commits (`b6a0c31`, `1e71bcf`) — confirm message text, `onDelete`/`onEdit` logic, and input
-  `id`/`aria-label` attributes are unchanged; only `className` values changed.
-- **Calculation logic scope**: `git diff` across the phase-08 commit range touches zero files under
-  `src/domain/`, `src/lib/db/`, or `src/app/actions/`.
+**Contrast math re-verification (CR-01/CR-02).** Recomputed WCAG 2.1 relative-luminance contrast by
+hand for every token pairing the fix touched:
 
-However, the design-token contrast/accessibility check surfaced a real, measurable problem: the
-redesign's single `--color-accent` (`#10b981`) and `--color-destructive` (`#ef4444`) tokens are
-used simultaneously as (a) white-text-on-colored-background for every primary CTA button, and (b)
-colored-text-on-background for the app's most important number (the hero take-home-pay figure) and
-for delete/error text — but unlike `--color-dominant`/`--color-secondary`/`--color-text-primary`/
-`--color-text-secondary`/`--color-tertiary-surface`, these two tokens are **not** forked between
-the dark-mode `:root` block and the `@media (prefers-color-scheme: light)` override. Computed WCAG
-2.1 contrast ratios (verified with a standalone relative-luminance script, not eyeballed) show this
-fails AA in both roles. In at least one case (`error.tsx`'s "Повторить" button) this is a literal
-regression introduced by this phase: the pre-redesign button was `bg-zinc-900` (near-black,
-~19:1 contrast with white text) and is now `bg-[color:var(--color-accent)]` (~2.5:1).
+- `--color-accent-button` (`#047857`) vs. white button text: **5.48:1** — passes 4.5:1 for normal text
+  in both color schemes (the token is declared once, unforked, and correctly so — the value is
+  identical either way).
+- Light-mode `--color-accent` (`#047857`) as text on light-mode `--color-dominant` (`#ffffff`):
+  **5.48:1**; on `--color-secondary` (`#f9fafb`): **~5.23:1** — both clear 4.5:1 (and comfortably clear
+  the 3:1 large-text threshold for `next-payment-card.tsx`'s hero take-home figure).
+- Light-mode `--color-destructive` (`#b91c1c`) as text on `#ffffff`: **6.47:1** — clears 4.5:1 for the
+  "Удалить …" links and inline field-error text.
+- Dark-mode `--color-accent` (`#10b981`) as text on `--color-secondary` (`#242424`, used inside
+  `pay-setup-forms.tsx`'s salary-replace confirmation panel): **~6.11:1** — also passes, confirming the
+  fix didn't regress the pre-existing dark-mode-passing case.
 
-Also found: `SkeletonLoader`'s new `mounted`-gating causes it to render `null` during real SSR
-streaming (not just the homepage's already-resolved-data case), and it carries no accessible
-loading indicator for screen readers — both directly relevant to the "loading-state accessibility"
-check requested for this review. Design-token spacing/line-height variables are only partially
-adopted, producing one visible spacing inconsistency across otherwise-identical form fields.
+All figures match (within rounding) the values asserted in `globals.css`'s own code comments and the
+orchestrator's independent verification. **CR-01 and CR-02 are correctly and completely fixed.**
 
-The already-known `annual-pie-chart.tsx` zero-income empty-state gap and the `.planning/research/`
-Tailwind wildcard build-warning are out of scope per this review's instructions and are not
-re-flagged below.
+**Button-background audit.** Grepped the entire `src/` tree for any remaining
+`bg-[color:var(--color-accent)]` (the pre-fix, contrast-failing token used as a button background).
+Zero matches — every primary-action button across all 25 files (`bonus-form.tsx`, `bonus-row.tsx`,
+`bonuses/page.tsx`'s empty-state CTA, `vacation-form.tsx`, `vacation-row.tsx`,
+`vacations/page.tsx`'s empty-state CTA, `login/page.tsx`, `register/page.tsx`, `error.tsx`,
+`page.tsx`'s three CTA links, `pay-setup-forms.tsx`'s four buttons) now uses
+`bg-[color:var(--color-accent-button)]` exclusively. No missed call sites.
 
-## Critical Issues
+**WR-01 through WR-04 re-verification**, each confirmed by reading the current file content (not just
+the diff):
 
-### CR-01: `--color-accent` fails WCAG AA contrast as white-button-text background across nearly every primary CTA — and is a contrast regression in `error.tsx`
+- **WR-01** (`skeleton-loader.tsx`): the `mounted`/`useState`/`useEffect` gate is fully removed; the
+  component renders its real markup unconditionally, including during SSR. Confirmed the component
+  introduces no non-deterministic values (no `Date.now()`/`Math.random()`), so there is no
+  hydration-mismatch risk from this change. `skeleton-loader.render.test.tsx`'s DOM-shape assertions
+  (`:scope > div > .skeleton-pulse`, inner-rect counts) still pass structurally against the new markup
+  (the added `<span className="sr-only">` is a non-`div` sibling before the mapped blocks, so it does
+  not perturb either test's element-count queries).
+- **WR-02**: `role="status" aria-live="polite"` plus a `<span className="sr-only">Загрузка…</span>` are
+  present on the outer wrapper (`skeleton-loader.tsx:29-30`).
+- **WR-03**: `role="alert"` is present on both `error.tsx`'s boundary wrapper (line 20) and
+  `page.tsx`'s fetch-failure fallback wrapper (line 69). Confirmed the adjacent "not configured"
+  branch in `page.tsx` (lines 90-106) deliberately does *not* carry `role="alert"`, correctly matching
+  the original finding's intent (that branch is a normal state, not an error).
+- **WR-04**: `bonus-form.tsx`, `vacation-form.tsx`, and all three forms in `pay-setup-forms.tsx` now
+  uniformly use `gap-[var(--spacing-sm)]` for every label→input→caption field-group stack — confirmed
+  via full-file re-read, not just grep. The mismatch called out in iteration 1 is gone.
 
-**File:** `src/app/globals.css:13` (token definition), consumed at e.g.
-`src/app/(auth)/login/page.tsx:106`, `src/app/(auth)/register/page.tsx:96`,
-`src/app/(app)/bonuses/bonus-form.tsx:88`, `src/app/(app)/bonuses/bonus-row.tsx:104`,
-`src/app/(app)/vacations/vacation-form.tsx:102`, `src/app/(app)/vacations/vacation-row.tsx:114`,
-`src/app/(app)/error.tsx:27`, `src/app/(app)/page.tsx:78,97,131`,
-`src/components/pay-setup-forms.tsx:193,204,304,441`
+**Diff hygiene check.** Diffed the fix commits (`3ceafad`..`3baf309`) against the prior review's
+baseline commit and confirmed the changes are scoped exactly to what each finding required — no
+unrelated logic, event-handler, or validation changes slipped in alongside the styling/token/markup
+edits.
 
-**Issue:** Every primary-action button in the app uses
-`bg-[color:var(--color-accent)] ... text-white` (accent = `#10b981`, emerald-500) at `text-sm`
-(14px) or smaller. Computed contrast of white (`#ffffff`) on `#10b981` is **2.54:1**, well below
-the WCAG 2.1 AA threshold of 4.5:1 for normal text (14px semibold does not qualify as "large text,"
-which requires ~18.7px bold or 24px regular). This affects, at minimum: "Войти", "Зарегистрироваться",
-"Сохранить бонус/отпуск/оклад/график", "Подтвердить и заменить", "Повторить", "Обновить страницу",
-"Перейти к настройке", "Настроить оклад", "Добавить бонус", "Добавить отпуск" — i.e. essentially
-every button a user taps to accomplish anything in the app.
-
-This is not merely pre-existing: `git show c321fae -- src/app/(app)/error.tsx` shows the
-"Повторить" button changed from `bg-zinc-900` (near-black, ~19:1 contrast with white text — passes
-AAA) to `bg-[color:var(--color-accent)]` (~2.5:1) as part of this phase's restyle. The redesign
-replaced an accessible button with an inaccessible one.
-
-**Fix:** Either darken the token used for button backgrounds (e.g. introduce a
-`--color-accent-on-dark`/button-specific shade closer to `#047857`/emerald-700, which reaches
-~4.6:1 with white text) or switch button text to a dark color when the background is the current
-accent value. Verify every button background/text pair against the WCAG contrast formula (or a
-tool like `wcag-contrast`) before shipping, not just visually.
-
-### CR-02: `--color-accent`/`--color-destructive` also fail WCAG AA as text color against light-mode backgrounds — including the app's hero take-home-pay figure
-
-**File:** `src/app/globals.css:13-14,56-57`; consumed at
-`src/components/next-payment-card.tsx:36` (hero net-pay amount),
-`src/app/(app)/bonuses/bonus-row.tsx:139` / `src/app/(app)/vacations/vacation-row.tsx:162`
-("Удалить …" links), and every inline field-error `<p>` using `--color-destructive` as text color.
-
-**Issue:** `--color-accent` (`#10b981`) and `--color-destructive` (`#ef4444`) are declared once in
-`:root` and then **redundantly re-declared with the identical value** inside the
-`@media (prefers-color-scheme: light)` block (`globals.css:56-57`) — i.e. they were never actually
-forked per color scheme, unlike `--color-dominant`/`--color-secondary`/`--color-text-primary`/
-`--color-text-secondary`/`--color-tertiary-surface`, which all do change between modes. Both colors
-were evidently tuned to read well against the **dark** surfaces (`#10b981` on `#1a1a1a` is 6.86:1;
-`#ef4444` on `#1a1a1a` is 4.62:1 — both pass AA), but against the **light**-mode surfaces they fail:
-
-- `#10b981` text on light-mode `#ffffff`/`#f9fafb`: **2.43–2.54:1** (fails AA's 3:1 even for the
-  large-text hero figure in `next-payment-card.tsx`, which is the single most important number in
-  the product — the take-home amount the whole app exists to surface).
-- `#ef4444` text on light-mode `#ffffff`/`#f9fafb`: **3.60–3.76:1** (fails AA's 4.5:1 for the
-  normal-size "Удалить бонус"/"Удалить отпуск" links and inline field-error text).
-
-Contrast ratios computed with the standard WCAG relative-luminance formula, not estimated.
-
-**Fix:** Give `--color-accent` and `--color-destructive` real light-mode overrides in the
-`@media (prefers-color-scheme: light)` block (e.g. a darker emerald/red shade tuned for light
-backgrounds), the same way the neutral tokens already are, rather than reusing the dark-mode-tuned
-value in both schemes.
-
-## Warnings
-
-### WR-01: `SkeletonLoader`'s `mounted`-gate returns `null` during real SSR/Suspense streaming, defeating its own stated purpose for the bonuses/vacations pages
-
-**File:** `src/components/skeleton-loader.tsx:26-34`
-**Issue:** The component's docstring says it exists to "match the final layout's shape exactly …
-never a layout shift," but the implementation returns `null` until a `useEffect` flips `mounted`
-to `true` on the client. `src/app/(app)/page.tsx`'s own comment correctly notes this never matters
-there because its data is already resolved before the Suspense boundary renders — but
-`src/app/(app)/bonuses/page.tsx` and `src/app/(app)/vacations/page.tsx` wrap **real** async work
-(`listBonuses`/`listVacations` DB queries) in `<Suspense fallback={<SkeletonLoader .../>}>`. For
-those two pages, on a slow connection/query, the server streams the fallback's SSR output — which
-is empty (`null`, since `mounted` starts `false` and `useEffect` never runs on the server) — so
-users see a blank gap where the skeleton should be until client hydration completes and pops the
-skeleton in, then the real content replaces it. There's no non-deterministic value here (no
-`Date.now()`, no `Math.random()`) that would actually cause a hydration mismatch, so the gate
-appears unnecessary and, for these two pages, actively counter-productive.
-**Fix:** Remove the `mounted` gate (render the skeleton markup unconditionally) unless a concrete
-hydration-mismatch was observed and can be cited; if one exists, gate only the specific
-mismatching piece rather than the whole component.
-
-### WR-02: `SkeletonLoader` has no accessible loading indicator — purely visual/animation-only signaling
-
-**File:** `src/components/skeleton-loader.tsx:36-76`
-**Issue:** The loading placeholder has no `role="status"`, `aria-busy`, `aria-live` region, or
-visually-hidden "Загрузка…" text. Sighted users see a pulsing tertiary-surface block; screen-reader
-users get nothing announced while content loads (combined with WR-01, literally nothing is even in
-the DOM for the SSR-streamed window on the bonuses/vacations pages). Contrast with
-`ytd-estimate-banner.tsx:19`, which correctly uses `role="status"` for its own persistent message.
-**Fix:** Add `role="status" aria-live="polite"` to the outer wrapper, plus a visually-hidden label,
-e.g. `<span className="sr-only">Загрузка…</span>`.
-
-### WR-03: Error states render with no `role="alert"`/`aria-live`, unlike the banner pattern already used elsewhere in this phase
-
-**File:** `src/app/(app)/error.tsx:19-32`, `src/app/(app)/page.tsx:67-84`
-**Issue:** Both the route-level error boundary (`AppError`) and the home page's caught-fetch-failure
-fallback render their "Не удалось загрузить…" messaging as plain `<div>`/`<p>` with no
-`role="alert"` or `aria-live` region, so assistive technology is not proactively notified when
-either fires. `ytd-estimate-banner.tsx` in this same phase already established the correct pattern
-(`role="status"`) for a persistent informational message; these two error surfaces should use the
-equivalent assertive pattern (`role="alert"`) since they represent failures, not routine status.
-**Fix:**
-```tsx
-<div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-```
-
-### WR-04: Incomplete/inconsistent adoption of the `--spacing-*` token scale produces a visible spacing mismatch between otherwise-identical form field groups
-
-**File:** `src/app/(app)/vacations/vacation-form.tsx:70,81` vs.
-`src/app/(app)/bonuses/bonus-form.tsx:58,64,71`, `src/components/pay-setup-forms.tsx` (all label/
-input/caption stacks)
-**Issue:** `vacation-form.tsx` is the only file in the reviewed set that uses
-`className="flex flex-col gap-[var(--spacing-sm)]"` (8px) for its label→input→caption field
-groups. Every other form with the identical structural pattern (`bonus-form.tsx`, and all three
-forms in `pay-setup-forms.tsx`) uses Tailwind's literal `gap-1` (4px) for the same visual role.
-The result: the vacation form's fields are visibly more loosely spaced than the bonus/salary/
-schedule/YTD forms, despite no apparent design intent to differentiate them. Confirmed via grep
-that `--spacing-xs/-md/-lg/-xl/-2xl/-3xl` are defined in `globals.css` but never referenced by any
-component in the reviewed set — `--spacing-sm` is the only spacing token actually consumed, and
-only in this one file.
-**Fix:** Either standardize all field-group stacks on `gap-[var(--spacing-sm)]` (and update
-`bonus-form.tsx`/`pay-setup-forms.tsx` to match), or revert `vacation-form.tsx` back to `gap-1` to
-match its siblings — pick one and apply it consistently.
+No new Critical or Warning findings surfaced during this fresh pass. Five Info-level items remain (see
+below): three carried over from iteration 1 (unused typography tokens, chart SVG accessibility, and
+duplicated Tailwind class-string extraction — none were in this fix pass's scope), one iteration-1 Info
+item that is now resolved as a side effect of CR-02, and two newly-observed Info items from this
+fresh review pass. Per this repo's established convention, 0 critical + 0 warning is sufficient for a
+`clean` status even with Info-only findings outstanding.
 
 ## Info
 
-### IN-01: `globals.css` redundantly re-declares `--color-accent`/`--color-destructive` with identical values inside the light-mode media block
+### IN-01: Several typography design tokens remain defined in `globals.css` but unconsumed (carried over, still applies)
 
-**File:** `src/app/globals.css:56-57`
-**Issue:** These two lines set `--color-accent: #10b981` and `--color-destructive: #ef4444` inside
-`@media (prefers-color-scheme: light)`, exactly matching the `:root` values three lines above the
-media block — i.e. they have no effect and are dead duplication. (See CR-02: the fix for that
-finding should replace these two lines with genuinely different light-mode-tuned values rather than
-just deleting them.)
-**Fix:** Once CR-02 is addressed, this duplication resolves itself; if CR-02 is deferred, delete
-the two redundant lines to avoid implying an intentional fork that doesn't exist.
-
-### IN-02: Several typography design tokens are defined in `globals.css` but never consumed anywhere in the reviewed component set
-
-**File:** `src/app/globals.css:20,24,29,36-37`
+**File:** `src/app/globals.css:28-29,33,37,44-45`
 **Issue:** `--font-weight-body`, `--line-height-body`, `--line-height-label`, `--line-height-heading`,
-`--font-weight-caption`, and `--line-height-caption` are all defined but grep across every reviewed
-`.tsx` file finds zero usages. (`--line-height-display` is used exactly once, in
-`next-payment-card.tsx:36`.) Not a functional bug, but suggests the typography token scale was
-speced more completely than it was wired up — worth a pass to either apply the tokens where the
-06/08 UI spec intended them (e.g. `line-height` alongside every `font-size`/`font-weight` triple
-currently missing it) or trim the unused ones.
-**Fix:** Cross-check against `08-UI-SPEC.md`'s typography table and either apply the missing
-`leading-[var(--line-height-*)]` classes alongside existing `font-size`/`font-weight` usages, or
-remove the tokens that were never meant to be applied per-element.
+`--font-weight-caption`, and `--line-height-caption` are still defined but grep across every reviewed
+`.tsx` file finds zero usages (`--line-height-display` remains the only line-height token actually
+consumed, in `next-payment-card.tsx:36`). Additionally, of the seven `--spacing-*` tokens, only
+`--spacing-sm` is now consumed anywhere (thanks to the WR-04 fix) — `--spacing-xs/-md/-lg/-xl/-2xl/-3xl`
+remain unused. Not a functional bug; this fix pass wasn't scoped to cover it (`fix_scope:
+critical_warning`).
+**Fix:** Cross-check against `08-UI-SPEC.md`'s typography/spacing tables and either apply the missing
+tokens where intended, or trim the ones that were never meant to be applied per-element.
 
-### IN-03: `AnnualPieChart`'s Recharts SVG has no `aria-hidden`/accessible-name treatment despite an adjacent text equivalent already existing
+### IN-02: `AnnualPieChart`'s Recharts SVG has no `aria-hidden`/accessible-name treatment (carried over, still applies)
 
-**File:** `src/components/annual-pie-chart.tsx:57-63`
-**Issue:** The `<PieChart>`/`<Pie>`/`<Cell>` SVG renders with no `role="img"`, `aria-label`, or
-`aria-hidden="true"`. The component does already provide an accessible textual equivalent via the
-`<dl>` below it (lines 70-83, listing Грязными/Налог/На руки with amounts and percentages), so this
-is not a total accessibility gap, but without `aria-hidden="true"` on the chart wrapper, screen
-readers may still attempt to traverse the raw, unlabeled SVG path/sector elements Recharts emits,
-adding noise before reaching the actually-useful `<dl>` content.
+**File:** `src/components/annual-pie-chart.tsx:56-63`
+**Issue:** Unchanged since iteration 1. The `<PieChart>`/`<Pie>`/`<Cell>` SVG renders with no
+`role="img"`, `aria-label`, or `aria-hidden="true"`, despite the adjacent `<dl>` (lines 70-83) already
+providing a complete accessible textual equivalent (Грязными/Налог/На руки amounts and percentages).
+Screen readers may still traverse the raw, unlabeled SVG sector elements Recharts emits before
+reaching the useful `<dl>` content.
 **Fix:** Wrap the `<div className="mt-4 flex justify-center">` chart container with
-`aria-hidden="true"` since the `<dl>` already serves as the accessible equivalent.
+`aria-hidden="true"`.
 
-### IN-04: Duplicated long Tailwind arbitrary-value class strings across sibling form files, inconsistently extracted
+### IN-03: Duplicated long Tailwind arbitrary-value class strings, inconsistently extracted (carried over, still applies)
 
-**File:** `src/app/(app)/vacations/vacation-form.tsx:75,86` and every input in
-`src/components/pay-setup-forms.tsx`, contrasted with `src/app/(app)/bonuses/bonus-form.tsx:50-53`
-**Issue:** `bonus-form.tsx` extracts its repeated input/label class strings into local
-`inputClassName`/`labelClassName` consts to avoid restating the ~200-character arbitrary-value
-string per field. `vacation-form.tsx` and all three forms in `pay-setup-forms.tsx` instead inline
-the same (or near-identical) long string on every single `<input>`/`<label>`, several times over —
-functionally identical output, but inconsistent pattern across near-identical sibling files and
-more surface area to drift out of sync on a future token rename.
-**Fix:** Apply the same `inputClassName`/`labelClassName` (or a shared exported constant/helper)
-pattern consistently across all four form files.
+**File:** `src/app/(app)/vacations/vacation-form.tsx:75,86`, `src/app/(app)/vacations/vacation-row.tsx:99,105`,
+and every `<input>` in `src/components/pay-setup-forms.tsx` (e.g. lines 141, 160, 268, 289, 403, 422),
+contrasted with `src/app/(app)/bonuses/bonus-form.tsx:50-53`
+**Issue:** Unchanged since iteration 1. `bonus-form.tsx` extracts its repeated input/label class
+strings into local `inputClassName`/`labelClassName` consts; `bonus-row.tsx` similarly extracts
+`editInputClassName` (line 83). `vacation-form.tsx`, `vacation-row.tsx`, and all three forms in
+`pay-setup-forms.tsx` instead inline the same long (~200-character) arbitrary-value string on every
+single `<input>`/`<label>` — functionally identical, but inconsistent extraction pattern across
+near-identical sibling files, more surface area to drift out of sync on a future token rename.
+**Fix:** Apply the same `inputClassName`/`labelClassName` (or a shared exported helper) pattern
+consistently across all form/row files.
+
+### IN-04 (new): `login/page.tsx` and `register/page.tsx` still hardcode `gap-1` for field-group stacks, now the only files inconsistent with the WR-04 fix
+
+**File:** `src/app/(auth)/login/page.tsx:66,84`, `src/app/(auth)/register/page.tsx:56,74`
+**Issue:** WR-04's fix standardized every field-group stack in `bonus-form.tsx`, `vacation-form.tsx`,
+and all three `pay-setup-forms.tsx` forms on `gap-[var(--spacing-sm)]` (8px). `login/page.tsx` and
+`register/page.tsx` have the structurally identical label→input→error pattern
+(`<div className="flex flex-col gap-1">` around each `Email`/`Пароль` field) but were out of WR-04's
+original scope (which only compared `vacation-form.tsx` against `bonus-form.tsx`/
+`pay-setup-forms.tsx`) and were left on the literal `gap-1` (4px) value. The result: after the fix,
+the auth forms are now the only forms in the app still visually tighter than the rest.
+**Fix:** Update both files' field-group `<div>` wrappers to `gap-[var(--spacing-sm)]` for full
+consistency with the rest of the form set.
+
+### IN-05 (new): `skeleton-loader.tsx` retains an unneeded `"use client"` directive after the WR-01 fix removed its only client-only logic
+
+**File:** `src/components/skeleton-loader.tsx:1`
+**Issue:** The WR-01 fix removed the component's `useState`/`useEffect` mounted-gate, leaving a purely
+presentational component with no event handlers, hooks, or browser-only APIs. The `"use client"`
+directive at the top of the file (line 1) is no longer necessary — the component could be a Server
+Component, which would avoid shipping it (and its JSX-generation logic) to the client bundle when used
+as a `<Suspense fallback>` inside server components (`bonuses/page.tsx`, `vacations/page.tsx`,
+`page.tsx`). Not a correctness issue — a `"use client"` component works fine as a Suspense fallback —
+but it's dead weight the fix pass didn't clean up.
+**Fix:** Remove the `"use client"` directive from `skeleton-loader.tsx:1`; verify no client-only
+behavior was relying on it (none currently is).
 
 ---
 
