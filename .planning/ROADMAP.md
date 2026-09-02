@@ -148,7 +148,23 @@ Plans:
   4. The app reflects the redesigned visual system (typography, color, components via `frontend-design`), follows the system dark/light theme, and meets basic accessibility requirements — contrast, focus indicators, labeled form fields (UI-05, UI-06, UI-07)
   5. On an iPhone with a Dynamic Island, the header/nav never overlaps it or the home indicator — verified with `viewport-fit=cover` configured and `env(safe-area-inset-*)` applied (PWA-01, PWA-02)
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 08-01-PLAN.md — Tracer: design-token system (globals.css) + shared (app) shell (nav/safe-area) + home screen end-to-end (page, hero card, install/YTD banners, error boundary, pie chart, new skeleton-loader component)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-02-PLAN.md — Bonuses screen restyle (bonus-row, bonus-form, bonuses/page) + Suspense loading skeleton
+- [ ] 08-03-PLAN.md — Vacations screen restyle (vacation-row, vacation-form, vacations/page) + Suspense loading skeleton
+- [ ] 08-04-PLAN.md — Salary/onboarding restyle (shared pay-setup-forms.tsx confirmation panel, settings/salary/page, onboarding/page)
+- [ ] 08-05-PLAN.md — Auth screens restyle (login/page, register/page)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 08-06-PLAN.md — Whole-phase regression (full unit + build + E2E suite) + end-of-phase human verification (Dynamic Island safe-area, dark/light toggle, keyboard focus pass, UI-SPEC backstop states)
 **UI hint**: yes
 
 ## Progress
