@@ -5,16 +5,16 @@ milestone_name: Полировка MVP
 current_phase: 07
 current_phase_name: E2E Test Suite
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-09-02T07:49:11.359Z"
+stopped_at: Completed 07-05-PLAN.md
+last_updated: "2026-09-02T14:33:58.291Z"
 last_activity: 2026-09-02
 last_activity_desc: Phase 07 execution started
-state_head: a4ecf964887bc3767c9bff14f1a51da332df2cde
+state_head: 627ab6b9cd63c229c59e9899d766e289d1f98535
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 10
-  completed_plans: 6
+  completed_plans: 10
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-09-01)
 ## Current Position
 
 Phase: 07 (E2E Test Suite) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-09-02 — Phase 07 execution started
 
@@ -93,6 +93,7 @@ Progress: [█████░░░░░] 50%
 | Phase 05 P03 | 51min | 2 tasks | 2 files |
 | Phase 06 P01 | 65min | 3 tasks | 4 files |
 | Phase 07 P01 | 25min | 3 tasks | 7 files |
+| Phase 07 P05 | 35min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,8 @@ Recent decisions affecting current work:
 - [Phase 6]: [Phase 6]: [06-01]: PR #3 (gsd/phase-06-auth-security-hardening -> main) confirmed open with CI green and live preview URL captured; the SEC-01/SEC-03 live DevTools human-check is deferred to end-of-phase UAT per workflow.human_verify_mode=end-of-phase
 - [Phase 07]: [Phase 7]: [07-01]: playwright.config.ts loads .env.local via process.loadEnvFile (mirroring vitest.config.ts) since the Playwright test process does not auto-load env files — needed for e2e/fixtures.ts's deleteUserByEmail cleanup to reach DATABASE_URL
 - [Phase 07]: [Phase 7]: [07-01]: Tracer feedback gate satisfied by the already-passing automated npm run test:e2e -- e2e/auth.spec.ts run against a live Neon database before proceeding to Task 3, since AUTO_CFG/AUTO_CHAIN both read false but the orchestrator's explicit resume instructions directed completing both tasks in one pass
+- [Phase 07]: Moved Neon branch provisioning out of Playwright's globalSetup hook into a standalone e2e/ci-branch-setup.mjs run as its own CI step before test:e2e, since Playwright starts webServer before the user's globalSetup file (confirmed on a real CI run)
+- [Phase 07]: Added a CI-level if:always() backstop cleanup step (e2e/ci-branch-teardown.mjs) alongside Playwright's own globalTeardown, since a webServer startup failure after branch creation would otherwise leak a billed Neon branch
 
 ### Pending Todos
 
@@ -184,8 +187,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-02T07:49:11.257Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-09-02T14:33:58.180Z
+Stopped at: Completed 07-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

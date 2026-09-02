@@ -118,7 +118,7 @@ Plans:
   4. Playwright MCP is wired into the repo so a developer can drive or author new tests against the running app through it (E2E-05)
   5. The full suite runs in CI against its own isolated Neon branch — a CI run never reads or writes staging/production data (E2E-06)
 
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans executed
 
 Plans:
 **Wave 1**
@@ -133,7 +133,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 07-05-PLAN.md — E2E-06 CI isolation (Neon globalSetup/globalTeardown, new `e2e` required job) + E2E-05 Playwright MCP wiring
+- [x] 07-05-PLAN.md — E2E-06 CI isolation (Neon globalSetup/globalTeardown, new `e2e` required job) + E2E-05 Playwright MCP wiring
 
 ### Phase 8: Visual Redesign, Accessibility & PWA Safe-Area
 
@@ -164,5 +164,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Annual Overview & PWA Installability | v1.0 | 3/3 | Complete | 2026-08-31 |
 | 5. Deploy Pipeline & Environment Config | v1.1 | 4/4 | Complete    | 2026-09-01 |
 | 6. Auth Security Hardening | v1.1 | 1/1 | Complete    | 2026-09-01 |
-| 7. E2E Test Suite | v1.1 | 4/5 | In Progress|  |
+| 7. E2E Test Suite | v1.1 | 5/5 | In Progress|  |
 | 8. Visual Redesign, Accessibility & PWA Safe-Area | v1.1 | 0/TBD | Not started | - |
