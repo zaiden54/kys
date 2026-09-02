@@ -42,10 +42,14 @@ export default async function globalTeardown(): Promise<void> {
     if (!res.ok) {
       throw new Error(`DELETE branch ${branchId} failed: ${res.status}`);
     }
+    // Only clear the marker once deletion is confirmed — if we unlinked it
+    // unconditionally (e.g. in a `finally`), the backstop cleanup step in
+    // ci.yml could never distinguish "already cleaned up" from "cleanup was
+    // attempted and failed," so a genuinely leaked branch would never be
+    // retried.
+    unlinkSync(BRANCH_ID_FILE);
   } catch (err) {
     console.error("Failed to delete CI Neon branch:", err);
     process.exitCode = 1;
-  } finally {
-    unlinkSync(BRANCH_ID_FILE);
   }
 }
