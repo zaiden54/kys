@@ -122,6 +122,13 @@ export default async function globalSetup(): Promise<void> {
     `/projects/${projectId}/connection_uri?branch_id=${branchId}&database_name=${encodeURIComponent(database.name)}&role_name=${encodeURIComponent(database.owner_name)}&pooled=true`,
   );
 
+  // Mask the resolved URI immediately — it embeds a live DB password and,
+  // unlike NEON_API_KEY, GitHub Actions has no way to know it's sensitive
+  // since it's computed at runtime rather than sourced from `secrets`.
+  if (process.env.GITHUB_ACTIONS) {
+    console.log(`::add-mask::${uri}`);
+  }
+
   // 4. Point this run at the fresh branch. Both belt-and-suspenders: the
   // in-process env var (webServer is spawned as this process's own child
   // and inherits it) and a .env.local file (removes any doubt about how

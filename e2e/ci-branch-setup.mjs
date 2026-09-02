@@ -88,6 +88,13 @@ async function main() {
     `/projects/${projectId}/connection_uri?branch_id=${branchId}&database_name=${encodeURIComponent(database.name)}&role_name=${encodeURIComponent(database.owner_name)}&pooled=true`,
   );
 
+  // Mask the resolved URI immediately — it embeds a live DB password and,
+  // unlike NEON_API_KEY, GitHub Actions has no way to know it's sensitive
+  // since it's computed at runtime rather than sourced from `secrets`.
+  if (process.env.GITHUB_ACTIONS) {
+    console.log(`::add-mask::${uri}`);
+  }
+
   // 4. Export DATABASE_URL to every later step in this job (so
   // `npm run test:e2e` — including its Playwright-spawned webServer child —
   // inherits it at spawn time) AND write .env.local as a second,
