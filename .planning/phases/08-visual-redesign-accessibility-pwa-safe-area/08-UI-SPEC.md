@@ -68,10 +68,13 @@ Exactly 2 weights are used app-wide: 400 (regular, body copy) and 600 (semibold,
 |------|-------|-------|
 | Dominant (60%) | `#1a1a1a` (dark) / `#ffffff` (light) | Page background, primary surface |
 | Secondary (30%) | `#242424` (dark) / `#f9fafb` (light) | Cards (next-payment hero, bonus/vacation list container), persistent nav header, install banner |
-| Accent (10%) | `#10b981` (emerald — identical value both modes) | Next-payment hero amount text, primary submit/confirm buttons ("Сохранить", "Подтвердить и заменить", "Войти"/"Зарегистрироваться"), success indicators |
-| Destructive | `#ef4444` (identical value both modes) | Delete action links/buttons ("Удалить бонус", "Удалить отпуск"), destructive-confirmation copy, form validation error text |
+| Accent text (10%) | `#10b981` (dark) / `#047857` (light) | Next-payment hero amount text, "Удалить"/underline links styled as accent, success indicators — **not** button backgrounds |
+| Accent button background | `#047857` (identical value both modes) | Primary submit/confirm button backgrounds ("Сохранить", "Подтвердить и заменить", "Войти"/"Зарегистрироваться") paired with white button text |
+| Destructive | `#ef4444` (dark) / `#b91c1c` (light) | Delete action links ("Удалить бонус", "Удалить отпуск"), destructive-confirmation copy, form validation error text |
 
 Accent reserved for: the next-payment hero amount (Display role text), primary form-submit/confirm buttons, and success/confirmation indicators only. Accent is explicitly NOT applied to: secondary/cancel buttons (use `text-primary` or a neutral border instead), nav links, list-row action links other than the primary submit, or decorative elements. Never all interactive elements — most controls stay neutral (text-primary or bordered) so accent stays legible as a signal.
+
+**Contrast correction (08-REVIEW.md CR-01/CR-02):** the original single `#10b981`/`#ef4444` values (identical across both color schemes) failed WCAG AA in two places — white button text on `#10b981` background (2.54:1, needs 4.5:1) and `#10b981`/`#ef4444` used as text color against light-mode surfaces (2.43-3.76:1, needs 3:1 large-text / 4.5:1 normal-text respectively). The fix splits the single accent token into two: a dedicated `--color-accent-button` background shade (`#047857`, emerald-700, ~5.5:1 with white text, unchanged across modes) for buttons, and a light-mode-only darkened `--color-accent` (`#047857`) / `--color-destructive` (`#b91c1c`, red-700, ~6.5:1 on white) for text/link usage, while dark mode keeps the original values (`#10b981` on `#1a1a1a` = 6.86:1, `#ef4444` on `#1a1a1a` = 4.62:1, both already passing AA). All ratios computed with the standard WCAG relative-luminance formula.
 
 Supporting neutrals (not part of the 60/30/10 split, needed to implement it faithfully):
 - Text primary: `#f5f5f5` (dark) / `#171717` (light) — body/heading/label text, 18-20:1 contrast against Dominant
