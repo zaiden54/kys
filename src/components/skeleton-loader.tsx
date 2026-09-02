@@ -8,11 +8,13 @@
  * (globals.css: ~1s opacity pulse, disabled under
  * `prefers-reduced-motion: reduce`).
  *
- * Gated on a `mounted` state to avoid any SSR/client hydration mismatch on
- * the animation state.
+ * Renders unconditionally (including during SSR/Suspense streaming) — no
+ * non-deterministic value (no `Date.now()`/`Math.random()`) is used here, so
+ * there is no hydration-mismatch risk to gate against. `bonuses/page.tsx` and
+ * `vacations/page.tsx` wrap real async DB queries in
+ * `<Suspense fallback={<SkeletonLoader .../>}>`, so the fallback must render
+ * real markup on the server, not `null` (see 08-REVIEW.md WR-01).
  */
-
-import { useEffect, useState } from "react";
 
 type SkeletonVariant = "bonus-row" | "vacation-row" | "payment-card" | "chart";
 
@@ -23,16 +25,6 @@ export function SkeletonLoader({
   count: number;
   variant: SkeletonVariant;
 }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
-
   return (
     <div className="flex flex-col gap-2">
       {Array.from({ length: count }).map((_, i) => (
