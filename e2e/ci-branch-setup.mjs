@@ -32,7 +32,7 @@ const NEON_API_BASE = "https://console.neon.tech/api/v2";
 const BRANCH_ID_FILE = path.resolve(__dirname, ".ci-branch.json");
 const ENV_LOCAL_FILE = path.resolve(__dirname, "..", ".env.local");
 
-async function neonApi(pathname, init) {
+async function neonApi(pathname, init, { sensitive = false } = {}) {
   const res = await fetch(`${NEON_API_BASE}${pathname}`, {
     ...init,
     headers: {
@@ -42,9 +42,20 @@ async function neonApi(pathname, init) {
     },
   });
   if (!res.ok) {
-    // Never log response bodies (T-07-08) — they can carry connection URIs
-    // with live credentials. Status + endpoint only.
-    throw new Error(`Neon API ${init?.method ?? "GET"} ${pathname} failed: ${res.status}`);
+    // Only the connection_uri endpoint's response body carries a live
+    // credential (T-07-08) — every other Neon API error body is just
+    // {message, code}, safe to surface so CI failures are diagnosable
+    // (e.g. "branch limit exceeded for plan") instead of a bare status code.
+    let detail = "";
+    if (!sensitive) {
+      try {
+        const body = await res.clone().json();
+        if (body?.message) detail = `: ${body.message}`;
+      } catch {
+        // response wasn't JSON — fall back to the bare status
+      }
+    }
+    throw new Error(`Neon API ${init?.method ?? "GET"} ${pathname} failed: ${res.status}${detail}`);
   }
   return res.json();
 }
@@ -86,6 +97,8 @@ async function main() {
   // 3. Resolve the actual connection URI for that branch/database/role.
   const { uri } = await neonApi(
     `/projects/${projectId}/connection_uri?branch_id=${branchId}&database_name=${encodeURIComponent(database.name)}&role_name=${encodeURIComponent(database.owner_name)}&pooled=true`,
+    undefined,
+    { sensitive: true },
   );
 
   // Mask the resolved URI immediately — it embeds a live DB password and,
