@@ -1,19 +1,19 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: Полировка MVP
 status: Awaiting next milestone
-stopped_at: Phase 08 complete — all phases complete
-last_updated: "2026-09-03T05:47:53.894Z"
+stopped_at: Completed 260903-k9n quick task (UI/UX design-review pass)
+last_updated: "2026-09-03T12:25:31.815Z"
 last_activity: 2026-09-03
 last_activity_desc: Milestone v1.1 completed and archived
-state_head: 9c192ac76bdfe43a24443842512ae411d6de29e3
+state_head: 6e5aed3e098c77c2cb3116f6002eb8881b626e35
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 17
   completed_plans: 17
   percent: 100
+milestone_name: Полировка MVP
 current_phase: 08
 ---
 
@@ -96,6 +96,7 @@ Last activity: 2026-09-03 — Milestone v1.1 completed and archived
 | Phase 08 P01 | 55min | 3 tasks | 14 files |
 | Phase 08 P06 | 35min | 2 tasks | 0 files |
 | Phase 08 P07 | 8min | 1 tasks | 2 files |
+| Phase quick/260903-k9n P01 | 45min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,7 @@ Recent decisions affecting current work:
 - [Phase 08]: [Phase 08]: [Phase 08][08-06]: UI-SPEC backstop #1 (annual chart zero-income empty state) found structurally unimplemented — filed to STATE.md Blockers/Concerns per the plan's own designed failure-handling path rather than fixed inline (task scope locked to files_modified: [])
 - [Phase 08]: [Phase 08]: [Phase 08][08-06]: UI-03 marked complete in REQUIREMENTS.md as part of this plan's closure pass — functionally implemented in Plan 08-04's pay-setup-forms.tsx overwrite confirmation panel but never previously marked
 - [Phase 08]: [Phase 08][08-07]: Aligned annual-pie-chart's zero-income empty-state markup with the established bonuses/vacations empty-state pattern (rounded-[12px]/bg-secondary/gap-3) instead of the plan's literal rounded-[8px]/bg-dominant/gap-2 spec, per the plan-checker's consistency note
+- [Phase 08]: [Quick 260903-k9n]: Committed a pre-existing, coherent-but-uncommitted navigation redesign (AppNavigation sidebar/mobile-header shell) as its own preliminary commit before this quick task's own atomic task commits, since the task's plan explicitly built on its globals.css conventions (.brand-mark color-mix pattern, 1100px sidebar breakpoint)
 
 ### Pending Todos
 
@@ -188,6 +190,12 @@ None yet.
 - [Phase 8, 08-06] UI-SPEC backstop #1 (annual-summary-chart zero-income empty state) found structurally UNIMPLEMENTED during whole-phase regression closure: `src/components/annual-pie-chart.tsx` has no `grossKopecks === 0` branch, and `computeAnnualSummary` (`src/app/actions/annual-summary.ts`) returns `configured: true` whenever a schedule + salary history exist, even if zero events actually fall within the requested tax year (e.g. a salary configured with a future `effectiveFrom`, or a brand-new account before its first payment). Result: a genuine zero-income year renders a degenerate 0%/0% pie chart on the home screen instead of a distinct empty-state message — exactly the failure mode 08-UI-SPEC.md's backstop row was written to catch. Not fixed in 08-06 (task scope locked to `files_modified: []`, verification-only); needs a follow-up plan/task to design and implement the empty-state variant on `annual-pie-chart.tsx` and/or its caller in `src/app/(app)/page.tsx`. Orchestrator attempted a live repro with a fresh account + salary-only (no YTD baseline confirmed) and observed the annual summary project forward from the configured salary rather than rendering zero — the actual zero-gross condition is narrower than that (e.g. a salary with a future `effectiveFrom`, or literally zero salary history rows for the year) and was not reproduced live; the code-level finding (no `grossKopecks === 0` branch exists) stands as the authoritative signal regardless.
 - [Phase 8, 08-06, resolved 2026-09-03] End-of-phase human-check completed live by the orchestrator using real browser tooling (Chromium-based preview pane), following up on 08-06's structural-only pass: registered a fresh test account and confirmed live — (1) dark mode renders correctly (dark surfaces, emerald accent, serif hero number) on the login screen; (2) light mode renders correctly on toggle (`prefers-color-scheme` emulation), no stale colors from the other mode; (3) keyboard Tab navigation shows a clearly visible 2px emerald focus ring on both form inputs and the submit button; (4) `env(safe-area-inset-top)` is applied inline on the `<header>` and `env(safe-area-inset-bottom)` inline on `<main>` — confirmed via computed-style inspection, the correct single-source-of-truth CSS mechanism (resolves to the real inset on any WebKit engine, including Safari on a notched iPhone — not implementation-specific to this preview pane); (5) at a 375px viewport (iPhone SE class), the "НаРуки" nav header renders on one line with no collision with the "Выйти" button — UI-SPEC backstop #2 confirmed passing; (6) the persistent home-nav header, PWA install banner, "not configured" empty state, and populated next-payment/annual-summary cards all render correctly matching 08-UI-SPEC.md. PWA-01, PWA-02, UI-04, UI-06, and UI-07 are now considered fully confirmed. Only a literal physical/Simulator Dynamic-Island render was not attempted (standard `env()` CSS is not implementation-specific, so this is not considered a material gap).
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260903-k9n | UI/UX improvements from design review: typography hierarchy, chart token colors, card emphasis, form grouping, desktop layout | 2026-09-03 | 6e5aed3 | [260903-k9n-ui-ux-improvements-from-design-review-ty](./quick/260903-k9n-ui-ux-improvements-from-design-review-ty/) |
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:
@@ -200,8 +208,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-03T00:26:11.180Z
-Stopped at: Phase 08 complete — all phases complete
+Last session: 2026-09-03T12:25:17.501Z
+Stopped at: Completed 260903-k9n quick task (UI/UX design-review pass)
 Resume file: None
 
 ## Operator Next Steps
