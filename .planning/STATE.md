@@ -24,7 +24,7 @@ current_phase: 08
 See: .planning/PROJECT.md (updated 2026-09-03)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** Milestone v1.1 (Полировка MVP) — all 4 phases complete, ready for milestone audit/close
+**Current focus:** Milestone v1.1 (Полировка MVP) shipped 2026-09-03 — planning next milestone via `/gsd-new-milestone`
 
 ## Current Position
 
