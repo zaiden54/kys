@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/session";
-import { SignOutButton } from "@/components/sign-out-button";
-import Link from "next/link";
+import { AppNavigation } from "@/components/app-navigation";
 
 export default async function AppLayout({
   children,
@@ -14,27 +13,9 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <header
-        className="border-b border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)]"
-        style={{ paddingTop: "env(safe-area-inset-top)" }}
-      >
-        <div className="flex h-14 items-center justify-between px-6">
-          <Link
-            href="/"
-            className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
-          >
-            НаРуки
-          </Link>
-          <SignOutButton />
-        </div>
-      </header>
-      <main
-        className="flex flex-1 flex-col"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-      >
-        {children}
-      </main>
+    <div className="app-shell">
+      <AppNavigation />
+      <main className="app-content">{children}</main>
     </div>
   );
 }

@@ -16,9 +16,14 @@ export function SignOutButton() {
     <button
       type="button"
       onClick={handleSignOut}
-      className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] px-3 py-1.5 text-[length:var(--font-size-body)] text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+      className="sign-out-button"
+      aria-label="Выйти"
+      title="Выйти"
     >
-      Выйти
+      <svg aria-hidden="true" className="sign-out-icon" viewBox="0 0 24 24" fill="none">
+        <path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span className="sign-out-label">Выйти</span>
     </button>
   );
 }
