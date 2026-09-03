@@ -77,6 +77,31 @@ async function main() {
     throw new Error(`No default branch found for Neon project ${projectId}`);
   }
 
+  // 1.5. Best-effort prune of stale `e2e-ci-*` branches this same script
+  // creates (see step 2 below). These are single-purpose, disposable CI
+  // branches — e2e/global-teardown.ts and the "Backstop Neon branch
+  // cleanup" CI step both delete the branch a run created once that run
+  // finishes, but a run that gets cancelled or hard-killed before either
+  // teardown path runs leaves its branch behind forever. On a plan with a
+  // low branch-count ceiling, enough of those orphans accumulate to make
+  // *this* POST fail with "branches limit exceeded" before a single test
+  // ever runs. Age-gated (>2h) so a slow-but-still-running concurrent CI
+  // job's branch is never raced/deleted out from under it.
+  const staleCutoffMs = Date.now() - 2 * 60 * 60 * 1000;
+  const staleBranches = branches.filter(
+    (b) => b.name?.startsWith("e2e-ci-") && new Date(b.created_at).getTime() < staleCutoffMs,
+  );
+  for (const stale of staleBranches) {
+    try {
+      await neonApi(`/projects/${projectId}/branches/${stale.id}`, { method: "DELETE" });
+      console.log(`Pruned stale CI branch ${stale.id} (${stale.name})`);
+    } catch (err) {
+      // Non-fatal — worst case this run still fails the same way it would
+      // have without pruning, just with a clearer error from the POST below.
+      console.error(`Failed to prune stale CI branch ${stale.id} (${stale.name}):`, err);
+    }
+  }
+
   // 2. Create a fresh, disposable branch (with its own read-write compute
   // endpoint) forked from that default branch.
   const branchName = `e2e-ci-${process.env.GITHUB_RUN_ID ?? Date.now()}`;
