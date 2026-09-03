@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Полировка MVP
-current_phase: 08
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 08 complete — all phases complete
-last_updated: "2026-09-03T00:34:23.835Z"
+last_updated: "2026-09-03T05:47:53.894Z"
 last_activity: 2026-09-03
-last_activity_desc: Phase 08 complete
-state_head: 0ab48d8465889bfabc87376308e3dcd707042b23
+last_activity_desc: Milestone v1.1 completed and archived
+state_head: 9c192ac76bdfe43a24443842512ae411d6de29e3
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 17
   completed_plans: 17
   percent: 100
+current_phase: 08
 ---
 
 # Project State
@@ -28,12 +28,10 @@ See: .planning/PROJECT.md (updated 2026-09-03)
 
 ## Current Position
 
-Phase: 08 — Visual Redesign, Accessibility & PWA Safe-Area (COMPLETE — last phase of milestone v1.1)
-Plan: 7/7 complete (design tokens/shell/tracer, bonuses, vacations, salary/onboarding, login/register, regression closure, gap-closure)
-Status: All phases complete — milestone ready for audit and close
-Last activity: 2026-09-03 — Phase 08 complete, gap-closure verified passed (9/9 must-haves)
-
-Progress: [██████████] 100%
+Phase: Milestone v1.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-09-03 — Milestone v1.1 completed and archived
 
 ## Performance Metrics
 
@@ -196,7 +194,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
-| *(none)* | | | | |
+| debug_sessions | knowledge-base | unknown | 2026-09-03 | v1.1 |
+| deferred_items | 08/deferred-items.md: 08-02 (bonuses screen restyle) — pre-existing `LayoutProps` tsc error, self-resolved by `npm run build` regenerating `.next/types/**`; no action needed | acknowledged | 2026-09-03 | v1.1 |
+| deferred_items | 05/deferred-items.md: 05-01, Task 1 — 2 pre-existing `forecast.test.ts` failures against live Neon DB, accumulated dev-DB state drift unrelated to SEC-04 changes; not fixed, out of scope | acknowledged | 2026-09-03 | v1.1 |
 
 ## Session Continuity
 
@@ -206,4 +206,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-- All 4 phases of milestone v1.1 (Полировка MVP) are complete and verified (Phase 5 Deploy Pipeline, Phase 6 Auth Security, Phase 7 E2E Test Suite, Phase 8 Visual Redesign — all `passed`, 0 open blocking gaps). Run `/gsd-audit-milestone` to review before archiving, then `/gsd-complete-milestone v1.1`, or `/gsd-autonomous` to run the full audit → complete → cleanup lifecycle automatically. Two low-severity open items remain in `.planning/WINDOWS.md` for future attention (not blocking): #3 (CI doesn't exercise the DB-integration test layer) and #6 (a pre-existing, date-boundary-sensitive E2E test in `e2e/bonus.spec.ts`, unrelated to Phase 8's changes).
+- Start the next milestone with /gsd-new-milestone

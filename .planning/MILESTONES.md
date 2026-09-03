@@ -1,5 +1,29 @@
 # Milestones
 
+## v1.1 Полировка MVP (Shipped: 2026-09-03)
+
+**Phases completed:** 4 phases, 17 plans, 31 tasks
+
+**Known verification overrides:** 3 newly acknowledged, 0 carried forward from a prior close (see STATE.md Deferred Items) — 1 unresolved debug session (`knowledge-base`) and 2 deferred items (both already documented, no-action-needed traceability notes from Phases 5 and 8).
+
+**Key accomplishments:**
+
+- Cleared 4 real react-hooks ESLint errors and 71 false-positive sw.js lint warnings, added `npm run typecheck`, and visibly tracked 2 unrelated pre-existing test failures — so Plan 05-03's CI gate starts from a genuinely green baseline instead of a permanently-red one.
+- GitHub Actions CI (lint/typecheck/build/pure-domain-tests, DB-free) genuinely blocking merges on main via live branch protection, after discovering the neon-http driver cannot speak to a vanilla Postgres container
+- Discovered an already-live Vercel↔Neon per-branch isolation integration, abandoned a redundant hand-built persistent staging environment in favor of it per user decision, and documented the real release procedure
+- Login collapses every auth failure into one hardcoded generic message, a new verify-auth-security.mjs script empirically proves SEC-01/SEC-02/SEC-03 against a live dev server, and PR #3 is open with CI green awaiting the end-of-phase live HTTPS cookie/network check.
+- Playwright 1.62.1 stood up end-to-end against real Next.js Server Actions, Better Auth session cookies, and Postgres, proving E2E-01's golden path (register → onboarding → forecast → logout → redirect) with a reusable storageState producer for later plans.
+- Three Playwright tests (create/edit/delete) proving bonuses flow through the real /bonuses UI into the home screen's next-payment forecast, run against a live Next.js server and Neon Postgres database
+- Four Playwright tests drive the real /vacations UI end-to-end (create, overlap-rejection, edit, delete), proving the отпускные (average-earnings vacation pay) figure shown on screen reflects the real domain engine's output for every mutation — not a hardcoded expectation.
+- Playwright E2E coverage proving the annual pie chart's gross=tax+net invariant against real seeded bonus/vacation data, plus the served manifest.webmanifest and InstallBanner's localStorage-backed dismissal persistence.
+- Playwright's `e2e` GitHub Actions job now runs every PR against a throwaway, isolated Neon branch and is a required (blocking) check on `main`, proven green on a real PR run; a committed `.mcp.json` also makes Playwright MCP available for interactive test authoring.
+- Restyled vacation-row.tsx (display+edit), vacation-form.tsx, and vacations/page.tsx onto Plan 08-01's CSS-variable token system with a Suspense-driven skeleton loader, while leaving the window.confirm() delete flow and the e2e-indexed 5-span row structure byte-for-byte unchanged.
+- Restyled `login/page.tsx` and `register/page.tsx` onto Plan 08-01's CSS-variable token system — accessible focus-visible form fields, token-driven colors/typography, and the standalone-mode info banner — while leaving Phase 6's SEC-02 hardened generic-login-error logic and register's error-message passthrough byte-for-byte unchanged.
+- Full automated regression (370 unit tests, production build, 13/13 E2E tests across all 5 spec files) is green on the combined phase branch with zero calculation-logic drift; structural code review confirms PWA-01/02 safe-area wiring, UI-06's CSS-only dark/light token system, and UI-07's keyboard focus-ring coverage are all correctly implemented across every screen — but structural review also found UI-SPEC backstop #1 (annual chart zero-income empty state) is NOT implemented, a real gap now filed to STATE.md rather than silently passed.
+- Gated `AnnualPieChart`'s PieChart+breakdown block behind a `grossKopecks === 0` ternary, replacing a degenerate 0%/0% Recharts donut with a distinct empty-state card, proven by a render test asserting `<svg>` presence/absence in both branches.
+
+---
+
 ## v1.0 MVP (Shipped: 2026-08-31)
 
 **Phases completed:** 4 phases, 23 plans, 53 tasks

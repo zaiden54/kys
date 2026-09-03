@@ -83,16 +83,17 @@
   "project_code": null,
   "phase_naming": "sequential",
   "agent_skills": {
-    "gsd-planner": [
-      "global:frontend-design:frontend-design"
-    ],
     "gsd-executor": [
-      "global:frontend-design:frontend-design",
-      "global:neon:neon"
+      "global:frontend-design",
+      "global:neon"
     ],
     "gsd-verifier": [
-      "global:neon:neon"
-    ]
+      "global:neon"
+    ],
+    "gsd-ui-researcher": ["global:frontend-design"],
+    "gsd-ui-checker": ["global:frontend-design"],
+    "gsd-planner": ["global:frontend-design"],
+    "gsd-ui-auditor": ["global:frontend-design"]
   },
   "claude_md_path": "./.claude/CLAUDE.md",
   "plan_review": {

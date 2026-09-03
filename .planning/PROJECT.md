@@ -83,23 +83,34 @@ PWA-приложение для расчёта и прогнозирования
 
 ## Current State
 
-**v1.0 MVP shipped** 2026-08-31 — 4 phases, 23 plans, 215 commits. Все 15 v1-требований проверены и реализованы, все фазы верифицированы (`passed`).
+**v1.1 Полировка MVP shipped** 2026-09-03 — 4 phases (5-8), 17 plans, 31 tasks. Все 24 v1.1-требования реализованы и верифицированы (все фазы `passed`); нулевых блокирующих пробелов на milestone-аудите (см. `.planning/milestones/v1.1-MILESTONE-AUDIT.md`).
 
-Стек: Next.js 16 App Router, Drizzle + Neon Postgres, Better Auth, Recharts, Serwist PWA. ~9.3k строк TS/TSX в `src/`.
+Стек не изменился: Next.js 16 App Router, Drizzle + Neon Postgres, Better Auth, Recharts, Serwist PWA — плюс Playwright 1.62.1 (e2e) и Playwright MCP, добавленные в Phase 7.
+
+Открытый технический долг на момент шипа v1.1 (все зафиксированы в `.planning/WINDOWS.md`, ни один не блокирует ни одно требование):
+- #1: Ручной browser click-through UAT для отпусков (Phase 3) так и не проведён вживую — заменён автотестами.
+- #3: CI не гоняет 6 файлов DB-интеграционных тестов (`neon-http` не коннектится к vanilla postgres-контейнеру в CI) — эти тесты по-прежнему идут локально против реальной Neon-ветки.
+- #6: `e2e/bonus.spec.ts` детерминированно падает на некоторых календарных датах (proximity бонуса и ближайшей выплаты) — подтверждено, что не вызвано изменениями Phase 8; требует отдельного разбора логики `forecastNextPayment`/`selectNextPaymentEvent`.
+
+<details>
+<summary>v1.0 MVP shipped 2026-08-31 (архив)</summary>
+
+4 phases, 23 plans, 215 commits. Все 15 v1-требований проверены и реализованы, все фазы верифицированы (`passed`).
 
 Из открытых пунктов на момент шипа: статутная сверка порогов НДФЛ 2025 (ст.224 НК РФ) и делителя 29.3 (ст.139 ТК РФ) против первоисточника не выполнена (нет доступа к интернету в песочнице выполнения) — числа проверены по коду, но не сверены с первичным юридическим текстом; браузерный click-through UAT для кросс-девайсной синхронизации и части Phase 3 отпускных не проводился вживую (заменён автотестами).
 
-## Current Milestone: v1.1 Полировка MVP
+</details>
 
-**Goal:** Довести v1.0 MVP до продакшн-качества — визуально, по UX, по безопасности, по автотестовому покрытию и по надёжности релизного процесса, без изменения расчётной модели (НДФЛ/премии/отпускные).
+## Next Milestone Goals
 
-**Target features:**
-- Полный визуальный редизайн UI через `frontend-design` skill
-- PWA safe-area фикс (хедер не пересекается с dynamic island)
-- UX-фикс: возврат на главный экран и прочие мелкие UX-баги
-- Security-харденинг auth-флоу (проверка/устранение утечки пароля через URL)
-- Playwright e2e-тесты на golden path всех фаз + интеграция с Playwright MCP
-- Постоянный staging-контур (Vercel + Neon) и цикл feature → staging → prod, включая фикс `BETTER_AUTH_URL` и CI-гейт (GitHub Actions)
+Не определены — `/gsd-new-milestone` ещё не запускался после шипа v1.1. Кандидаты из REQUIREMENTS.md v2-раздела (переносятся туда при определении следующего milestone):
+- UI-08: Экспорт истории (оклад/бонусы/отпуска) в PDF/CSV
+- UI-09: In-app/push-уведомления о приближающейся выплате
+- SEC-05: Биометрическая аутентификация (Face ID/Touch ID) через WebAuthn
+- MODEL-01: Мультивалютная поддержка
+- MODEL-02: Undo/история изменений оклада
+
+Плюс 3 открытых WINDOWS.md-пункта выше — кандидаты на закрытие в следующем milestone, если не будут закрыты раньше как quick-tasks.
 
 ## Evolution
 
@@ -119,4 +130,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-03 after Phase 8 (Visual Redesign, Accessibility & PWA Safe-Area) — milestone v1.1 all phases complete*
+*Last updated: 2026-09-03 after v1.1 milestone completion (Полировка MVP — Phases 5-8 shipped)*
