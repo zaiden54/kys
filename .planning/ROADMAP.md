@@ -54,7 +54,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 5: Deploy Pipeline & Environment Config** - Isolated per-PR preview environments (Vercel + Neon) with correctly scoped env vars, a single deploy owner per environment, and a CI quality gate (completed 2026-09-01)
 - [x] **Phase 6: Auth Security Hardening** - Login/registration flow verified to leak no credentials, give no enumeration signal, and set correctly-flagged session cookies (completed 2026-09-01)
 - [x] **Phase 7: E2E Test Suite** - Playwright golden-path coverage of every v1.0 feature, running in CI against an isolated Neon branch, with Playwright MCP wired up (completed 2026-09-02)
-- [ ] **Phase 8: Visual Redesign, Accessibility & PWA Safe-Area** - Full visual redesign, consistent money formatting, empty/error/loading states, confirmation dialogs, dark mode, accessibility basics, and Dynamic Island-safe layout
+- [x] **Phase 8: Visual Redesign, Accessibility & PWA Safe-Area** - Full visual redesign, consistent money formatting, empty/error/loading states, confirmation dialogs, dark mode, accessibility basics, and Dynamic Island-safe layout (completed 2026-09-03)
 
 ## Phase Details
 
@@ -186,4 +186,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Deploy Pipeline & Environment Config | v1.1 | 4/4 | Complete    | 2026-09-01 |
 | 6. Auth Security Hardening | v1.1 | 1/1 | Complete    | 2026-09-01 |
 | 7. E2E Test Suite | v1.1 | 5/5 | Complete    | 2026-09-02 |
-| 8. Visual Redesign, Accessibility & PWA Safe-Area | v1.1 | 7/7 | In Progress|  |
+| 8. Visual Redesign, Accessibility & PWA Safe-Area | v1.1 | 7/7 | Complete    | 2026-09-03 |

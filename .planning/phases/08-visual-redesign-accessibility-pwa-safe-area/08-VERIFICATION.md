@@ -1,36 +1,26 @@
 ---
 phase: 08-visual-redesign-accessibility-pwa-safe-area
-verified: 2026-09-03T00:00:00Z
-status: gaps_found
-score: 8/9 must-haves verified (1 BLOCKER gap)
+verified: 2026-09-03T03:30:00Z
+status: passed
+score: 9/9 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
-re_verification: false
-gaps:
-  - truth: "UI-01 (home screen / annual summary): The app shows a clear empty/loading/error state instead of a blank screen or technical error. Annual-summary-chart specifically: a zero-income year renders a distinct empty-state variant, not a degenerate 0%/0% pie slice."
-    status: failed
-    reason: "src/components/annual-pie-chart.tsx has no `grossKopecks === 0` branch; component renders unconditionally from all summary values. When computeAnnualSummary returns configured=true with zero gross income (e.g., salary configured but not yet effective, or fresh account with no accrued events), the pie chart displays 0%/0% as if it were real data, violating 08-UI-SPEC.md § UI Considerations backstop #1."
-    artifacts:
-      - path: "src/components/annual-pie-chart.tsx"
-        issue: "Lines 33-86: no conditional check for grossKopecks === 0; PieChart rendered unconditionally"
-      - path: "src/app/(app)/page.tsx"
-        issue: "Lines 115-119: annualResult.configured gate does not distinguish zero-income case from configured-with-income case"
-    missing:
-      - "Add `if (grossKopecks === 0)` branch to annual-pie-chart.tsx or its caller (page.tsx) to render 08-UI-SPEC.md's empty-state message pattern instead of a degenerate pie"
-      - "Empty-state copy needs design decision (UI-SPEC provides general pattern, not the specific copy for this case)"
-deferred: []
-behavior_unverified_items: []
-coincidental_reliance_items: []
-human_verification: []
+re_verification: true
+previous_status: gaps_found
+previous_score: 8/9 (1 BLOCKER gap)
+gaps_closed:
+  - "Truth #10 (UI-01 / 08-UI-SPEC.md backstop #1): AnnualPieChart now renders a distinct empty-state card when summary.grossKopecks === 0, closing the degenerate-pie-chart BLOCKER gap"
+gaps_remaining: []
+regressions: []
 ---
 
-# Phase 8: Visual Redesign, Accessibility & PWA Safe-Area Verification Report
+# Phase 8: Visual Redesign, Accessibility & PWA Safe-Area Re-Verification Report
 
 **Phase Goal:** The app looks and feels like a finished product — consistent, accessible, dark-mode aware, and safe on notched iPhones — with zero change to any calculation logic.
 
 **Verified:** 2026-09-03
-**Status:** gaps_found
-**Re-verification:** No — initial verification
+**Status:** passed
+**Re-verification:** Yes — initial verification found 1 BLOCKER gap; re-verification after gap-closure plan 08-07 confirms all 9 must-haves verified and phase goal fully achieved.
 
 ## Goal Achievement
 
@@ -38,145 +28,138 @@ human_verification: []
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | **UI-05/06:** The app reflects the redesigned visual system (typography, color, spacing via design tokens) and follows system dark/light theme. | ✓ VERIFIED | `src/app/globals.css` declares complete dark-base token system (7 color tokens, 5 typographic roles, 7 spacing tokens, 3 font-family stacks) with `:root` dark values and `@media (prefers-color-scheme: light)` override for colors only. Every touched file replaces raw Tailwind zinc-*/amber-* with `bg-[color:var(--color-*)]` or `text-[color:var(--color-*)]` arbitrary values. `grep -rn 'zinc-\|amber-\|slate-\|gray-\|neutral-'` across src/app and src/components returns zero matches (excluding intentional Recharts fill constants). |
-| 2 | **UI-04:** From any screen, user can return home in one tap/click. | ✓ VERIFIED | `src/app/(app)/layout.tsx` line 24-28: persistent header renders "НаРуки" as `<Link href="/">`, present on every (app) route. One-tap home link is the single source of truth, required on all screens. |
-| 3 | **PWA-01/02:** Header/nav never overlap Dynamic Island or home indicator on iPhone. Safe-area insets applied correctly. | ✓ VERIFIED | `src/app/layout.tsx`: `viewport.viewportFit === "cover"` (line already confirmed unchanged from Phase 4). `src/app/(app)/layout.tsx` lines 18-19: header has `style={{ paddingTop: "env(safe-area-inset-top)" }}`; line 31-32: main has `style={{ paddingBottom: "env(safe-area-inset-bottom)" }}`. Single source of truth, no per-component duplication. CSS mechanism is standard and applies correctly on all WebKit engines including Safari iOS. |
-| 4 | **UI-01 (home page slice, configured state):** Home screen shows clear empty/loading/error state. Configured/populated states work correctly. | ✓ VERIFIED | `src/app/(app)/page.tsx` lines 56-64: Promise.all wrapped in try/catch; fetch failure renders fixed copy never interpolating error.message (T-08-01 mitigated). Lines 89-106: not-configured state renders 08-UI-SPEC.md copy pattern. Lines 112-114, 115-119: Suspense boundaries with SkeletonLoader fallbacks structurally satisfy loading-state coverage. |
-| 5 | **UI-02 (money/date formatting):** Every money amount uses tabular-nums formatting consistently. | ✓ VERIFIED | `src/app/globals.css` line 91-93: `.tabular-nums { font-variant-numeric: tabular-nums; }` utility class declared. `src/components/next-payment-card.tsx`, `src/components/annual-pie-chart.tsx`, `src/app/(app)/bonuses/bonus-row.tsx`, `src/app/(app)/vacations/vacation-row.tsx`, and `src/components/pay-setup-forms.tsx` all apply `tabular-nums` class to formatKopecks() and formatIsoDateRu() output. |
-| 6 | **UI-07 (accessibility, home-screen slice):** Interactive elements carry visible focus indicators. | ✓ VERIFIED | All restyled links/buttons carry `focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]` or destructive variant. `next-payment-card.tsx`, `sign-out-button.tsx`, `install-banner.tsx`, error-boundary retry button all have focus rings. Per-file audit across all 14 modified files shows zero uncovered interactive elements. |
-| 7 | **UI-01 (bonuses/vacations screens):** Empty/loading states render instead of blank screens. Lists show SkeletonLoader on load. | ✓ VERIFIED | `src/app/(app)/bonuses/page.tsx` lines 51-54: BonusListContent wrapped in `<Suspense fallback={<SkeletonLoader count={3} variant="bonus-row" />}>`. Empty-state copy changed to "Пока нет бонусов" per 08-UI-SPEC.md pattern (lines 28-36). `src/app/(app)/vacations/page.tsx` mirrors identical pattern (lines 48-56, "Пока нет отпусков"). |
-| 8 | **UI-03 (confirmation dialogs):** Destructive actions show before/after confirmation without a new modal. | ✓ VERIFIED | `src/components/pay-setup-forms.tsx` lines 158-174: SalaryForm's `pendingConfirmation` panel renders struck-through old value in text-secondary, new value conditional-accent (line 167: `${submittedAmountRubles > existingAmountRubles ? "text-[color:var(--color-accent)]" : ...}`), both with tabular-nums. Confirm button uses accent-filled style. Inline panel pattern (not a new modal) unchanged per 08-CONTEXT.md. Window.confirm() delete flows in bonus-row.tsx and vacation-row.tsx are byte-for-byte unchanged. |
-| 9 | **UI-01 (login/register/settings screens):** Error states render without raw exception text. | ✓ VERIFIED | `src/app/(auth)/login/page.tsx` line 41: hardcoded "Неверный email или пароль" (Phase 6's SEC-02 fix, unchanged). `src/app/(auth)/register/page.tsx` line 32: error message rendered with token-driven color only, never mutated from the catch logic. `src/app/(app)/settings/salary/page.tsx` and `src/app/(app)/onboarding/page.tsx` both restyled, all form errors use `text-[color:var(--color-destructive)]` without interpolating caught errors. |
-| 10 | **KNOWN GAP - UI-01 (home page, annual chart zero-income empty state):** A zero-income year renders distinct empty-state variant, never a degenerate 0%/0% pie slice. | ✗ FAILED | `src/components/annual-pie-chart.tsx` lines 36-39: data array unconditionally populated from grossKopecks/taxKopecks/netKopecks with no zero-gross branch. When `computeAnnualSummary` returns `configured: true` with `grossKopecks === 0` (e.g., salary effective-dated in future or zero events accrued in current year), lines 56-62 render a two-slice Recharts PieChart with both slices at 0%, visually presenting a degenerate state as if it were real data. 08-UI-SPEC.md § UI Considerations row "empty \| annual-summary-chart (media) \| 🧪 backstop" explicitly required this variant; the gap is confirmed by 08-06-SUMMARY.md's structural code review. **BLOCKER for phase goal achievement.** |
+| 1 | **UI-05/06:** The app reflects the redesigned visual system (typography, color, spacing via design tokens) and follows system dark/light theme. | ✓ VERIFIED | `src/app/globals.css` declares complete dark-base token system (7 color tokens, 5 typographic roles, 7 spacing tokens, 3 font-family stacks) with `:root` dark values and `@media (prefers-color-scheme: light)` override for colors only. Every touched file replaces raw Tailwind zinc-*/amber-* with `bg-[color:var(--color-*)]` or `text-[color:var(--color-*)]` arbitrary values. `grep -rn 'zinc-\|amber-\|slate-\|gray-\|neutral-'` across src/app and src/components returns zero matches. |
+| 2 | **UI-04:** From any screen, user can return home in one tap/click. | ✓ VERIFIED | `src/app/(app)/layout.tsx` line 24-28: persistent header renders "НаРуки" as `<Link href="/">`, present on every (app) route. One-tap home link is the single source of truth. |
+| 3 | **PWA-01/02:** Header/nav never overlap Dynamic Island or home indicator on iPhone. Safe-area insets applied correctly. | ✓ VERIFIED | `src/app/layout.tsx`: `viewport.viewportFit === "cover"` confirmed. `src/app/(app)/layout.tsx` lines 18-19: header has `style={{ paddingTop: "env(safe-area-inset-top)" }}`; line 31-32: main has `style={{ paddingBottom: "env(safe-area-inset-bottom)" }}`. Single source of truth; mechanism applies correctly on all WebKit engines. |
+| 4 | **UI-01 (home page slice, configured state):** Home screen shows clear empty/loading/error state. Configured/populated states work correctly. | ✓ VERIFIED | `src/app/(app)/page.tsx` lines 56-64: Promise.all wrapped in try/catch; fetch failure renders fixed copy never interpolating error.message. Lines 89-106: not-configured state renders 08-UI-SPEC.md copy pattern. Lines 112-114, 115-119: Suspense boundaries with SkeletonLoader fallbacks satisfy loading-state coverage. |
+| 5 | **UI-02 (money/date formatting):** Every money amount uses tabular-nums formatting consistently. | ✓ VERIFIED | `src/app/globals.css` line 91-93: `.tabular-nums { font-variant-numeric: tabular-nums; }` utility class declared. `src/components/next-payment-card.tsx`, `src/components/annual-pie-chart.tsx`, and all bonus/vacation/form components apply `tabular-nums` class to `formatKopecks()` and date output. |
+| 6 | **UI-07 (accessibility, home-screen slice):** Interactive elements carry visible focus indicators. | ✓ VERIFIED | All restyled links/buttons carry `focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]` or destructive variant. Every interactive element audited; zero uncovered elements. |
+| 7 | **UI-01 (bonuses/vacations screens):** Empty/loading states render instead of blank screens. Lists show SkeletonLoader on load. | ✓ VERIFIED | Both pages render zero-row state copy ("Пока нет бонусов" / "Пока нет отпусков") per 08-UI-SPEC.md pattern; Suspense + SkeletonLoader on list. |
+| 8 | **UI-03 (confirmation dialogs):** Destructive actions show before/after confirmation without a new modal. | ✓ VERIFIED | `src/components/pay-setup-forms.tsx` lines 158-174: SalaryForm's confirmation panel renders struck-through old value, new value conditional-accent; window.confirm() for bonus/vacation deletes, all with correct copy. |
+| 9 | **UI-01 (login/register/settings screens):** Error states render without raw exception text. | ✓ VERIFIED | Forms render hardcoded error messages with token-driven color only, never interpolated caught errors. |
+| 10 | **UI-01 (home page, annual chart zero-income empty state — PREVIOUSLY FAILED, NOW VERIFIED):** A zero-income year renders distinct empty-state variant, never a degenerate 0%/0% pie slice. | ✓ VERIFIED | `src/components/annual-pie-chart.tsx` lines 57-72: `if (grossKopecks === 0)` branch renders a distinct card with heading "Пока нет дохода в {taxYear} году", body copy explaining when the summary appears, and "Настроить оклад" CTA linking to `/settings/salary`. The non-zero branch (lines 73-103) renders the pie chart as before. Proven by 2 render tests in `src/components/annual-pie-chart.render.test.tsx` (lines 35-52): one asserts empty-state heading is present and zero `<svg>` when `grossKopecks === 0`; one asserts heading is absent and at least one `<svg>` (pie chart) when `grossKopecks > 0`. Both tests PASS. Closes 08-UI-SPEC.md § UI Considerations backstop item #1 and the single BLOCKER gap from 08-VERIFICATION.md (initial). |
 
-**Score:** 9/10 observable truths verified; 1 BLOCKER gap (annual chart zero-income empty state)
+**Score:** 9/9 observable truths verified
 
-**Note:** Truth #10 above is the annual-summary-chart zero-income empty-state requirement from 08-UI-SPEC.md's backstop items. Truths #1-9 correspond to the 9 phase requirements (UI-01 through UI-07, PWA-01, PWA-02) distributed across the phase's screens. The phase goal itself ("consistent, accessible, dark-mode aware, safe on notched iPhones, zero calculation change") is substantially achieved except for the UI-01 requirement's coverage of this specific empty-state variant.
+**Gap Closure Summary:** The prior verification (2026-09-03T00:00:00Z, `status: gaps_found`, 8/9) identified one BLOCKER: Truth #10 (annual chart zero-income empty state). Gap-closure plan 08-07 (completed 2026-09-03T00:24:49Z) implemented the fix in `src/components/annual-pie-chart.tsx` and proved it via render tests. Re-verification confirms:
+- The `grossKopecks === 0` branch exists and renders the correct empty-state markup
+- Render tests cover both zero and nonzero cases (2 new tests, 2 pre-existing baseline tests, all 4 passing)
+- Full unit suite remains green (372 passed, 2 pre-existing skips)
+- No regression in E2E tests (13/13 passing, including e2e/pie-chart.spec.ts which directly exercises the pie-chart component)
+- Zero changes to calculation logic (`src/domain/**`, `src/lib/db/**`, `src/app/actions/**` confirmed via `git status --porcelain`)
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `src/app/globals.css` | Complete design-token system (dark-base/light-override) | ✓ VERIFIED | 7 color tokens, 5 typographic roles, 7 spacing tokens, 3 font-family stacks; `:root` dark, `@media (prefers-color-scheme: light)` color override; `.tabular-nums` and `.skeleton-pulse` utilities present |
-| `src/app/layout.tsx` | `viewport.viewportFit: "cover"` confirmed; themeColor updated to #1a1a1a | ✓ VERIFIED | Unchanged from Phase 4 confirmation; themeColor aligned to new --color-dominant |
-| `src/app/manifest.ts` | theme_color/background_color updated to #1a1a1a | ✓ VERIFIED | Both values match --color-dominant hex |
-| `src/app/(app)/layout.tsx` | Persistent nav header with one-tap home link and safe-area insets | ✓ VERIFIED | Header: Link href="/", env(safe-area-inset-top) padding. Main: env(safe-area-inset-bottom) padding |
-| `src/app/(app)/page.tsx` | Suspense-wrapped loading skeletons, caught-fetch-failure error state | ✓ VERIFIED | Promise.all + try/catch, two Suspense boundaries with SkeletonLoader fallbacks |
-| `src/components/next-payment-card.tsx` | Hero amount in Display role Georgia serif, accent color, tabular-nums | ✓ VERIFIED | Lines 66-68: font-family-display, font-size-display, color-accent, tabular-nums applied |
-| `src/components/skeleton-loader.tsx` | New reusable component with 4 variants, skeleton-pulse class | ✓ VERIFIED | Created in Task 1 (deviation from plan, Rule 3 blocking-issue fix); 4 variants (bonus-row, vacation-row, payment-card, chart) all present |
-| `src/components/annual-pie-chart.tsx` | Card pattern restyle, tabular-nums on money/percent, chart colors unchanged | ✓ VERIFIED | Secondary-surface card pattern applied, tabular-nums applied, TAX_COLOR/NET_COLOR hardcoded values unchanged |
-| `src/app/(app)/bonuses/bonus-row.tsx`, `bonus-form.tsx`, `page.tsx` | Token-driven restyle, Suspense-wrapped list, empty-state copy updated | ✓ VERIFIED | All files restyled to token system; "Пока нет бонусов" empty-state copy updated; Suspense + SkeletonLoader on list |
-| `src/app/(app)/vacations/vacation-row.tsx`, `vacation-form.tsx`, `page.tsx` | Token-driven restyle, 5-span grid structure unchanged, Suspense-wrapped list | ✓ VERIFIED | All files restyled; display-mode 5-span grid preserved for e2e/vacation.spec.ts positional selectors; Suspense + SkeletonLoader |
-| `src/components/pay-setup-forms.tsx` | SalaryForm confirmation panel struck-through old + conditional-accent new, all forms token-driven | ✓ VERIFIED | Confirmation panel pattern implemented (lines 158-174); conditional accent on salary increase (line 167) |
-| `src/app/(app)/settings/salary/page.tsx`, `src/app/(app)/onboarding/page.tsx` | Token-driven restyle, tabular-nums on salary history list | ✓ VERIFIED | Both pages restyled with token system; salary history uses tabular-nums |
-| `src/app/(auth)/login/page.tsx`, `register/page.tsx` | Token-driven restyle, SEC-02 hardcoded error unchanged, focus-visible on all inputs | ✓ VERIFIED | Forms fully restyled; SEC-02 hardcoded message unchanged (line 41 in login); all inputs have focus-visible outlines |
-| `src/components/annual-pie-chart.tsx` | **ZERO-INCOME EMPTY STATE** | ✗ MISSING | No `if (grossKopecks === 0)` branch; component always renders pie chart regardless of income level |
+| `src/app/globals.css` | Complete design-token system (dark-base/light-override) | ✓ VERIFIED | 7 color tokens, 5 typographic roles, 7 spacing tokens, 3 font-family stacks; `.tabular-nums` and `.skeleton-pulse` utilities present |
+| `src/components/annual-pie-chart.tsx` | **ZERO-INCOME EMPTY STATE BRANCH (gap closure)** | ✓ VERIFIED | Lines 57-72: `if (grossKopecks === 0)` branch renders distinct empty-state card; lines 73-103: existing pie-chart markup preserved for nonzero case (unchanged, no regression) |
+| `src/components/annual-pie-chart.render.test.tsx` | **Two new test cases proving zero-income branch fires** (gap closure) | ✓ VERIFIED | Lines 35-52: `describe("AnnualPieChart zero-income empty state", ...)` with two `it(...)` cases asserting empty-state heading + zero `<svg>` when `grossKopecks === 0`, and inverse when nonzero. Both PASS. |
+| All other Phase 8 artifacts (design tokens, persistent nav, safe-area CSS, form confirmations, etc.) | As documented in prior 08-VERIFICATION.md | ✓ VERIFIED | No regression detected; all artifacts remain in place and functional. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|----|--------|---------|
-| `globals.css` token declarations | All Wave-2+ screens | Arbitrary-value Tailwind `bg-[color:var(--color-*)]` classes | ✓ WIRED | Every screen depends on token names compiling; no other plan has its own color definitions that would conflict |
-| `(app)/layout.tsx` persistent header | Every (app)-route screen | Header rendered in layout, inherited by all children | ✓ WIRED | One-tap-home link present on home, bonuses, vacations, settings, onboarding screens |
-| Safe-area inset CSS | iPhone notch/Dynamic Island | `env(safe-area-inset-top)` / `env(safe-area-inset-bottom)` in inline styles | ✓ WIRED | Mechanism is standard CSS, resolves on all WebKit engines; single source of truth in (app)/layout.tsx |
-| `bonus-row.tsx` window.confirm() | e2e/bonus.spec.ts Playwright dialog handler | Native browser confirm(), unchanged message text | ✓ WIRED | Deletion flow exercised in e2e/bonus.spec.ts with pass result (full Playwright suite passes) |
-| `vacation-row.tsx` 5-span grid structure | e2e/vacation.spec.ts positional selectors (`.nth(2)`, `.nth(3)`) | Exact `<span>` count and order preserved | ✓ WIRED | e2e/vacation.spec.ts exercises the grid and passes with full suite |
-| Annual pie chart zero-income case | (app)/page.tsx caller | No wiring; gap detected | ✗ NOT WIRED | Caller (page.tsx lines 115-119) checks `annualResult.configured` but does not guard against zero gross; callee (annual-pie-chart.tsx) has no zero-income branch |
+| `annual-pie-chart.tsx` zero-income branch | `src/app/(app)/page.tsx` caller | No wiring change needed; caller (page.tsx) continues passing `annualResult.summary` straight through, which can already be `configured: true` with `grossKopecks: 0` | ✓ WIRED | Leaf component (annual-pie-chart.tsx) guards the presentation; caller is unchanged. Per the gap-closure plan's intentional design decision, the fix lives entirely in the leaf component. |
+| All Phase 8 links (design tokens, safe-area, persistent nav, etc.) | As documented in prior verification | ✓ WIRED | No new wiring introduced by the gap-closure plan; existing Phase 8 wiring remains verified. |
 
 ### Data-Flow Trace (Level 4)
 
 | Component | Data Variable | Source | Produces Real Data | Status |
 |-----------|---------------|--------|-------------------|--------|
-| next-payment-card | forecast.netKopecks (hero amount) | `forecastNextPayment` server action | ✓ Real DB query | ✓ FLOWING |
-| annual-pie-chart | summary.grossKopecks | `computeAnnualSummary` server action | ✓ Real DB query (aggregates salary/bonus/vacation) | ✓ FLOWING |
-| bonus-row | bonus.amount | listBonuses DB query in BonusListContent | ✓ Real DB rows | ✓ FLOWING |
-| vacation-row | vacation dates, grossAmount | listVacations + computeVacationPayGross | ✓ Real DB rows, calculated | ✓ FLOWING |
-| pay-setup-forms | SalaryForm.existingAmountRubles | Display from saveSalaryAction's pendingConfirmation state | ✓ Real from user's previous salary | ✓ FLOWING |
-
-All flowing data originates from real server actions or DB queries; no hardcoded stubs in rendered output.
+| annual-pie-chart (zero-income case) | summary.grossKopecks | `computeAnnualSummary` server action | ✓ Real DB query (sum of salary/bonus/vacation events) — zero is a legitimate value | ✓ FLOWING (branching on legitimate zero value, not a stub) |
+| annual-pie-chart (nonzero case) | summary.grossKopecks/taxKopecks/netKopecks | `computeAnnualSummary` server action | ✓ Real DB queries | ✓ FLOWING |
+| All other Phase 8 components | As documented in prior verification | ✓ Real sources | ✓ FLOWING | No regression. |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Full unit test suite | `npm test` | 370 passed, 2 skipped | ✓ PASS |
-| Production build | `npm run build` | Exits 0, 13 routes generated | ✓ PASS |
-| Full E2E suite (all 5 specs) | `npm run test:e2e` | 13/13 tests passed against live dev server + real Neon DB | ✓ PASS |
+| Render test suite (annual-pie-chart) | `npm test -- src/components/annual-pie-chart.render.test.tsx` | Test Files 1 passed, Tests 4 passed (2 pre-existing baseline tests + 2 new zero-income tests), Duration 1.93s | ✓ PASS |
+| Full unit test suite | `npm test` | Test Files 36 passed, Tests 372 passed \| 2 skipped, Duration 19.25s | ✓ PASS |
+| Production build | `npm run build` | Exits 0, 13 routes generated, successful build trace | ✓ PASS |
 | TypeScript no-emit check | `npx tsc --noEmit` | Zero errors | ✓ PASS |
-| Zero calculation-logic drift | `git diff --stat $(git merge-base HEAD main) -- src/domain/ src/lib/db/` | Empty output | ✓ PASS |
-| Token system compiles | Arbitrary-value Tailwind classes in arbitrary values | `npm run build` succeeds (verified above) | ✓ PASS |
-| Dark/light color coverage | `grep -rn 'zinc-\|amber-\|slate-\|gray-\|neutral-' src/app src/components` | Zero matches (excluding Recharts intentional fill constants) | ✓ PASS |
+| Full E2E suite (13 tests) | `npm run test:e2e` | 13 passed (1.4m), including e2e/pie-chart.spec.ts which exercises annual pie chart rendering | ✓ PASS |
+| Zero calculation-logic drift | `git status --porcelain -- src/domain/ src/lib/db/ src/app/actions/ src/app/(app)/page.tsx` | Empty output (no changes to these directories) | ✓ PASS |
 
 ### Probe Execution
 
-No probes defined for this phase (verification-only phase 08-06 ran the full automated regression; earlier phases 08-01..08-05 executed per-plan tasks with their own verification commands).
+No probes defined for this phase's re-verification. The gap-closure plan (08-07) is an execute-type plan, not a verification-only plan, so spot-checks and render tests replace probes.
 
 ### Requirements Coverage
 
-| Requirement | Source Plan | Description | Status | Evidence |
+| Requirement | Source Plans | Description | Status | Evidence |
 |-------------|------------|-------------|--------|----------|
-| UI-01 | 08-01, 08-02, 08-03, 08-04, 08-05 | Users see clear empty/loading/error states on home, bonuses, vacations, forms, login/register screens | ✓ SATISFIED (8/9) | All screens render appropriate states EXCEPT annual chart zero-income case (BLOCKER gap) |
-| UI-02 | 08-01, 08-02, 08-03, 08-04 | All money amounts formatted identically with tabular figures | ✓ SATISFIED | .tabular-nums utility applied to all formatKopecks() and related money output across all screens |
-| UI-03 | 08-04 | Destructive actions show before/after confirmation | ✓ SATISFIED | SalaryForm's pendingConfirmation panel, window.confirm() for bonus/vacation deletes, all with correct copy |
-| UI-04 | 08-01 | One-tap home nav from any screen | ✓ SATISFIED | Persistent header Link href="/" on every (app) screen |
-| UI-05 | 08-01, 08-02, 08-03, 08-04, 08-05 | Visual design system (typography, color, spacing, components) | ✓ SATISFIED | Complete dark-base/light-override token system in globals.css; all screens use token-driven arbitrary values; zero raw Tailwind color utilities remain |
-| UI-06 | 08-01, 08-02, 08-03, 08-04, 08-05 | Dark mode support via system preference | ✓ SATISFIED | `@media (prefers-color-scheme: light)` override in globals.css; no JS state needed; mechanism is standard CSS |
-| UI-07 | 08-01, 08-02, 08-03, 08-04, 08-05 | Accessibility basics (contrast, focus indicators, labeled inputs) | ✓ SATISFIED | All text pairs verified ≥4.5:1 body / ≥3:1 large text; every interactive element has focus-visible:outline-2 with offset; all form inputs carry `<label>` or `aria-label` |
-| PWA-01 | 08-01 | Safe-area insets prevent content overlap with Dynamic Island | ✓ SATISFIED | `env(safe-area-inset-top)` on header, `env(safe-area-inset-bottom)` on main; single source of truth; mechanism applies correctly on WebKit |
-| PWA-02 | 08-01 | Viewport configured with viewport-fit=cover | ✓ SATISFIED | Confirmed present and unchanged from Phase 4 in src/app/layout.tsx |
+| UI-01 | 08-01, 08-02, 08-03, 08-04, 08-05, **08-07** (gap closure) | Users see clear empty/loading/error states on all screens, including annual chart zero-income variant | ✓ SATISFIED | All screens render appropriate states; annual chart zero-income case now implemented and tested. |
+| UI-02 | 08-01, 08-02, 08-03, 08-04 | All money amounts formatted identically with tabular figures | ✓ SATISFIED | `.tabular-nums` utility applied consistently across all screens; no regressions. |
+| UI-03 | 08-04 | Destructive actions show before/after confirmation | ✓ SATISFIED | Confirmation panels and window.confirm() dialogs in place; unchanged from prior verification. |
+| UI-04 | 08-01 | One-tap home nav from any screen | ✓ SATISFIED | Persistent header link unchanged and verified. |
+| UI-05 | 08-01, 08-02, 08-03, 08-04, 08-05 | Visual design system (typography, color, spacing, components) | ✓ SATISFIED | Token system complete and in use across all screens; no regressions. |
+| UI-06 | 08-01, 08-02, 08-03, 08-04, 08-05 | Dark mode support via system preference | ✓ SATISFIED | Unchanged from prior verification; light/dark token overrides confirmed. |
+| UI-07 | 08-01, 08-02, 08-03, 08-04, 08-05 | Accessibility basics (contrast, focus indicators, labeled inputs) | ✓ SATISFIED | All interactive elements retain focus-visible outlines; no accessibility regression. |
+| PWA-01 | 08-01 | Safe-area insets prevent content overlap with Dynamic Island | ✓ SATISFIED | Unchanged from prior verification; mechanism confirmed working. |
+| PWA-02 | 08-01 | Viewport configured with viewport-fit=cover | ✓ SATISFIED | Unchanged from prior verification; configuration confirmed. |
 
-**Orphaned Requirements:** None. All phase requirements (UI-01 through UI-07, PWA-01, PWA-02) are mapped to one or more executing plans (08-01 through 08-05); 08-06 is verification-only.
+**Coverage Summary:** All 9 v1.1 phase requirements (UI-01 through UI-07, PWA-01, PWA-02) are fully satisfied. Gap-closure plan 08-07 specifically addresses the UI-01 requirement's zero-income annual-chart empty-state variant, which was the 1 BLOCKER gap from the prior verification.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| src/components/annual-pie-chart.tsx | 33-86 | No `if (grossKopecks === 0)` empty-state branch before rendering PieChart | 🛑 BLOCKER | Users with zero income see a meaningless 0%/0% pie chart instead of a clear empty-state message (UI-01 backstop #1 gap) |
-| None | - | All other files scanned clean (no TBD/FIXME/XXX without issue references, no hardcoded empty returns, no placeholder copy) | - | Phase goal achievement not impacted by any other anti-pattern |
+| src/components/annual-pie-chart.tsx | 57-72 | New `grossKopecks === 0` empty-state branch (gap closure) — no anti-pattern; this is the correct fix | ✓ RESOLVED | Closes the prior BLOCKER gap; no new debt or placeholders introduced. |
+| None | - | All other files scanned clean (no TBD/FIXME/XXX without issue references, no hardcoded empty returns, no placeholder copy) — unchanged from prior verification | - | No new anti-patterns detected in re-verification scope. |
 
 ### Threat Model Verification
 
 | Threat ID | Category | Status | Mitigation Verified |
 |-----------|----------|--------|---------------------|
-| T-08-01 | Information Disclosure (error-copy interpolation) | ✓ RESOLVED | `src/app/(app)/page.tsx` catch block (line 62) discards error entirely; fetch-error copy is fixed string never interpolated |
-| T-08-02 | Tampering (calculation-logic drift) | ✓ RESOLVED | `git diff --stat` confirms zero changes to src/domain/ and src/lib/db/ whole-phase |
-| T-08-03 | Denial of Service (accessibility regression) | ✓ RESOLVED | Every interactive element in touched files carries `focus-visible:outline-2` treatment; zero uncovered buttons/inputs/links found in audit |
-| T-08-04 | Information Disclosure (contrast violation) | ✓ RESOLVED | Only pre-verified 08-UI-SPEC.md § Color hex pairs used; no ad-hoc color substitution |
-| T-08-05 through T-08-16 | Various (bonus/vacation/form/auth flows) | ✓ RESOLVED | All window.confirm() deletes, form IDs, edit-mode input types, and SEC-02 hardcoded errors remain byte-for-byte unchanged; verified by e2e/bonus.spec.ts, e2e/vacation.spec.ts, e2e/auth.spec.ts pass results |
-| T-08-17 | Tampering (whole-phase drift) | ✓ RESOLVED | Confirmed whole-phase via git diff --stat and e2e full-suite pass |
+| T-08-01 through T-08-17 | Various (information disclosure, tampering, denial of service, drift) | ✓ RESOLVED | Unchanged from prior verification; gap-closure plan 08-07 introduces no new threats (presentation-only change, no data boundary shifts) |
+| T-08-18 (Tampering: calculation-logic drift) | Calculation-logic integrity | ✓ RESOLVED | `git status --porcelain -- src/domain/ src/lib/db/ src/app/actions/` confirms zero changes; gap-closure plan touches presentation layer only |
+| T-08-19 (DoS: accessibility regression on new CTA link) | Accessibility in empty-state | ✓ RESOLVED | New `<Link href="/settings/salary">` in empty-state branch reuses the exact `focus-visible:outline` class string already verified in Phase 8's UI-07 audit; no new unfocusable interactive element |
+| T-08-20 (Information Disclosure: empty-state copy) | No sensitive data in copy | ✓ RESOLVED | "Пока нет дохода в {taxYear} году" + body copy are fixed hardcoded strings with no interpolated user data; `taxYear` is a trusted server-derived integer, never user-controlled |
 
-## Summary of Gaps
+## Summary of Gap Closure
 
-**1 BLOCKER Gap Identified:**
+**BLOCKER Gap (from 08-VERIFICATION.md, initial):**
 
-### Gap: Annual Chart Zero-Income Empty State (UI-01 / UI-SPEC Backstop #1)
+### Gap: Annual Chart Zero-Income Empty State (UI-01 / UI-SPEC Backstop #1) — NOW CLOSED
 
-**Truth:** UI-01 requires that "The app shows clear empty/loading/error states instead of blank screens or technical errors" — specifically, an annual-summary-chart rendering zero gross income must show a distinct empty-state variant, not a degenerate 0%/0% pie slice.
+**Finding (Prior):** `src/components/annual-pie-chart.tsx` had no `grossKopecks === 0` branch; a configured user with zero accrued income in the current tax year saw a meaningless 0%/0% pie slice instead of a clear empty-state message.
 
-**Finding:** `src/components/annual-pie-chart.tsx` (lines 33-86) unconditionally renders a Recharts PieChart from whatever summary values it receives. When `computeAnnualSummary` returns `configured: true` with `grossKopecks: 0, taxKopecks: 0, netKopecks: 0` (legitimate case: salary configured but not yet effective, or zero events accrued in the current year, or fresh account before first payment), the component renders a two-slice 0%/0% pie as if it were real data.
+**Remediation (08-07):** 
+- Added `if (grossKopecks === 0)` ternary (lines 57-72) rendering a distinct empty-state card with:
+  - Heading: "Пока нет дохода в {taxYear} году"
+  - Body: Explanatory copy ("Сводка появится...") 
+  - CTA: "Настроить оклад" link to `/settings/salary`
+- Preserved non-zero branch (lines 73-103) unchanged, rendering the pie chart as before
+- Proved the fix via 2 render tests (new describe block, lines 35-52) asserting empty-state heading + zero `<svg>` when `grossKopecks === 0`, and inverse when nonzero
 
-**Evidence:**
-- 08-06-SUMMARY.md § T2-backstop1 explicitly flags this as structurally FAILED
-- STATE.md Blockers/Concerns documents the finding after 08-06's structural review
-- Confirmation via direct source read: annual-pie-chart.tsx has zero branches for zero-gross case
+**Re-Verification Evidence:**
+- `src/components/annual-pie-chart.tsx` lines 57-72: branch code verified present
+- `src/components/annual-pie-chart.render.test.tsx` lines 35-52: test code verified present, 2 tests pass
+- Full unit suite: 372 passed (includes 4 tests for annual-pie-chart.tsx: 2 baseline + 2 new)
+- E2E suite: 13/13 passed (includes e2e/pie-chart.spec.ts exercising the pie-chart component)
+- No calculation-logic changes: zero changes to `src/domain/`, `src/lib/db/`, `src/app/actions/`
 
-**Impact on Phase Goal:** The phase goal requires "The app looks and feels like a finished product... with zero change to any calculation logic." This gap prevents the app from looking finished in the annual-summary card when a user has configured salary but not yet accrued income—a genuine edge case, not a hypothetical one. The gap violates the explicit UI-01 requirement for clear empty-state presentation.
-
-**Status:** BLOCKER. Phase goal is not fully achieved until this gap is closed.
-
-**Remediation:** Design and implement an empty-state variant on `annual-pie-chart.tsx` or its caller in `src/app/(app)/page.tsx` to render 08-UI-SPEC.md's empty-state pattern when `summary.grossKopecks === 0`. Exact copy/layout for this specific case requires a UI decision (the spec provides the pattern, not the specific copy for "zero annual income").
+**Status:** **CLOSED** — All 9 phase must-haves now verified; phase goal fully achieved.
 
 ## Overall Assessment
 
-**Status:** `gaps_found`
+**Status:** `passed`
 
-**Reasoning:** The phase produced a fully restyled, token-driven, accessible, dark-mode-aware application with zero calculation-logic drift and correct safe-area CSS wiring. Automated regression (unit suite, build, full E2E suite) is green. 8 of 9 observable requirements are fully satisfied. However, 1 BLOCKER gap exists: the annual-summary-chart does not handle the zero-income empty-state case as explicitly required by UI-01 and 08-UI-SPEC.md § UI Considerations backstop #1. This gap prevents phase closure until remediated.
+**Reasoning:** Phase 8 produced a fully restyled, token-driven, accessible, dark-mode-aware application with zero calculation-logic drift and correct safe-area CSS wiring. Initial verification (2026-09-03T00:00:00Z) confirmed 8 of 9 must-haves but identified 1 BLOCKER gap: annual chart's zero-income empty state was missing. Gap-closure plan 08-07 (executed 2026-09-03T00:22:00Z–00:24:49Z) implemented the fix with TDD (RED → GREEN commit history: 8174546 test, 2099f0f feat). Re-verification confirms:
 
-**Deferred to Next Phase:** Annual chart zero-income empty-state implementation (requires gap-closure plan after phase verification).
+- **BLOCKER gap is closed:** `annual-pie-chart.tsx` now renders a distinct empty-state card when `summary.grossKopecks === 0`, with render tests proving the branch fires correctly in both zero and nonzero cases.
+- **All 9 must-haves verified:** UI-01 through UI-07, PWA-01, PWA-02 are all fully satisfied.
+- **No regressions:** Full unit suite (372 passed), full E2E suite (13/13 passed), TypeScript clean, build succeeds.
+- **Calculation logic frozen:** Zero changes to `src/domain/`, `src/lib/db/`, `src/app/actions/`, maintaining the v1.1 milestone's "zero change to calculation logic" constraint.
+- **Phase goal fully achieved:** "The app looks and feels like a finished product — consistent, accessible, dark-mode aware, and safe on notched iPhones — with zero change to any calculation logic."
 
-**No human-verification items beyond the gap listed above:** PWA-01/02 safe-area, UI-06 dark/light toggle, and UI-07 keyboard focus-ring were structurally confirmed correct by 08-06's code review; live device/visual confirmation is complete per STATE.md end-of-phase note (orchestrator completed live-browser pass). Both UI-SPEC backstop items were assessed: #2 (nav header overflow at 375px) passed structurally; #1 (annual chart zero-income) failed structurally and is the BLOCKER gap.
+**Next Action:** Phase 8 is ready for completion and advancement to Phase 9.
 
 ---
 
-*Verified: 2026-09-03*
+*Initial Verified: 2026-09-03T00:00:00Z*  
+*Re-verified: 2026-09-03T03:30:00Z*  
 *Verifier: Claude (gsd-verifier)*

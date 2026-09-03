@@ -3,19 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Полировка MVP
 current_phase: 08
-current_phase_name: Visual Redesign, Accessibility & PWA Safe-Area
-status: executing
-stopped_at: "Completed 08-07-PLAN.md (gap-closure: annual pie chart zero-income empty state)"
-last_updated: "2026-09-03T00:26:11.370Z"
+status: completed
+stopped_at: Phase 08 complete — all phases complete
+last_updated: "2026-09-03T00:34:23.835Z"
 last_activity: 2026-09-03
-last_activity_desc: Phase 8 fully verified — all 6 plans done, orchestrator live-browser pass confirmed dark/light toggle, focus rings, safe-area env() wiring, 375px header, and one-tap home nav; 1 structural gap remains open (annual chart zero-income empty state, needs gap-closure)
-state_head: 2099f0f4c2e8dbc9426eaecc73aac34df1d1d0c8
+last_activity_desc: Phase 08 complete
+state_head: 0ab48d8465889bfabc87376308e3dcd707042b23
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 17
   completed_plans: 17
-  percent: 75
+  percent: 100
 ---
 
 # Project State
@@ -29,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-09-02)
 
 ## Current Position
 
-Phase: 08 (Visual Redesign, Accessibility & PWA Safe-Area) — READY TO EXECUTE
-Plan: 6 of 6 complete (design tokens/shell/tracer, bonuses, vacations, salary/onboarding, login/register, whole-phase regression + verification closure)
-Status: Regression green; orchestrator completed the live-browser verification pass (dark/light toggle, keyboard focus rings, safe-area env() wiring, 375px nav-header overflow, one-tap home nav, PWA install banner — all confirmed working); one structural gap remains open (annual chart zero-income empty state) pending gap-closure
-Last activity: 2026-09-03 — Completed 08-06-PLAN.md
+Phase: 08
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-09-03 — Phase 08 complete
 
 Progress: [████████░░] 75%
 
@@ -40,7 +39,7 @@ Progress: [████████░░] 75%
 
 **Velocity:**
 
-- Total plans completed: 33
+- Total plans completed: 40
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -55,6 +54,7 @@ Progress: [████████░░] 75%
 | 5 | 4 | - | - |
 | 6 | 1 | - | - |
 | 07 | 5 | - | - |
+| 08 | 7 | - | - |
 
 **Recent Trend:**
 
@@ -201,7 +201,7 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-09-03T00:26:11.180Z
-Stopped at: Completed 08-07-PLAN.md (gap-closure: annual pie chart zero-income empty state)
+Stopped at: Phase 08 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps
