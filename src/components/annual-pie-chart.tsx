@@ -18,9 +18,6 @@ import { formatKopecks } from "@/domain/money";
 import Link from "next/link";
 import type { AnnualSummary } from "@/app/actions/annual-summary";
 
-const TAX_COLOR = "#dc2626"; // Tailwind red-600
-const NET_COLOR = "#16a34a"; // Tailwind green-600
-
 const percentFormatter = new Intl.NumberFormat("ru-RU", {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
@@ -74,8 +71,8 @@ export function AnnualPieChart({ summary, taxYear }: { summary: AnnualSummary; t
           <div className="mt-4 flex justify-center">
             <PieChart width={200} height={200}>
               <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90}>
-                <Cell key="tax" fill={TAX_COLOR} />
-                <Cell key="net" fill={NET_COLOR} />
+                <Cell key="tax" fill="var(--color-destructive)" />
+                <Cell key="net" fill="var(--color-accent)" />
               </Pie>
             </PieChart>
           </div>
