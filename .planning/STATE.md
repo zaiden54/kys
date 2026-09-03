@@ -21,19 +21,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-02)
+See: .planning/PROJECT.md (updated 2026-09-03)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** Phase 8 — Visual Redesign, Accessibility & PWA Safe-Area
+**Current focus:** Milestone v1.1 (Полировка MVP) — all 4 phases complete, ready for milestone audit/close
 
 ## Current Position
 
-Phase: 08
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-09-03 — Phase 08 complete
+Phase: 08 — Visual Redesign, Accessibility & PWA Safe-Area (COMPLETE — last phase of milestone v1.1)
+Plan: 7/7 complete (design tokens/shell/tracer, bonuses, vacations, salary/onboarding, login/register, regression closure, gap-closure)
+Status: All phases complete — milestone ready for audit and close
+Last activity: 2026-09-03 — Phase 08 complete, gap-closure verified passed (9/9 must-haves)
 
-Progress: [████████░░] 75%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -206,4 +206,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Phase 7 (E2E Test Suite) is complete and fully verified (6/6 must-haves, all requirements E2E-01..E2E-06 confirmed live — local suite 13/13 passing, CI `e2e` job green on a real run, `main` branch protection requires both `ci` and `e2e`). Run `/gsd-discuss-phase 8` or `/gsd-plan-phase 8` to start Phase 8 (Visual Redesign, Accessibility & PWA Safe-Area), or `/gsd-autonomous --from 8` to continue the milestone autonomously. Note the open research flag above: visual-regression baseline screenshots need explicit design agreement before this phase lands.
+- All 4 phases of milestone v1.1 (Полировка MVP) are complete and verified (Phase 5 Deploy Pipeline, Phase 6 Auth Security, Phase 7 E2E Test Suite, Phase 8 Visual Redesign — all `passed`, 0 open blocking gaps). Run `/gsd-audit-milestone` to review before archiving, then `/gsd-complete-milestone v1.1`, or `/gsd-autonomous` to run the full audit → complete → cleanup lifecycle automatically. Two low-severity open items remain in `.planning/WINDOWS.md` for future attention (not blocking): #3 (CI doesn't exercise the DB-integration test layer) and #6 (a pre-existing, date-boundary-sensitive E2E test in `e2e/bonus.spec.ts`, unrelated to Phase 8's changes).

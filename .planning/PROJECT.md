@@ -24,13 +24,16 @@ PWA-приложение для расчёта и прогнозирования
 - ✓ Утечка пароля в адресной строке/Network tab при логине подтверждена как отсутствующая и закреплена регрессионными проверками (SEC-01); одинаковая generic-ошибка для неверного пароля и несуществующего email устраняет account-enumeration (SEC-02); cookie сессии несёт httpOnly/secure/`__Secure-`/`Path=/` (SEC-03) — Phase 6
 - ✓ Playwright e2e-тесты покрывают golden path всех фаз (вход/регистрация, оклад+график, премии, отпуска, годовая сводка, PWA-инсталляция), интегрированы с Playwright MCP; сьют в CI гоняется против изолированной, одноразовой Neon-ветки на каждый прогон — Phase 7
 - ✓ GitHub Actions гейт блокирует мердж при ошибках: `ci` (lint + typecheck + unit-тесты + build, Phase 5) и `e2e` (полный Playwright-сьют против изолированной БД, Phase 7) — оба обязательные required-проверки на `main` — Phase 5, Phase 7
+- ✓ `BETTER_AUTH_URL` корректно и динамически резолвится на всех окружениях через `ALLOWED_AUTH_HOSTS` allowlist (localhost, `*.vercel.app`) — Phase 5
+- ✓ Полный визуальный редизайн UI (CSS-переменная design-token система: цвет, типографика, spacing) через `frontend-design` skill, включая системную тёмную/светлую тему без ручного тумблера — Phase 8
+- ✓ Хедер/навигация уважают `env(safe-area-inset-top/bottom)` — не пересекаются с dynamic island на iPhone; `viewport-fit=cover` настроен — Phase 8
+- ✓ Пользователь может вернуться на главный экран с любого экрана приложения через постоянный хедер-ссылку — Phase 8
+- ✓ Базовые требования доступности (WCAG 2.1 AA контраст, focus-индикаторы, подписанные поля форм) — Phase 8
+- ✓ Единообразные empty/loading/error-состояния на всех экранах, включая устранённый degenerate 0%/0% pie-chart при нулевом доходе за год — Phase 8
 
 ### Active
 
-- [ ] Полный визуальный редизайн UI (типографика, цвета, компоненты) через `frontend-design` skill
-- [ ] Хедер/навигация уважают `env(safe-area-inset-top/bottom)` — не пересекаются с dynamic island на iPhone
-- [ ] Пользователь может вернуться на главный экран с любого экрана приложения
-- [ ] `BETTER_AUTH_URL` корректно резолвится на всех окружениях (PR preview / staging / prod)
+*(пусто — все v1.1-требования реализованы и верифицированы)*
 
 ### Out of Scope
 
@@ -74,6 +77,9 @@ PWA-приложение для расчёта и прогнозирования
 | Логин никогда не пробрасывает реальный `error.message`/`code` от Better Auth в UI — всегда один захардкоженный текст ошибки | Пробрасывание серверной ошибки позволяет отличить «неверный пароль» от «email не зарегистрирован» (account enumeration); registration намеренно не тронут — вне зафиксированного скоупа Phase 6 | ✓ Реализовано в `login/page.tsx`; эмпирически подтверждено `scripts/verify-auth-security.mjs` (byte-identical HTTP статус/тело для обоих провальных кейсов) и живой DevTools-проверкой на PR-превью (Phase 6) |
 | CI-изоляция e2e-сьюта — одна одноразовая Neon-ветка на весь прогон (не per-test), через Neon Management API в `globalSetup`/`globalTeardown` | Тесты не должны читать/писать прод или общее состояние; branch-per-test был бы избыточен и медленнее при serial-выполнении | ✓ Реализовано; обнаружен и исправлен реальный баг — Playwright стартует `webServer` ДО `globalSetup`, поэтому provisioning ветки вынесен в отдельный CI-шаг (`e2e/ci-branch-setup.mjs`) перед `npm run test:e2e`, а не внутри Playwright-хука (Phase 7) |
 | Одна авторизованная сессия на весь e2e-сьют через Playwright `storageState` (один setup-проект логинится один раз, остальные тесты переиспользуют) | Быстрее, чем логиниться в каждом тесте; E2E-01 остаётся единственным тестом, реально проходящим через UI-флоу логина | ✓ Реализовано; `auth.setup.ts` → `playwright/.auth/user.json`, переиспользуется bonus/vacation/pie-chart/pwa спеками (Phase 7) |
+| CSS-переменные design-token системы объявлены с тёмной темой как базой (`:root`), светлая — через `@media (prefers-color-scheme: light)` override | Продукт задуман dark-mode-first (проверка баланса вечером/ночью); упрощает поддержку одного набора токенов | ✓ Реализовано в `globals.css`; серифный Display-шрифт (Georgia) зарезервирован только для hero-суммы следующей выплаты, весь остальной текст — системный sans (Phase 8) |
+| Акцентный emerald-цвет (`#10b981`) не годится напрямую как цвет текста/фона кнопки — недостаточный WCAG AA контраст (2.54:1 вместо 4.5:1) | Обнаружено код-ревью через реальный расчёт WCAG relative-luminance, не на глаз; исходный дизайн-токен из UI-SPEC не был эмпирически проверен во всех контекстах использования | ✓ Реализовано: отдельный `--color-accent-button` (#047857, 5.48:1) для фона кнопок с белым текстом; `--color-accent`/`--color-destructive` дополнительно форкнуты для светлой темы как цвет текста (Phase 8) |
+| Правило «никогда не показывать вычисленный ₽0 как подтверждённый результат» (зафиксировано в Phase 3 для прогноза и отпусков) распространено на годовую pie-сводку | Тот же паттерн бага — 0%/0% pie chart при нулевом накопленном доходе выглядит как настоящий результат, а не как «данных ещё нет»; обнаружено во время closure-верификации Phase 8, не при первичной реализации в Phase 4 | ✓ Реализовано через `grossKopecks === 0` ветку в `annual-pie-chart.tsx` с отдельным empty-state; закрыто через формальный gap-closure план (08-07) с TDD RED→GREEN тестами (Phase 8) |
 
 ## Current State
 
@@ -113,4 +119,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-02 after Phase 7 (E2E Test Suite)*
+*Last updated: 2026-09-03 after Phase 8 (Visual Redesign, Accessibility & PWA Safe-Area) — milestone v1.1 all phases complete*
