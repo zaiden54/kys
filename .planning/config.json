@@ -90,10 +90,18 @@
     "gsd-verifier": [
       "global:neon"
     ],
-    "gsd-ui-researcher": ["global:frontend-design"],
-    "gsd-ui-checker": ["global:frontend-design"],
-    "gsd-planner": ["global:frontend-design"],
-    "gsd-ui-auditor": ["global:frontend-design"]
+    "gsd-ui-researcher": [
+      "global:frontend-design"
+    ],
+    "gsd-ui-checker": [
+      "global:frontend-design"
+    ],
+    "gsd-planner": [
+      "global:frontend-design"
+    ],
+    "gsd-ui-auditor": [
+      "global:frontend-design"
+    ]
   },
   "claude_md_path": "./.claude/CLAUDE.md",
   "plan_review": {
@@ -101,5 +109,8 @@
     "source_grounding_authority": "grep"
   },
   "mode": "yolo",
-  "granularity": "standard"
+  "granularity": "standard",
+  "graphify": {
+    "enabled": true
+  }
 }
