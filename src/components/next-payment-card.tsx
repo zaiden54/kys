@@ -22,55 +22,60 @@ const KIND_LABELS: Record<NextPaymentForecast["kind"], string> = {
 
 export function NextPaymentCard({ forecast }: { forecast: NextPaymentForecast }) {
   return (
-    <section className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-      <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+    <section className="w-full max-w-sm rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-6">
+      <p className="text-xs font-medium tracking-wide text-[color:var(--color-text-secondary)] uppercase">
         Прогноз, а не подтверждённая работодателем сумма
       </p>
-      <p className="mt-1 text-sm text-zinc-600">
-        {KIND_LABELS[forecast.kind]} · {formatIsoDateRu(forecast.date)}
+      <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+        {KIND_LABELS[forecast.kind]} ·{" "}
+        <span className="font-[family-name:var(--font-family-caption)] text-[length:var(--font-size-caption)] tabular-nums">
+          {formatIsoDateRu(forecast.date)}
+        </span>
       </p>
 
-      <p className="mt-4 text-3xl font-semibold text-zinc-900">
+      <p className="mt-4 font-[family-name:var(--font-family-display)] text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] leading-[var(--line-height-display)] text-[color:var(--color-accent)] tabular-nums">
         {formatKopecks(forecast.netKopecks)}
       </p>
-      <p className="mt-1 text-sm text-zinc-500">придёт на руки</p>
+      <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">придёт на руки</p>
 
       {forecast.kind === "vacation" ? (
-        <div className="mt-6 flex flex-col gap-1 text-sm text-zinc-600">
+        <div className="mt-6 flex flex-col gap-1 text-sm text-[color:var(--color-text-secondary)]">
           <div className="flex justify-between">
             <span>Отпускные</span>
-            <span>{formatKopecks(forecast.grossKopecks)}</span>
+            <span className="tabular-nums">{formatKopecks(forecast.grossKopecks)}</span>
           </div>
-          <p className="text-xs text-zinc-500">
+          <p className="font-[family-name:var(--font-family-caption)] text-[length:var(--font-size-caption)] text-[color:var(--color-text-secondary)]">
             Расчёт не учитывает исключаемые периоды (больничный, прошлый отпуск и т.п.)
           </p>
           <div className="flex justify-between">
             <span>Удержан НДФЛ</span>
-            <span>{formatKopecks(forecast.taxKopecks)}</span>
+            <span className="tabular-nums">{formatKopecks(forecast.taxKopecks)}</span>
           </div>
         </div>
       ) : forecast.breakdown ? (
-        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-zinc-600">
+        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-[color:var(--color-text-secondary)]">
           <dt className="col-span-2 font-medium">Состав выплаты:</dt>
           <dt>Оклад / Аванс</dt>
-          <dd className="text-right">{formatKopecks(forecast.breakdown.salaryOrAvansKopecks)}</dd>
+          <dd className="text-right tabular-nums">{formatKopecks(forecast.breakdown.salaryOrAvansKopecks)}</dd>
           <dt>Бонус</dt>
-          <dd className="text-right">{formatKopecks(forecast.breakdown.bonusKopecks)}</dd>
-          <dt className="font-semibold text-zinc-900">Итого (грязными)</dt>
-          <dd className="text-right font-semibold text-zinc-900">{formatKopecks(forecast.grossKopecks)}</dd>
+          <dd className="text-right tabular-nums">{formatKopecks(forecast.breakdown.bonusKopecks)}</dd>
+          <dt className="font-semibold text-[color:var(--color-text-primary)]">Итого (грязными)</dt>
+          <dd className="text-right font-semibold tabular-nums text-[color:var(--color-text-primary)]">
+            {formatKopecks(forecast.grossKopecks)}
+          </dd>
           <dt>Удержан НДФЛ</dt>
-          <dd className="text-right">{formatKopecks(forecast.taxKopecks)}</dd>
+          <dd className="text-right tabular-nums">{formatKopecks(forecast.taxKopecks)}</dd>
         </dl>
       ) : (
-        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-zinc-600">
+        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-[color:var(--color-text-secondary)]">
           <dt>Начислено (грязными)</dt>
-          <dd className="text-right">{formatKopecks(forecast.grossKopecks)}</dd>
+          <dd className="text-right tabular-nums">{formatKopecks(forecast.grossKopecks)}</dd>
           <dt>Удержан НДФЛ</dt>
-          <dd className="text-right">{formatKopecks(forecast.taxKopecks)}</dd>
+          <dd className="text-right tabular-nums">{formatKopecks(forecast.taxKopecks)}</dd>
         </dl>
       )}
 
-      <p className="mt-4 text-xs text-zinc-400">
+      <p className="mt-4 text-xs text-[color:var(--color-text-secondary)]">
         Это плановый расчёт для планирования бюджета — не официальная и не гарантированная сумма.
       </p>
     </section>

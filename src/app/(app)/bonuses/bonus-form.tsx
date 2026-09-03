@@ -47,40 +47,45 @@ export function BonusForm() {
     }
   }
 
+  const inputClassName =
+    "rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]";
+  const labelClassName =
+    "text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]";
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
-      <h2 className="text-lg font-semibold">Бонус или компенсация</h2>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="amountRubles" className="text-sm font-medium">Сумма, ₽</label>
+      <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">Бонус или компенсация</h2>
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
+        <label htmlFor="amountRubles" className={labelClassName}>Сумма, ₽</label>
         <input id="amountRubles" type="number" step="0.01" placeholder="Например, 10000"
-          className="rounded border border-zinc-300 px-3 py-2" {...register("amountRubles")} />
-        {errors.amountRubles && <p className="text-sm text-red-600">{errors.amountRubles.message}</p>}
+          className={inputClassName} {...register("amountRubles")} />
+        {errors.amountRubles && <p className="text-sm text-[color:var(--color-destructive)]">{errors.amountRubles.message}</p>}
       </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="date" className="text-sm font-medium">Дата выплаты</label>
-        <input id="date" type="date" className="rounded border border-zinc-300 px-3 py-2"
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
+        <label htmlFor="date" className={labelClassName}>Дата выплаты</label>
+        <input id="date" type="date" className={inputClassName}
           {...register("date")} />
-        <p className="text-xs text-zinc-500">День, когда бонус будет выплачен</p>
-        {errors.date && <p className="text-sm text-red-600">{errors.date.message}</p>}
+        <p className="text-[length:var(--font-size-caption)] text-[color:var(--color-text-secondary)]">День, когда бонус будет выплачен</p>
+        {errors.date && <p className="text-sm text-[color:var(--color-destructive)]">{errors.date.message}</p>}
       </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="note" className="text-sm font-medium">Заметка (необязательно)</label>
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
+        <label htmlFor="note" className={labelClassName}>Заметка (необязательно)</label>
         <input id="note" type="text" placeholder={'Например, "13-я зарплата" или "бонус за проект"'}
-          className="rounded border border-zinc-300 px-3 py-2" {...register("note")} />
-        {errors.note && <p className="text-sm text-red-600">{errors.note.message}</p>}
+          className={inputClassName} {...register("note")} />
+        {errors.note && <p className="text-sm text-[color:var(--color-destructive)]">{errors.note.message}</p>}
       </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="type" className="text-sm font-medium">Тип выплаты</label>
-        <select id="type" className="rounded border border-zinc-300 px-3 py-2" {...register("type")}>
+      <div className="flex flex-col gap-[var(--spacing-sm)]">
+        <label htmlFor="type" className={labelClassName}>Тип выплаты</label>
+        <select id="type" className={inputClassName} {...register("type")}>
           <option value="premium">Премия (учитывается при расчёте отпускных)</option>
           <option value="compensation">Компенсация — например, к отпуску (не учитывается при расчёте отпускных)</option>
         </select>
-        {errors.type && <p className="text-sm text-red-600">{errors.type.message}</p>}
+        {errors.type && <p className="text-sm text-[color:var(--color-destructive)]">{errors.type.message}</p>}
       </div>
-      {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-      {message && <p className="text-sm text-green-700">{message}</p>}
+      {serverError && <p className="text-sm text-[color:var(--color-destructive)]">{serverError}</p>}
+      {message && <p className="text-sm text-[color:var(--color-accent)]">{message}</p>}
       <button type="submit" disabled={isSubmitting}
-        className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+        className="rounded-lg bg-[color:var(--color-accent-button)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]">
         {isSubmitting ? "Сохранение…" : "Сохранить бонус"}
       </button>
     </form>

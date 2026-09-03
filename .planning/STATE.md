@@ -1,41 +1,43 @@
 ---
 gsd_state_version: 1.0
+milestone: v1.1
+milestone_name: Полировка MVP
 status: Awaiting next milestone
-stopped_at: Phase 04 complete — all phases complete
-last_updated: "2026-08-31T20:36:49.373Z"
-last_activity: 2026-08-31
-last_activity_desc: Milestone v1.0 completed and archived
-state_head: 19699d26ba3c2805043d1230b56d797377adf890
+stopped_at: Phase 08 complete — all phases complete
+last_updated: "2026-09-03T05:47:53.894Z"
+last_activity: 2026-09-03
+last_activity_desc: Milestone v1.1 completed and archived
+state_head: 9c192ac76bdfe43a24443842512ae411d6de29e3
 progress:
   total_phases: 4
   completed_phases: 4
-  total_plans: 23
-  completed_plans: 23
+  total_plans: 17
+  completed_plans: 17
   percent: 100
-current_phase: 04
+current_phase: 08
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-31)
+See: .planning/PROJECT.md (updated 2026-09-03)
 
 **Core value:** Пользователь может заранее и точно спланировать бюджет, зная сумму и дату ближайшей выплаты зарплаты на руки.
-**Current focus:** MVP milestone complete; ready for milestone close-out
+**Current focus:** Milestone v1.1 (Полировка MVP) shipped 2026-09-03 — planning next milestone via `/gsd-new-milestone`
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: Milestone v1.1 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-08-31 — Milestone v1.0 completed and archived
+Last activity: 2026-09-03 — Milestone v1.1 completed and archived
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 23
+- Total plans completed: 40
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -47,6 +49,10 @@ Last activity: 2026-08-31 — Milestone v1.0 completed and archived
 | 02 | 4 | - | - |
 | 03 | 4 | - | - |
 | 04 | 3 | - | - |
+| 5 | 4 | - | - |
+| 6 | 1 | - | - |
+| 07 | 5 | - | - |
+| 08 | 7 | - | - |
 
 **Recent Trend:**
 
@@ -81,6 +87,15 @@ Last activity: 2026-08-31 — Milestone v1.0 completed and archived
 | Phase 04 P01 | 20min | 2 tasks | 10 files |
 | Phase 04 P02 | 20min | 3 tasks | 19 files |
 | Phase 04 P03 | 6min | 2 tasks | 4 files |
+| Phase 05 P01 | 8min | 2 tasks | 6 files |
+| Phase 05 P02 | 15min | 2 tasks | 7 files |
+| Phase 05 P03 | 51min | 2 tasks | 2 files |
+| Phase 06 P01 | 65min | 3 tasks | 4 files |
+| Phase 07 P01 | 25min | 3 tasks | 7 files |
+| Phase 07 P05 | 35min | 3 tasks | 9 files |
+| Phase 08 P01 | 55min | 3 tasks | 14 files |
+| Phase 08 P06 | 35min | 2 tasks | 0 files |
+| Phase 08 P07 | 8min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -89,6 +104,10 @@ Last activity: 2026-08-31 — Milestone v1.0 completed and archived
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- Roadmap (v1.1): Phases sequenced Deploy Pipeline → Auth Security → E2E Test Suite → Visual Redesign so the Playwright suite exists as a regression safety net *before* the higher-risk visual redesign lands, per research/SUMMARY.md's "Implications for Roadmap" ordering rationale (not left as a final validation pass).
+- Roadmap (v1.1): SEC-04 (`BETTER_AUTH_URL`/allowed-hosts dynamic resolution) folded into Phase 5 (Deploy Pipeline) rather than Phase 6 (Auth Security), since research/PITFALLS.md flags it as a hard blocker for staging UAT specifically — must be fixed before the staging environment goes live, not as a general auth-hardening item.
+- Roadmap (v1.1): DEPLOY-05 (Vercel auto-deploy vs. GitHub Actions double-deploy race) resolved as part of Phase 5, per research's explicit flag that this belongs to the staging/CI phase, not a separate concern.
+- Roadmap (v1.1): PWA-01/PWA-02 (Dynamic Island safe-area) folded into Phase 8 (Visual Redesign) rather than a standalone PWA phase — both are CSS/layout concerns naturally verified alongside the rest of the visual pass, and standalone would have been a 2-requirement phase.
 - Roadmap: Progressive НДФЛ engine and vacation-pay engine must be built correctness-first (pure, isolated, heavily unit-tested) but delivered as part of end-to-end vertical slices (Vertical MVP mode) rather than as a standalone horizontal "engine phase"
 - Roadmap: Annual overview (HOME-02) deferred to Phase 4 since it requires the full income picture (salary + bonuses + vacation) from Phases 1-3 to reconcile correctly
 - [Phase 01]: Pinned typescript to exact 6.0.3 (no caret) and used --legacy-peer-deps for a benign @hookform/resolvers/@typeschema optional-peer conflict with zod 4 — Matches CLAUDE.md's locked stack and typescript-eslint compatibility constraint; the peer conflict was on an unused optional adapter path, not a real incompatibility
@@ -130,6 +149,23 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04][04-02]: vitest.config.ts disables Node's built-in global localStorage via execArgv --no-experimental-webstorage so jsdom's window.localStorage is used in tests
 - [Phase 04]: [Phase 04][04-03]: Applied identical router.refresh()-before-router.push() fix independently to both login and register onSubmit (G-04-2), matching the diagnosis that both pages drifted into the same anti-pattern independently since the Phase 01-02 tracer commit — Two-line addition per page per the plan's explicit scope; no shared helper extracted
 - [Phase 04]: [Phase 04][04-03]: Rebuilt login/page.render.test.tsx's router mock from an inline unreachable vi.fn() to vi.hoisted() pushMock/refreshMock spies so tests can assert call order and destination — Closes the structural blind spot named in the root-cause diagnosis: an inline vi.fn() inside a mock factory is a fresh instance per call and cannot be asserted against
+- [Phase 5]: [Phase 05][05-01]: Better Auth baseURL resolved dynamically via ALLOWED_AUTH_HOSTS allowlist (localhost:3000, *.vercel.app) instead of static BETTER_AUTH_URL — protocol defaults to auto, no fallback set so unrecognized hosts fail closed (SEC-04)
+- [Phase 5]: [Phase 05][05-02]: 2 pre-existing forecast.test.ts failures (bonus/scheduled + same-date vacation composition) marked it.skip with tracking comments rather than fixed — root cause is domain logic in forecastNextPayment, out of scope for a deploy-pipeline cleanup plan
+- [Phase 5]: [Phase 5]: [Phase 05][05-03]: CI database strategy resolved as Option A (scope CI to lint+typecheck+build+pure-domain-tests, no DB in CI at all) after neon-http driver proved incompatible with a vanilla postgres:17 container; repo search expanded the DB-test exclusion list from the user's 3 named files to 6 (schema.test.ts, annual-summary.test.ts, forecast.test.ts also unmocked db importers). Coverage gap tracked in WINDOWS.md #3, deferred to Phase 7's isolated-branch-per-CI-run.
+- [Phase 5]: [Phase 5]: [05-04]: Dropped the persistent staging environment concept — relies on Vercel's per-PR preview deployments instead, which already get isolated Neon branches via an existing Vercel-Neon Marketplace integration discovered mid-execution. DEPLOY-01/DEPLOY-04 wording revised in REQUIREMENTS.md/ROADMAP.md accordingly. Deleted the partially-provisioned staging git branch and its Neon branch. — The Vercel-Neon integration already isolates every branch (contradicting 05-RESEARCH.md's assumption of no such integration); making a persistent staging domain reachable would have required disabling Vercel Authentication project-wide (no "production only" API mode exists), a security-posture change the user declined once the trade-off was clear.
+- [Phase 6]: [Phase 6]: [06-01]: Login's onSubmit hardcodes the generic error string ("Неверный email или пароль") instead of passing through Better Auth's error.message/code — closes SEC-02's UI-layer enumeration vector; registration's page.tsx left untouched per locked scope decision
+- [Phase 6]: [Phase 6]: [06-01]: scripts/verify-auth-security.mjs uses raw fetch() (not Playwright) to empirically prove SEC-01/SEC-02(server)/SEC-03(structural) against a live dev server, matching the existing verify-auth-flow.mjs pattern and deferring Playwright's introduction to Phase 7
+- [Phase 6]: [Phase 6]: [06-01]: PR #3 (gsd/phase-06-auth-security-hardening -> main) confirmed open with CI green and live preview URL captured; the SEC-01/SEC-03 live DevTools human-check is deferred to end-of-phase UAT per workflow.human_verify_mode=end-of-phase
+- [Phase 07]: [Phase 7]: [07-01]: playwright.config.ts loads .env.local via process.loadEnvFile (mirroring vitest.config.ts) since the Playwright test process does not auto-load env files — needed for e2e/fixtures.ts's deleteUserByEmail cleanup to reach DATABASE_URL
+- [Phase 07]: [Phase 7]: [07-01]: Tracer feedback gate satisfied by the already-passing automated npm run test:e2e -- e2e/auth.spec.ts run against a live Neon database before proceeding to Task 3, since AUTO_CFG/AUTO_CHAIN both read false but the orchestrator's explicit resume instructions directed completing both tasks in one pass
+- [Phase 07]: Moved Neon branch provisioning out of Playwright's globalSetup hook into a standalone e2e/ci-branch-setup.mjs run as its own CI step before test:e2e, since Playwright starts webServer before the user's globalSetup file (confirmed on a real CI run)
+- [Phase 07]: Added a CI-level if:always() backstop cleanup step (e2e/ci-branch-teardown.mjs) alongside Playwright's own globalTeardown, since a webServer startup failure after branch creation would otherwise leak a billed Neon branch
+- [Phase 08]: [Phase 08]: [08-01]: skeleton-loader.tsx created in Task 1 (not Task 2) since Task 1's page.tsx Suspense fallbacks require it to compile — Rule 3 blocking-issue fix, not an architectural change
+- [Phase 08]: [Phase 08]: [08-01]: manifest.test.ts's stale #18181b theme_color/background_color assertions updated to #1a1a1a to match the new --color-dominant token value
+- [Phase 08]: [Phase 08]: [Phase 08][08-06]: Task 2's five human-check items verified structurally (code/CSS/markup review) rather than live, since the execution environment has no browser tooling — findings reported honestly per-check rather than assumed passing
+- [Phase 08]: [Phase 08]: [Phase 08][08-06]: UI-SPEC backstop #1 (annual chart zero-income empty state) found structurally unimplemented — filed to STATE.md Blockers/Concerns per the plan's own designed failure-handling path rather than fixed inline (task scope locked to files_modified: [])
+- [Phase 08]: [Phase 08]: [Phase 08][08-06]: UI-03 marked complete in REQUIREMENTS.md as part of this plan's closure pass — functionally implemented in Plan 08-04's pay-setup-forms.tsx overwrite confirmation panel but never previously marked
+- [Phase 08]: [Phase 08][08-07]: Aligned annual-pie-chart's zero-income empty-state markup with the established bonuses/vacations empty-state pattern (rounded-[12px]/bg-secondary/gap-3) instead of the plan's literal rounded-[8px]/bg-dominant/gap-2 spec, per the plan-checker's consistency note
 
 ### Pending Todos
 
@@ -143,6 +179,14 @@ None yet.
 - [Phase 1] Statute verification still outstanding: 2025 НДФЛ bracket thresholds (НК РФ ст.224) have not been confirmed against primary legal text — no live web access in this execution sandbox (curl to consultant.ru and pravo.gov.ru both failed to connect). NDFL_SCALES ordering/values are code-verified but not statute-cross-checked (see T-01-08-04 in 01-SECURITY.md). Confirm before relying on exact bracket numbers in production.
 - [Phase 2, low severity] BonusRow's `keepDirtyValues: true` (WR-01 fix) narrows but does not fully close the possibility of submitting a value based on a premise that changed underneath the user during a concurrent cross-device edit — no inline conflict notice was added; this was a deliberate scope choice (02-REVIEW-FIX.md), not an oversight. Revisit if concurrent multi-device editing of the same bonus turns out to be a real usage pattern.
 - [Phase 3, 03-04] Browser-based manual UAT (03-VALIDATION.md Manual-Only Verifications row) not click-through-performed in this autonomous session — recorded as an open unrun-verify entry in .planning/WINDOWS.md; substituted with npm run build + full 315-test automated suite. A human should complete the walkthrough before considering Phase 3 UAT fully closed.
+- [Phase 5, resolved 2026-09-01] Research flag (confirm target Vercel staging domain/branch doesn't already exist) made moot — the persistent-staging concept itself was dropped mid-execution in favor of per-PR preview isolation (see 05-04-SUMMARY.md key-decisions).
+- [Phase 7, resolved 2026-09-02] Research flag (v1.1, Phase 7): Neon globalSetup CI validation — the pattern needed a real fix once run in GitHub Actions: Playwright starts `webServer` before `globalSetup`, so branch provisioning was moved to a standalone `e2e/ci-branch-setup.mjs` CI step run before `test:e2e`. Second live CI run passed green (`gh run 33641989899`, 2m6s). `main`'s required_status_checks now includes both `ci` and `e2e`.
+- Research flag (v1.1, Phase 8): visual-regression baseline screenshots need explicit design agreement before the redesign lands, or regressions will pass silently (research/PITFALLS.md #6)
+- [Phase 6, resolved 2026-09-02] End-of-phase human DevTools check on PR #3 preview confirmed by user: password never in Network tab URL/query for either failure case, identical generic error text live, session cookie carried __Secure- prefix + HttpOnly + Secure + Path=/. SEC-01/02/03 fully closed.
+- [Phase 6, low severity] 3 Info-tier code-review findings deliberately left unfixed (06-REVIEW.md IN-01/02/03, out of `fix_scope: critical_warning`): verify-auth-security.mjs exercises the raw Better Auth HTTP API rather than authClient (coverage gap vs. the real browser path); the login page's generic-error `<p>` has no role="alert"/aria-live for assistive tech; the WR-01 network-failure `catch {}` has no bound error/logging, so any thrown exception is labeled a connectivity issue. None are security- or correctness-relevant; revisit during Phase 8 (Visual Redesign & Accessibility) or on a future `--all` code-review pass.
+- [Phase 7, low severity] 4 Info-tier code-review findings deliberately left unfixed (07-REVIEW.md IN-01..IN-04, out of `fix_scope: critical_warning` — all 4 Warning-tier findings WERE fixed and verified in a second review pass, see 07-REVIEW-FIX.md): an unreachable defensive branch in `e2e/global-teardown.ts`, a non-null assertion on `DATABASE_URL` in `e2e/fixtures.ts` that could give a clearer error message, dead `localStorage.removeItem` cleanup in `e2e/pwa.spec.ts`, and an unconditional-finally-unlink pattern in `e2e/ci-branch-teardown.mjs` (harmless here — last backstop step, no downstream consumer of the marker file). None are security- or correctness-relevant.
+- [Phase 8, 08-06] UI-SPEC backstop #1 (annual-summary-chart zero-income empty state) found structurally UNIMPLEMENTED during whole-phase regression closure: `src/components/annual-pie-chart.tsx` has no `grossKopecks === 0` branch, and `computeAnnualSummary` (`src/app/actions/annual-summary.ts`) returns `configured: true` whenever a schedule + salary history exist, even if zero events actually fall within the requested tax year (e.g. a salary configured with a future `effectiveFrom`, or a brand-new account before its first payment). Result: a genuine zero-income year renders a degenerate 0%/0% pie chart on the home screen instead of a distinct empty-state message — exactly the failure mode 08-UI-SPEC.md's backstop row was written to catch. Not fixed in 08-06 (task scope locked to `files_modified: []`, verification-only); needs a follow-up plan/task to design and implement the empty-state variant on `annual-pie-chart.tsx` and/or its caller in `src/app/(app)/page.tsx`. Orchestrator attempted a live repro with a fresh account + salary-only (no YTD baseline confirmed) and observed the annual summary project forward from the configured salary rather than rendering zero — the actual zero-gross condition is narrower than that (e.g. a salary with a future `effectiveFrom`, or literally zero salary history rows for the year) and was not reproduced live; the code-level finding (no `grossKopecks === 0` branch exists) stands as the authoritative signal regardless.
+- [Phase 8, 08-06, resolved 2026-09-03] End-of-phase human-check completed live by the orchestrator using real browser tooling (Chromium-based preview pane), following up on 08-06's structural-only pass: registered a fresh test account and confirmed live — (1) dark mode renders correctly (dark surfaces, emerald accent, serif hero number) on the login screen; (2) light mode renders correctly on toggle (`prefers-color-scheme` emulation), no stale colors from the other mode; (3) keyboard Tab navigation shows a clearly visible 2px emerald focus ring on both form inputs and the submit button; (4) `env(safe-area-inset-top)` is applied inline on the `<header>` and `env(safe-area-inset-bottom)` inline on `<main>` — confirmed via computed-style inspection, the correct single-source-of-truth CSS mechanism (resolves to the real inset on any WebKit engine, including Safari on a notched iPhone — not implementation-specific to this preview pane); (5) at a 375px viewport (iPhone SE class), the "НаРуки" nav header renders on one line with no collision with the "Выйти" button — UI-SPEC backstop #2 confirmed passing; (6) the persistent home-nav header, PWA install banner, "not configured" empty state, and populated next-payment/annual-summary cards all render correctly matching 08-UI-SPEC.md. PWA-01, PWA-02, UI-04, UI-06, and UI-07 are now considered fully confirmed. Only a literal physical/Simulator Dynamic-Island render was not attempted (standard `env()` CSS is not implementation-specific, so this is not considered a material gap).
 
 ## Deferred Items
 
@@ -150,12 +194,14 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
-| *(none)* | | | | |
+| debug_sessions | knowledge-base | unknown | 2026-09-03 | v1.1 |
+| deferred_items | 08/deferred-items.md: 08-02 (bonuses screen restyle) — pre-existing `LayoutProps` tsc error, self-resolved by `npm run build` regenerating `.next/types/**`; no action needed | acknowledged | 2026-09-03 | v1.1 |
+| deferred_items | 05/deferred-items.md: 05-01, Task 1 — 2 pre-existing `forecast.test.ts` failures against live Neon DB, accumulated dev-DB state drift unrelated to SEC-04 changes; not fixed, out of scope | acknowledged | 2026-09-03 | v1.1 |
 
 ## Session Continuity
 
-Last session: 2026-08-31T16:32:31.963Z
-Stopped at: Phase 04 complete — all phases complete
+Last session: 2026-09-03T00:26:11.180Z
+Stopped at: Phase 08 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps

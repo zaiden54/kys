@@ -24,8 +24,10 @@ export default async function OnboardingPage() {
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-6 py-12">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">Настройка выплат</h1>
-        <p className="text-sm text-zinc-600">
+        <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+          Настройка выплат
+        </h1>
+        <p className="text-sm text-[color:var(--color-text-secondary)]">
           Укажите оклад, график выплат и доход с начала года — это нужно, чтобы точно посчитать
           сумму на руки к ближайшей выплате.
         </p>
@@ -47,7 +49,10 @@ export default async function OnboardingPage() {
       />
 
       {hasSalaryAndSchedule && (
-        <Link href="/" className="text-sm underline">
+        <Link
+          href="/"
+          className="text-sm text-[color:var(--color-accent)] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+        >
           Перейти на главный экран
         </Link>
       )}

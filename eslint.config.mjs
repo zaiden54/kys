@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Serwist-generated service worker (next.config.ts's withSerwistInit) —
+    // gitignored, not authored source; only present locally after a prior
+    // `npm run dev`/`next build`.
+    "public/sw.js",
+    "public/sw.js.map",
   ]),
 ]);
 

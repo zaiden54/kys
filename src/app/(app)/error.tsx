@@ -16,13 +16,18 @@ export default function AppError({
   reset: () => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      <h1 className="text-2xl font-semibold">Ошибка при загрузке сводки</h1>
-      <p className="max-w-sm text-zinc-600">Попробуйте ещё раз</p>
+    <div
+      role="alert"
+      className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center"
+    >
+      <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+        Ошибка при загрузке сводки
+      </h1>
+      <p className="max-w-sm text-[color:var(--color-text-secondary)]">Попробуйте ещё раз</p>
       <button
         type="button"
         onClick={() => reset()}
-        className="mt-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white"
+        className="mt-2 rounded-lg bg-[color:var(--color-accent-button)] px-4 py-2 text-sm font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
       >
         Повторить
       </button>

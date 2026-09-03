@@ -127,3 +127,59 @@ describe("LoginPage submit redirect (G-04-2)", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 });
+
+describe("LoginPage generic auth error (SEC-02)", () => {
+  it("does not reveal that an email is not registered", async () => {
+    vi.mocked(authClient.signIn.email).mockResolvedValueOnce({
+      error: { code: "INVALID_EMAIL_OR_PASSWORD", message: "User not found" },
+    });
+
+    await submitLoginForm();
+
+    await waitFor(() => {
+      expect(screen.getByText("Неверный email или пароль")).not.toBeNull();
+    });
+    expect(screen.queryByText("User not found")).toBeNull();
+  });
+
+  it("does not reveal that a password is incorrect", async () => {
+    vi.mocked(authClient.signIn.email).mockResolvedValueOnce({
+      error: { code: "INVALID_EMAIL_OR_PASSWORD", message: "Invalid password" },
+    });
+
+    await submitLoginForm();
+
+    await waitFor(() => {
+      expect(screen.getByText("Неверный email или пароль")).not.toBeNull();
+    });
+    expect(screen.queryByText("Invalid password")).toBeNull();
+  });
+
+  it("uses the same generic message when Better Auth omits its message", async () => {
+    vi.mocked(authClient.signIn.email).mockResolvedValueOnce({
+      error: { message: undefined },
+    });
+
+    await submitLoginForm();
+
+    await waitFor(() => {
+      expect(screen.getByText("Неверный email или пароль")).not.toBeNull();
+    });
+  });
+});
+
+describe("LoginPage network failure (WR-01)", () => {
+  it("shows a connectivity message when sign-in rejects (network failure)", async () => {
+    vi.mocked(authClient.signIn.email).mockRejectedValueOnce(new Error("network error"));
+
+    await submitLoginForm();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Не удалось войти. Проверьте соединение и попробуйте снова."),
+      ).not.toBeNull();
+    });
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+});
