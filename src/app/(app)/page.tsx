@@ -70,7 +70,7 @@ export default async function HomePage() {
         className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center"
       >
         <InstallBanner />
-        <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+        <h1 className="font-[family-name:var(--font-family-display)] text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
           Не удалось загрузить данные
         </h1>
         <p className="max-w-sm text-[color:var(--color-text-secondary)]">
@@ -91,7 +91,7 @@ export default async function HomePage() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
         <InstallBanner />
-        <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+        <h1 className="font-[family-name:var(--font-family-display)] text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
           {copy.title}
         </h1>
         <p className="max-w-sm text-[color:var(--color-text-secondary)]">{copy.body}</p>
@@ -106,37 +106,39 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-4 px-6 py-16">
+    <div className="flex flex-1 flex-col items-center gap-4 px-6 py-16 min-[1100px]:max-w-4xl">
       <InstallBanner />
       {result.forecast.baselineIsEstimated ? <YtdEstimateBanner /> : null}
-      <Suspense fallback={<SkeletonLoader count={1} variant="payment-card" />}>
-        <NextPaymentSection forecast={result.forecast} />
-      </Suspense>
-      {annualResult.configured ? (
-        <Suspense fallback={<SkeletonLoader count={1} variant="chart" />}>
-          <AnnualSummarySection summary={annualResult.summary} taxYear={currentYear} />
+      <div className="flex w-full flex-col gap-4 min-[1100px]:grid min-[1100px]:grid-cols-2 min-[1100px]:items-start">
+        <Suspense fallback={<SkeletonLoader count={1} variant="payment-card" />}>
+          <NextPaymentSection forecast={result.forecast} />
         </Suspense>
-      ) : (
-        // Defensive, forward-compatible fallback: unreachable-by-construction
-        // today (computeAnnualSummary's not-configured gate is byte-for-byte
-        // identical to forecastNextPayment's, and the `!result.configured`
-        // early return above already covers it), but kept as cheap insurance
-        // per 04-01-PLAN.md's "flagged_assumptions" — never a silent `null`.
-        <div className="w-full max-w-sm rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-4 text-center">
-          <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
-            Сводка недоступна
-          </h2>
-          <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
-            Заполните оклад и график выплат, чтобы увидеть годовую сводку.
-          </p>
-          <Link
-            href="/settings/salary"
-            className="mt-3 inline-block rounded-[8px] bg-[color:var(--color-accent-button)] px-4 py-2 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
-          >
-            Настроить оклад
-          </Link>
-        </div>
-      )}
+        {annualResult.configured ? (
+          <Suspense fallback={<SkeletonLoader count={1} variant="chart" />}>
+            <AnnualSummarySection summary={annualResult.summary} taxYear={currentYear} />
+          </Suspense>
+        ) : (
+          // Defensive, forward-compatible fallback: unreachable-by-construction
+          // today (computeAnnualSummary's not-configured gate is byte-for-byte
+          // identical to forecastNextPayment's, and the `!result.configured`
+          // early return above already covers it), but kept as cheap insurance
+          // per 04-01-PLAN.md's "flagged_assumptions" — never a silent `null`.
+          <div className="w-full max-w-sm rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-4 text-center min-[1100px]:max-w-none">
+            <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
+              Сводка недоступна
+            </h2>
+            <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+              Заполните оклад и график выплат, чтобы увидеть годовую сводку.
+            </p>
+            <Link
+              href="/settings/salary"
+              className="mt-3 inline-block rounded-[8px] bg-[color:var(--color-accent-button)] px-4 py-2 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+            >
+              Настроить оклад
+            </Link>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

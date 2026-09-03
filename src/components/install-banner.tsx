@@ -72,7 +72,7 @@ export function InstallBanner() {
   }
 
   return (
-    <div className="w-full max-w-sm rounded border-l-4 border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-3">
+    <div className="w-full max-w-sm min-[1100px]:max-w-none rounded border-l-4 border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-[color:var(--color-text-primary)]">

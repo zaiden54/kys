@@ -50,7 +50,7 @@ test.describe("vacation CRUD (E2E-03)", () => {
     await fillVacationForm(page, createStartDate, createEndDate);
     await expect(page.getByText("Отпуск записан.")).toBeVisible({ timeout: SUBMIT_TIMEOUT });
 
-    const row = page.locator("li").filter({ hasText: formatIsoDateRu(createStartDate) });
+    const row = page.locator("main li").filter({ hasText: formatIsoDateRu(createStartDate) });
     await expect(row).toHaveCount(1);
 
     const cells = row.locator("div.grid > span");
@@ -74,7 +74,7 @@ test.describe("vacation CRUD (E2E-03)", () => {
     // Still exactly one row for this date range — the rejected second
     // submission created nothing.
     await expect(
-      page.locator("li").filter({ hasText: formatIsoDateRu(createStartDate) }),
+      page.locator("main li").filter({ hasText: formatIsoDateRu(createStartDate) }),
     ).toHaveCount(1);
   });
 });
@@ -90,8 +90,11 @@ test.describe("vacation edit and delete (E2E-03)", () => {
     await expect(page.getByText("Отпуск записан.")).toBeVisible({ timeout: SUBMIT_TIMEOUT });
 
     // listVacations orders by startDate desc, so the vacation just created
-    // (the largest startDate so far in this run) is always the first <li>.
-    const row = page.locator("li").first();
+    // (the largest startDate so far in this run) is always the first <li>
+    // within the vacation history list. Scoped to `main` since the
+    // sidebar/mobile-header navigation also renders <li> nav items earlier
+    // in the DOM, which an unscoped `li` locator would otherwise match.
+    const row = page.locator("main li").first();
     await expect(row).toContainText(formatIsoDateRu(startDate));
 
     const initialAmountText = await row.locator("div.grid > span").nth(3).innerText();
@@ -126,7 +129,7 @@ test.describe("vacation edit and delete (E2E-03)", () => {
     await fillVacationForm(page, startDate, endDate);
     await expect(page.getByText("Отпуск записан.")).toBeVisible({ timeout: SUBMIT_TIMEOUT });
 
-    const row = page.locator("li").first();
+    const row = page.locator("main li").first();
     await expect(row).toContainText(formatIsoDateRu(startDate));
 
     // Register the dialog-accept handler BEFORE triggering the delete
@@ -136,7 +139,7 @@ test.describe("vacation edit and delete (E2E-03)", () => {
     await row.getByRole("button", { name: "Удалить отпуск" }).click();
 
     await expect(
-      page.locator("li").filter({ hasText: formatIsoDateRu(startDate) }),
+      page.locator("main li").filter({ hasText: formatIsoDateRu(startDate) }),
     ).toHaveCount(0, { timeout: SUBMIT_TIMEOUT });
   });
 });

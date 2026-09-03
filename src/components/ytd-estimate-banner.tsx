@@ -17,7 +17,7 @@ export function YtdEstimateBanner() {
   return (
     <div
       role="status"
-      className="w-full max-w-sm rounded-lg border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] px-4 py-3 text-sm text-[color:var(--color-text-primary)]"
+      className="w-full max-w-sm min-[1100px]:max-w-none rounded-lg border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] px-4 py-3 text-sm text-[color:var(--color-text-primary)]"
     >
       <p>
         Прогноз пока считается так, будто с 1 января доход был нулевым — вы ещё не указали

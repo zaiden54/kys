@@ -49,7 +49,7 @@ export default function RegisterPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-4 px-6 py-16">
-      <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+      <h1 className="font-[family-name:var(--font-family-display)] text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
         Регистрация
       </h1>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>

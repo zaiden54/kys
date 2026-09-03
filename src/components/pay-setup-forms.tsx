@@ -123,7 +123,11 @@ export function SalaryForm({ defaultGrossRubles, defaultEffectiveFrom }: SalaryF
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex flex-col gap-3 rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-5"
+      noValidate
+    >
       <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
         Оклад
       </h2>
@@ -249,7 +253,11 @@ export function ScheduleForm({ defaultAvansDay, defaultSalaryDay }: ScheduleForm
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex flex-col gap-3 rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-5"
+      noValidate
+    >
       <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
         График выплат
       </h2>
@@ -374,7 +382,11 @@ export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: Y
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3" noValidate>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex flex-col gap-3 rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-5"
+      noValidate
+    >
       <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
         Доход с начала года
       </h2>

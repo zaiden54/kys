@@ -22,7 +22,7 @@ const KIND_LABELS: Record<NextPaymentForecast["kind"], string> = {
 
 export function NextPaymentCard({ forecast }: { forecast: NextPaymentForecast }) {
   return (
-    <section className="w-full max-w-sm rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-6">
+    <section className="next-payment-card w-full max-w-sm min-[1100px]:max-w-none rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-6">
       <p className="text-xs font-medium tracking-wide text-[color:var(--color-text-secondary)] uppercase">
         Прогноз, а не подтверждённая работодателем сумма
       </p>
@@ -33,13 +33,13 @@ export function NextPaymentCard({ forecast }: { forecast: NextPaymentForecast })
         </span>
       </p>
 
-      <p className="mt-4 font-[family-name:var(--font-family-display)] text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] leading-[var(--line-height-display)] text-[color:var(--color-accent)] tabular-nums">
+      <p className="mt-4 font-[family-name:var(--font-family-display)] text-[42px] font-[number:var(--font-weight-display)] leading-[var(--line-height-display)] text-[color:var(--color-accent)] tabular-nums">
         {formatKopecks(forecast.netKopecks)}
       </p>
       <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">придёт на руки</p>
 
       {forecast.kind === "vacation" ? (
-        <div className="mt-6 flex flex-col gap-1 text-sm text-[color:var(--color-text-secondary)]">
+        <div className="mt-10 flex flex-col gap-1 text-sm text-[color:var(--color-text-secondary)]">
           <div className="flex justify-between">
             <span>Отпускные</span>
             <span className="tabular-nums">{formatKopecks(forecast.grossKopecks)}</span>
@@ -53,7 +53,7 @@ export function NextPaymentCard({ forecast }: { forecast: NextPaymentForecast })
           </div>
         </div>
       ) : forecast.breakdown ? (
-        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-[color:var(--color-text-secondary)]">
+        <dl className="mt-10 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-[color:var(--color-text-secondary)]">
           <dt className="col-span-2 font-medium">Состав выплаты:</dt>
           <dt>Оклад / Аванс</dt>
           <dd className="text-right tabular-nums">{formatKopecks(forecast.breakdown.salaryOrAvansKopecks)}</dd>
@@ -67,7 +67,7 @@ export function NextPaymentCard({ forecast }: { forecast: NextPaymentForecast })
           <dd className="text-right tabular-nums">{formatKopecks(forecast.taxKopecks)}</dd>
         </dl>
       ) : (
-        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-[color:var(--color-text-secondary)]">
+        <dl className="mt-10 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-[color:var(--color-text-secondary)]">
           <dt>Начислено (грязными)</dt>
           <dd className="text-right tabular-nums">{formatKopecks(forecast.grossKopecks)}</dd>
           <dt>Удержан НДФЛ</dt>
