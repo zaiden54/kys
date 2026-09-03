@@ -32,7 +32,7 @@ const NEON_API_BASE = "https://console.neon.tech/api/v2";
 const BRANCH_ID_FILE = path.resolve(__dirname, ".ci-branch.json");
 const ENV_LOCAL_FILE = path.resolve(__dirname, "..", ".env.local");
 
-async function neonApi(pathname, init) {
+async function neonApi(pathname, init, { sensitive = false } = {}) {
   const res = await fetch(`${NEON_API_BASE}${pathname}`, {
     ...init,
     headers: {
@@ -42,9 +42,20 @@ async function neonApi(pathname, init) {
     },
   });
   if (!res.ok) {
-    // Never log response bodies (T-07-08) — they can carry connection URIs
-    // with live credentials. Status + endpoint only.
-    throw new Error(`Neon API ${init?.method ?? "GET"} ${pathname} failed: ${res.status}`);
+    // Only the connection_uri endpoint's response body carries a live
+    // credential (T-07-08) — every other Neon API error body is just
+    // {message, code}, safe to surface so CI failures are diagnosable
+    // (e.g. "branch limit exceeded for plan") instead of a bare status code.
+    let detail = "";
+    if (!sensitive) {
+      try {
+        const body = await res.clone().json();
+        if (body?.message) detail = `: ${body.message}`;
+      } catch {
+        // response wasn't JSON — fall back to the bare status
+      }
+    }
+    throw new Error(`Neon API ${init?.method ?? "GET"} ${pathname} failed: ${res.status}${detail}`);
   }
   return res.json();
 }
@@ -64,6 +75,31 @@ async function main() {
   const parent = branches.find((b) => b.default);
   if (!parent) {
     throw new Error(`No default branch found for Neon project ${projectId}`);
+  }
+
+  // 1.5. Best-effort prune of stale `e2e-ci-*` branches this same script
+  // creates (see step 2 below). These are single-purpose, disposable CI
+  // branches — e2e/global-teardown.ts and the "Backstop Neon branch
+  // cleanup" CI step both delete the branch a run created once that run
+  // finishes, but a run that gets cancelled or hard-killed before either
+  // teardown path runs leaves its branch behind forever. On a plan with a
+  // low branch-count ceiling, enough of those orphans accumulate to make
+  // *this* POST fail with "branches limit exceeded" before a single test
+  // ever runs. Age-gated (>2h) so a slow-but-still-running concurrent CI
+  // job's branch is never raced/deleted out from under it.
+  const staleCutoffMs = Date.now() - 2 * 60 * 60 * 1000;
+  const staleBranches = branches.filter(
+    (b) => b.name?.startsWith("e2e-ci-") && new Date(b.created_at).getTime() < staleCutoffMs,
+  );
+  for (const stale of staleBranches) {
+    try {
+      await neonApi(`/projects/${projectId}/branches/${stale.id}`, { method: "DELETE" });
+      console.log(`Pruned stale CI branch ${stale.id} (${stale.name})`);
+    } catch (err) {
+      // Non-fatal — worst case this run still fails the same way it would
+      // have without pruning, just with a clearer error from the POST below.
+      console.error(`Failed to prune stale CI branch ${stale.id} (${stale.name}):`, err);
+    }
   }
 
   // 2. Create a fresh, disposable branch (with its own read-write compute
@@ -86,6 +122,8 @@ async function main() {
   // 3. Resolve the actual connection URI for that branch/database/role.
   const { uri } = await neonApi(
     `/projects/${projectId}/connection_uri?branch_id=${branchId}&database_name=${encodeURIComponent(database.name)}&role_name=${encodeURIComponent(database.owner_name)}&pooled=true`,
+    undefined,
+    { sensitive: true },
   );
 
   // Mask the resolved URI immediately — it embeds a live DB password and,
