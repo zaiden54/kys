@@ -22,7 +22,7 @@ const KIND_LABELS: Record<NextPaymentForecast["kind"], string> = {
 
 export function NextPaymentCard({ forecast }: { forecast: NextPaymentForecast }) {
   return (
-    <section className="next-payment-card w-full max-w-sm rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-6">
+    <section className="next-payment-card w-full max-w-sm min-[1100px]:max-w-none rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-6">
       <p className="text-xs font-medium tracking-wide text-[color:var(--color-text-secondary)] uppercase">
         Прогноз, а не подтверждённая работодателем сумма
       </p>

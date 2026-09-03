@@ -37,7 +37,7 @@ export function AnnualPieChart({ summary, taxYear }: { summary: AnnualSummary; t
   ];
 
   return (
-    <section className="w-full max-w-sm rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-4">
+    <section className="w-full max-w-sm min-[1100px]:max-w-none rounded-[12px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-secondary)] p-4">
       <h2 className="text-[length:var(--font-size-heading)] font-[number:var(--font-weight-heading)] text-[color:var(--color-text-primary)]">
         Годовая сводка
       </h2>
