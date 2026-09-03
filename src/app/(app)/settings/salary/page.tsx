@@ -25,7 +25,7 @@ export default async function SalarySettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-6 py-12">
-      <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+      <h1 className="font-[family-name:var(--font-family-display)] text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
         Оклад и график выплат
       </h1>
 

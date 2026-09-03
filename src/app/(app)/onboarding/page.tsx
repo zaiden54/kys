@@ -24,7 +24,7 @@ export default async function OnboardingPage() {
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-6 py-12">
       <div className="flex flex-col gap-1">
-        <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+        <h1 className="font-[family-name:var(--font-family-display)] text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
           Настройка выплат
         </h1>
         <p className="text-sm text-[color:var(--color-text-secondary)]">

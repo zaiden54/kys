@@ -70,7 +70,7 @@ export default async function HomePage() {
         className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center"
       >
         <InstallBanner />
-        <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+        <h1 className="font-[family-name:var(--font-family-display)] text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
           Не удалось загрузить данные
         </h1>
         <p className="max-w-sm text-[color:var(--color-text-secondary)]">
@@ -91,7 +91,7 @@ export default async function HomePage() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
         <InstallBanner />
-        <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
+        <h1 className="font-[family-name:var(--font-family-display)] text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">
           {copy.title}
         </h1>
         <p className="max-w-sm text-[color:var(--color-text-secondary)]">{copy.body}</p>

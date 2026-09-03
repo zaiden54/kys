@@ -37,7 +37,7 @@ async function BonusListContent() {
 export default function BonusesPage() {
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-6 py-12">
-      <h1 className="text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">Бонусы и разовые выплаты</h1>
+      <h1 className="font-[family-name:var(--font-family-display)] text-[length:var(--font-size-display)] font-[number:var(--font-weight-display)] text-[color:var(--color-text-primary)]">Бонусы и разовые выплаты</h1>
       <div id="bonus-form"><BonusForm /></div>
       <Suspense fallback={<SkeletonLoader count={3} variant="bonus-row" />}>
         <BonusListContent />
