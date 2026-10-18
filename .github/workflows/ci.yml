@@ -1,0 +1,139 @@
+# This workflow runs checks only — it never deploys. Vercel's native git integration
+# (already active on this repo) is the sole deployer for every environment. See
+# DEPLOYMENT.md and this plan's DEPLOY-05 prohibition before adding any deploy step here.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, staging]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # vitest.config.ts passes `--no-experimental-webstorage` to disable
+      # Node's built-in global localStorage in jsdom tests; that flag only
+      # exists from Node 22.4+ (webstorage landed experimentally in 22.4.0)
+      # — Node 20 rejects it as "bad option" and crashes the test worker.
+      # Next.js 16 itself only requires Node 20+, but this project's test
+      # suite needs 22+.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # CI runs with no database at all (see "Unit tests" below for why).
+      # DATABASE_URL/BETTER_AUTH_SECRET are still required here because
+      # src/env.ts (@t3-oss/env-nextjs) validates both at module-import
+      # time, and `next build` imports every route/action module — including
+      # src/lib/db/index.ts and src/lib/auth.ts — while bundling. Both the
+      # Neon serverless client and Drizzle are lazy (no connection attempt
+      # at construction), so a syntactically valid but unreachable
+      # DATABASE_URL is sufficient; only its URL *shape* is checked.
+      - name: Configure environment
+        run: |
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres" >> "$GITHUB_ENV"
+          echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      # DB-touching integration tests are excluded from CI: this codebase's
+      # src/lib/db/index.ts uses @neondatabase/serverless's neon-http
+      # driver, which speaks Neon's proprietary SQL-over-HTTP protocol and
+      # cannot connect to a vanilla postgres:17 container (confirmed
+      # empirically). Standing up a real isolated Neon branch per CI run is
+      # deferred to Phase 7 (E2E-06). Until then these 6 files — which all
+      # import `db` from "@/lib/db" unmocked — only run locally against a
+      # real Neon dev branch, not in CI. See 05-03-SUMMARY.md and
+      # .planning/WINDOWS.md for the tracked coverage gap.
+      - name: Unit tests
+        run: |
+          npm test -- \
+            --exclude '**/schema.test.ts' \
+            --exclude '**/salary-repository.test.ts' \
+            --exclude '**/bonus-repository.test.ts' \
+            --exclude '**/vacation-repository.test.ts' \
+            --exclude '**/annual-summary.test.ts' \
+            --exclude '**/forecast.test.ts'
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    needs: ci
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # This job runs on its own runner with its own process env — it does
+      # NOT inherit the `ci` job's $GITHUB_ENV additions across jobs, so a
+      # fresh BETTER_AUTH_SECRET is generated here too. No dummy DATABASE_URL
+      # is set here: the next step provisions the real, isolated-branch value.
+      - name: Configure environment
+        run: |
+          echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+
+      # Runs BEFORE `npm run test:e2e` (not inside Playwright's own
+      # globalSetup hook) because Playwright starts `config.webServer`
+      # before running the user's globalSetup file — confirmed against a
+      # real run of this exact job. `next build`/`next start` (spawned by
+      # webServer) need a real DATABASE_URL already present at spawn time,
+      # so the isolated Neon branch must exist and be exported to
+      # $GITHUB_ENV before this step, not from inside it. See
+      # e2e/ci-branch-setup.mjs's own header comment.
+      - name: Provision isolated Neon branch
+        run: node e2e/ci-branch-setup.mjs
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+
+      - name: E2E tests (isolated Neon branch)
+        run: npm run test:e2e
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+
+      # Backstop only — e2e/global-teardown.ts (Playwright's own
+      # globalTeardown hook) is the primary deletion path and already runs
+      # on both pass and fail. This step exists for the case where
+      # Playwright's own teardown chain never gets reached at all (e.g. a
+      # webServer startup failure aborts the run before any of Playwright's
+      # tasks execute). Idempotent — no-ops if the branch was already
+      # deleted.
+      - name: Backstop Neon branch cleanup
+        if: always()
+        run: node e2e/ci-branch-teardown.mjs
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}

@@ -1,285 +1,847 @@
-# Architecture Research
+# Architecture Integration: v1.1 Polishing Milestone
 
-**Domain:** Personal salary/take-home-pay forecasting PWA with legally-defined tax and vacation-pay calculations (RU НДФЛ + ТК РФ)
-**Researched:** 2026-08-28
-**Confidence:** MEDIUM (general architecture patterns are well-established/cross-verified; project-specific application is original synthesis, not sourced from a comparable published system)
+**Project:** НаРуки (Payroll take-home calculator)  
+**Milestone:** v1.1 Production Quality  
+**Researched:** 2026-09-01  
+**Overall Confidence:** MEDIUM (patterns are standard Next.js 16 conventions; specific integration points depend on team's operational setup)
 
-## Standard Architecture
+## Executive Summary
 
-### System Overview
+The v1.1 milestone adds UI polish, security hardening, e2e testing, and a staging/production deployment cycle to an existing Next.js 16 App Router PWA. The good news: **all new features integrate cleanly with the existing route-group structure and Server Components pattern.** No architectural rewrites needed.
 
-This is a standard **thin-client PWA + API + relational DB** shape, with one non-standard twist: two pieces of business logic (tax, vacation pay) are legally defined, versioned-by-year formulas that must be independently auditable. That drives the one architectural decision that matters most here — **calculation logic is pulled out of the API/CRUD layer into its own pure, dependency-free domain module**, tested in complete isolation from HTTP and the database.
+- **Visual redesign** lives in `src/components/` as new/updated components and (optionally) a `src/lib/theme.ts` for design tokens — reuses existing Tailwind infrastructure.
+- **BETTER_AUTH_URL** must be derived from request headers or environment-specific variables; currently it's a static env var causing issues across preview/staging/prod.
+- **Staging environment** requires a persistent Vercel deployment (separate branch or manual environment) + a persistent Neon database branch, distinct from per-PR preview deployments.
+- **Playwright e2e tests** run against a test instance of the Next.js server; they authenticate via Better Auth, seed Neon test data, and live in `e2e/` (not colocated with unit tests).
+- **GitHub Actions CI** gates merges with linting/typing/unit tests; Vercel's auto-deploy-from-`main` is already configured, so the workflow should NOT trigger a deploy (only lint/test).
 
-```
-┌───────────────────────────────────────────────────────────────────┐
-│                      CLIENT — PWA (installed, iOS home screen)      │
-│  ┌────────────┐  ┌───────────────┐  ┌─────────────┐  ┌──────────┐  │
-│  │ Auth screens│  │ Salary/Sched. │  │ Next-payment │  │ Annual   │  │
-│  │             │  │ /Bonus/Vac.   │  │ home screen  │  │ pie-chart│  │
-│  │             │  │ input forms   │  │              │  │ summary  │  │
-│  └──────┬─────┘  └───────┬───────┘  └──────┬───────┘  └────┬─────┘  │
-│         │                │                  │                │      │
-│         └────────────────┴────────HTTP──────┴────────────────┘      │
-├───────────────────────────────────────────────────────────────────┤
-│                          API (imperative shell)                     │
-│  ┌─────────┐  ┌────────────────────┐  ┌───────────────────────┐    │
-│  │  Auth    │  │  CRUD endpoints    │  │  Forecast endpoint     │    │
-│  │  (JWT/   │  │  (salary history,  │  │  (orchestrates domain  │    │
-│  │  session)│  │  schedule, bonus,  │  │  engines, returns      │    │
-│  │          │  │  vacation)         │  │  computed payments)    │    │
-│  └─────────┘  └─────────┬──────────┘  └───────────┬────────────┘    │
-├─────────────────────────┼──────────────────────────┼────────────────┤
-│                DOMAIN LAYER — pure, framework-free  ↓  (functional core)│
-│  ┌─────────────────────────────┐  ┌─────────────────────────────┐   │
-│  │   Tax Calculation Engine     │  │   Vacation Pay Engine        │   │
-│  │   (НДФЛ, cumulative YTD,     │  │   (avg. daily earning,       │   │
-│  │   versioned bracket table)   │  │   12-month lookback, ТК РФ)  │   │
-│  └───────────────┬─────────────┘  └───────────────┬─────────────┘   │
-│                  └───────────┬──────────────────────┘                │
-│                     ┌────────▼─────────┐                             │
-│                     │ Payment Forecast  │                             │
-│                     │ Engine (composes  │                             │
-│                     │ the two above)    │                             │
-│                     └───────────────────┘                             │
-├───────────────────────────────────────────────────────────────────┤
-│                         DATA LAYER (Postgres)                       │
-│  ┌──────────┐ ┌──────────────┐ ┌───────────┐ ┌───────────────────┐  │
-│  │ users    │ │ salary_history│ │ pay_      │ │ bonus_entries      │  │
-│  │          │ │ (effective-   │ │ schedule  │ │ vacation_entries   │  │
-│  │          │ │  dated)       │ │           │ │                    │  │
-│  └──────────┘ └──────────────┘ └───────────┘ └───────────────────┘  │
-│  ┌───────────────────────────┐                                      │
-│  │ tax_brackets (versioned by │                                      │
-│  │ tax_year — immutable rows) │                                      │
-│  └───────────────────────────┘                                      │
-└───────────────────────────────────────────────────────────────────┘
-```
+## Current Architecture State
 
-### Component Responsibilities
-
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| PWA client | Auth UI, data-entry forms (salary/schedule/bonus/vacation), display of next payment + annual pie chart, install manifest for iOS | React/Vue/Svelte SPA, Vite/Next build, `manifest.json` + `apple-touch-icon` |
-| Auth | Register/login, session/JWT issuance, per-user data isolation | Framework auth module or BaaS auth (see Integration Points) |
-| CRUD endpoints | Validate and persist salary changes, schedule, bonuses, vacation requests as effective-dated / date-stamped rows | REST or RPC handlers, thin — no calculation logic here |
-| Forecast endpoint | Given a user + date range, load the relevant historical/future records and call the domain engines to produce a payment-by-payment forecast | Orchestration only; delegates all math to domain layer |
-| Tax Calculation Engine | Pure function(s) implementing 2025 5-bracket progressive НДФЛ on a cumulative annual basis | Isolated module/package, zero DB or HTTP imports, takes `tax_year` as an explicit parameter |
-| Vacation Pay Engine | Pure function(s) implementing ТК РФ average-daily-earnings-over-12-months formula | Isolated module/package, takes a list of dated gross-income entries as input, no DB access |
-| Payment Forecast Engine | Composes tax + vacation engines against a timeline of scheduled/one-off payments to produce net amounts | Pure orchestration function; still framework-free |
-| Data layer | Stores immutable, dated facts (salary changes, bonuses, vacation requests) — never a mutable running total | Postgres; relational schema, no NoSQL needed (data is small, relational, and correctness-critical) |
-
-## Recommended Project Structure
+### Route Structure
 
 ```
-src/
-├── domain/                        # Pure business logic — the "functional core"
-│   ├── tax/
-│   │   ├── ndfl-brackets.ts        # Versioned bracket tables (2025: 13/15/18/20/22%), keyed by tax_year
-│   │   ├── calculate-ndfl.ts       # calculateNdfl(cumulativeBefore, paymentGross, taxYear) -> {tax, net, newCumulative}
-│   │   └── calculate-ndfl.test.ts  # Table-driven tests against official ФНС worked examples
-│   ├── vacation/
-│   │   ├── average-daily-earning.ts # calcAvgDailyEarning(salaryHistory, vacationStart) per ТК РФ / ПП РФ №922
-│   │   ├── calculate-vacation-pay.ts
-│   │   └── calculate-vacation-pay.test.ts
-│   └── forecast/
-│       ├── build-payment-timeline.ts  # merges schedule + bonuses + vacation into ordered payment events
-│       └── forecast-net-payments.ts   # composes tax + vacation engines over the timeline
-├── api/                            # Imperative shell — HTTP, auth, DB access
-│   ├── routes/
-│   │   ├── auth.ts
-│   │   ├── salary.ts               # CRUD on salary_history (effective-dated writes)
-│   │   ├── schedule.ts
-│   │   ├── bonuses.ts
-│   │   ├── vacations.ts
-│   │   └── forecast.ts             # calls domain/forecast, returns JSON to client
-│   └── db/
-│       ├── schema.ts               # Postgres schema (Drizzle/Prisma/knex — see STACK.md)
-│       └── repositories/           # thin data-access functions, no business logic
-├── client/                         # PWA frontend
-│   ├── screens/
-│   │   ├── NextPayment.tsx
-│   │   ├── AnnualSummary.tsx       # pie chart: gross / tax / net
-│   │   └── SalaryEditor.tsx
-│   ├── manifest.webmanifest
-│   └── icons/                      # incl. apple-touch-icon.png (see Integration Points)
-└── shared/
-    └── types.ts                    # Shared DTOs between domain, api, client
+src/app/
+├── (auth)/                    # Unauthenticated pages (login, register)
+│   ├── login/page.tsx
+│   ├── register/page.tsx
+│   └── layout.tsx             # No auth requirement; minimal header
+├── (app)/                     # Authenticated shell
+│   ├── layout.tsx             # Shared header + nav (awaits safe-area fix)
+│   ├── page.tsx               # Dashboard (next payment + annual pie chart)
+│   ├── bonuses/page.tsx
+│   ├── vacations/page.tsx
+│   └── api/                   # Server Actions only (no Route Handlers)
+├── api/
+│   └── auth/                  # Better Auth's mounted router
+└── manifest.ts, apple-icon.tsx, sw.ts, layout.tsx (root)
 ```
 
-### Structure Rationale
+**Key pattern:** Route groups `(auth)` and `(app)` allow separate layouts without URL segments. The `(app)` layout enforces `requireUserId()` at the boundary.
 
-- **`domain/` is isolated and framework-free by rule**, not by convention — no import of Express/DB/fetch is allowed inside it. This is what makes the tax and vacation formulas independently testable and auditable: a reviewer (or the developer, a year from now when rates change) can read and test `domain/tax` without spinning up a server or DB.
-- **`domain/tax/ndfl-brackets.ts` is a data table, not inline conditionals** — each tax year is a separate immutable array of `{ from, to, rate }`. When rates change (they have changed before, and did in 2025), a new year's table is added; old years' calculations remain reproducible unchanged. This directly satisfies the "auditable, correct, changes year to year" requirement.
-- **`api/routes/` stays thin** — validation + calling a repository + calling a domain function + returning the result. If a route handler contains an `if` on a tax bracket, that is a structural violation of the boundary.
-- **`forecast/` is a third domain module**, separate from tax and vacation, because it has its own logic (ordering payments by date, deciding which engine applies to which entry) that also deserves isolated testing, without re-testing tax/vacation math each time.
+### Auth Flow
 
-## Architectural Patterns
+1. **Server-side session validation** (`src/lib/session.ts`): `getSessionUser()` reads the session cookie via `better-auth.api.getSession({ headers })`.
+2. **Server Actions** for mutations: All data changes go through Server Actions, which call `requireUserId()` to anchor the request to the authenticated user.
+3. **Client-side auth UI** (`src/lib/auth-client.ts`): `authClient.signIn()` / `signUp()` POST to `/api/auth/*` endpoints, then `router.refresh()` to invalidate the Next.js Router's cache before pushing to the authenticated zone.
+4. **Session cookies**: Better Auth stores a session cookie with a 30-day expiry, refreshed weekly on use.
 
-### Pattern 1: Functional Core, Imperative Shell (for both calculation engines)
+**Current issue:** `BETTER_AUTH_URL` is a static environment variable (`http://localhost:3000` locally, hardcoded for production at build time). In preview deployments or a staging environment, it points to the wrong origin, breaking auth redirects.
 
-**What:** All НДФЛ and vacation-pay math lives in pure functions — same input always produces same output, no I/O, no hidden state, no calls to `Date.now()`, no DB reads inside the function. The API layer (imperative shell) is responsible for fetching the inputs (salary history rows, tax year, cumulative income so far) and handing them to the pure function, then persisting/returning the result.
-**When to use:** Any time correctness of a formula must be independently verifiable and regression-proof — exactly the situation for legally-defined tax/labor-law math.
-**Trade-offs:** Slightly more ceremony (explicit parameter passing instead of reading global/session state inside the calculation) — worth it here because the payoff is unit tests that run in milliseconds with zero mocking, and that can be checked directly against official worked examples from ФНС/ТК РФ documentation.
+### Database & ORM
 
-**Example:**
-```typescript
-// domain/tax/calculate-ndfl.ts — pure, no imports beyond the bracket table
-export function calculateNdfl(
-  cumulativeIncomeBeforeThisPayment: number,
-  thisPaymentGross: number,
-  taxYear: number
-): { taxOnThisPayment: number; net: number; newCumulativeIncome: number } {
-  const brackets = getBracketsForYear(taxYear); // pure lookup, throws if year unsupported
-  const cumulativeAfter = cumulativeIncomeBeforeThisPayment + thisPaymentGross;
-  const taxOnThisPayment =
-    cumulativeTax(cumulativeAfter, brackets) - cumulativeTax(cumulativeIncomeBeforeThisPayment, brackets);
-  return {
-    taxOnThisPayment,
-    net: thisPaymentGross - taxOnThisPayment,
-    newCumulativeIncome: cumulativeAfter,
-  };
+- **Neon serverless Postgres** (via Vercel Marketplace integration) with a default `main` branch.
+- **Drizzle ORM** with migrations via `drizzle-kit push`.
+- Per-PR preview deployments get a **temporary Neon branch** (copy-on-write) via Vercel's integration, auto-deleted when the PR closes.
+- No persistent staging branch exists yet.
+
+### Build & Deploy
+
+- **Local dev:** `npm run dev -- --webpack` (pinned to webpack because Serwist's Service Worker injection doesn't yet support Turbopack).
+- **Vercel auto-deploy:** Pushes to `main` trigger a production build automatically.
+- **Preview deployments:** Every PR gets a preview URL (e.g., `pr-123---na-ruki.vercel.app`), with a temporary Neon branch.
+- **No CI workflow:** No `.github/workflows/*.yml` files exist; no pre-merge gates.
+- **No persistent staging:** All non-production testing is via preview deployments.
+
+### Components & Layout
+
+**Current `(app)/layout.tsx`:**
+```tsx
+<header className="...px-6 py-4">
+  <div className="flex items-center gap-4">
+    <span className="text-sm text-zinc-600">{user.email}</span>
+    <Link href="/bonuses">Бонусы</Link>
+    <Link href="/vacations">Отпуска</Link>
+  </div>
+  <SignOutButton />
+</header>
+<main className="flex flex-1 flex-col">{children}</main>
+```
+
+**Issues:**
+- No safe-area padding (will overlap iPhone's dynamic island / notch in standalone mode).
+- No link back to `/` (homepage).
+- Minimal visual hierarchy; no design tokens or theme layer.
+
+## Integration Points for v1.1 Features
+
+### 1. Visual Redesign (UI Components & Design Tokens)
+
+**Where to live:**
+- **Components:** New/updated components in `src/components/` (status bar, input fields, buttons, cards, etc.).
+- **Design tokens (optional but recommended):** `src/lib/theme.ts` or `src/theme/` directory with exported color/spacing/typography constants.
+- **Styles:** Existing Tailwind v4 infrastructure (`tailwind.config.ts`); either add CSS custom properties (`--color-primary`, `--spacing-*`) or use Tailwind's plugin system.
+
+**Integration with existing layout:**
+```tsx
+// (app)/layout.tsx
+import { SafeAreaProvider } from "@/lib/safe-area";  // NEW: context for CSS vars
+
+export default async function AppLayout({ children }) {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  return (
+    <SafeAreaProvider>  {/* Wraps the entire layout */}
+      <div className="flex min-h-full flex-1 flex-col">
+        <header className="...pt-[env(safe-area-inset-top)]">  {/* Safe-area fix */}
+          {/* Redesigned header content */}
+          <nav className="...">
+            <Link href="/">Home</Link>
+            <Link href="/bonuses">Бонусы</Link>
+            <Link href="/vacations">Отпуска</Link>
+          </nav>
+        </header>
+        <main className="flex flex-1 flex-col">{children}</main>
+        <footer className="...pb-[env(safe-area-inset-bottom)]">  {/* Safe-area bottom */}
+        </footer>
+      </div>
+    </SafeAreaProvider>
+  );
 }
 ```
 
-### Pattern 2: Effective-Dated Facts, Not Mutable State (salary history + cumulative income)
+**No changes needed to:**
+- Route structure (`(auth)` and `(app)` route groups remain intact).
+- Server Components / Server Actions pattern.
+- Auth flow or session management.
 
-**What:** Every change to salary is a new row with `effective_from` (and `effective_to` for the previous row, or compute it as "next row's `effective_from` minus 1 day"), never an `UPDATE` on the existing salary value. Cumulative year-to-date income for tax purposes is **never stored as a running counter** — it is derived on demand by summing all taxable payment events (regular pay + bonuses + vacation pay) for a user within the calendar year, ordered by `payment_date`, up to and including the payment being calculated.
-**When to use:** Any time a "point in time" value must be reconstructable — required here for (a) "what was the salary that generated this past payment" and (b) "what was cumulative YTD income immediately before this payment, for the progressive tax calculation."
-**Trade-offs:** More rows, more read-time aggregation vs. a mutable counter — but a mutable YTD-total column is a correctness trap: it silently drifts if a past bonus is edited/deleted, if a payment is recomputed, or under concurrent writes. A derived-on-read (or derived-and-cached) value stays correct by construction because it is always computed from the immutable ledger.
+### 2. BETTER_AUTH_URL Environment Fix
 
-**Example:**
-```sql
--- salary_history: effective-dated, append-only
-CREATE TABLE salary_history (
-  id BIGSERIAL PRIMARY KEY,
-  user_id UUID NOT NULL REFERENCES users(id),
-  gross_amount NUMERIC(12,2) NOT NULL,
-  effective_from DATE NOT NULL,
-  effective_to DATE,              -- NULL = currently active
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
--- YTD cumulative income before a given payment_date, computed not stored:
--- SUM of all taxable payment events for user WHERE payment_date < :target AND EXTRACT(year FROM payment_date) = :target_year
+**Current problem:**
+```
+BETTER_AUTH_URL=https://na-ruki.vercel.app  (static at build time)
+```
+In a preview deployment (`pr-123---na-ruki.vercel.app`), auth callbacks redirect to the wrong origin.
+
+**Solution: Derive from request headers at runtime**
+
+```tsx
+// src/lib/auth-url.ts (NEW)
+import { headers } from "next/headers";
+
+/**
+ * Resolves the correct origin for Better Auth baseURL at request time.
+ * Handles preview/staging/production automatically.
+ *
+ * Logic:
+ * 1. If BETTER_AUTH_URL env var is set (fallback for non-Vercel), use it.
+ * 2. Else, derive from X-Forwarded-Host or request headers (Vercel/proxy-safe).
+ * 3. Append protocol (https on production, http on localhost).
+ */
+export async function getAuthBaseUrl(): Promise<string> {
+  const envUrl = process.env.BETTER_AUTH_URL;
+  if (envUrl) return envUrl; // Explicit env var takes priority
+
+  const h = await headers();
+  const host =
+    h.get("x-forwarded-host") ||
+    h.get("host") ||
+    "localhost:3000";
+
+  // Vercel sets x-forwarded-proto to "https"; local dev is "http"
+  const protocol =
+    h.get("x-forwarded-proto") === "http" ? "http" : "https";
+
+  return `${protocol}://${host}`;
+}
+
+// Alternative: if you prefer environment-specific config without request-time derivation:
+// export function getAuthBaseUrl(): string {
+//   // Use Vercel's VERCEL_ENV + VERCEL_URL automation
+//   if (process.env.VERCEL_ENV === "production") {
+//     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+//   }
+//   if (process.env.VERCEL_ENV === "preview") {
+//     return `https://${process.env.VERCEL_URL}`;
+//   }
+//   return process.env.BETTER_AUTH_URL || "http://localhost:3000";
+// }
 ```
 
-### Pattern 3: Versioned Rule Table for Legally-Defined Rates
+**Update Server-Side Auth Config:**
+```tsx
+// src/lib/auth.ts
+import { getAuthBaseUrl } from "@/lib/auth-url";
 
-**What:** The 5-bracket НДФЛ schedule is stored as data (either a DB table `tax_brackets(tax_year, bracket_order, threshold_from, threshold_to, rate)`, or a versioned in-code map keyed by year — either works given the "no offline" constraint means a deploy can update rates when the law changes). The engine takes `taxYear` as an explicit input and looks up the matching table; it never hardcodes "13%" inline in a branch.
-**When to use:** Any rule that is defined by external authority (tax law, labor code) and known to change over time on a predictable cadence (calendar year).
-**Trade-offs:** A DB-backed table is more auditable (can be inspected/changed without a deploy, and can be joined into the payment record for "which rule version produced this number") but adds a migration step each year; an in-code versioned map is simpler to test and review but requires a deploy to add a new year. For a small solo/small-team product, **in-code versioned map is the pragmatic default**; move to a DB table only if there's a need for non-developers to adjust rates.
-
-## Data Flow
-
-### Request Flow — "show me my upcoming payment"
-
-```
-Client requests /forecast?from=today&to=+90d
-    ↓
-API forecast route → loads: active salary_history rows, pay_schedule,
-                             bonus_entries, vacation_entries for user
-    ↓
-domain/forecast: build-payment-timeline()
-    → merges scheduled pay dates + one-off bonuses + vacation payouts
-       into a single ordered list of {date, grossAmount, type}
-    ↓
-domain/forecast: forecast-net-payments()
-    → walks the timeline in date order, maintaining cumulative YTD income
-      in memory (NOT persisted) for that year
-    → for each event, calls domain/tax/calculateNdfl(cumulativeSoFar, gross, taxYear)
-    → for vacation events, first calls domain/vacation/calculate-vacation-pay()
-      to derive gross vacation pay, THEN feeds that gross into calculateNdfl()
-      like any other payment (vacation pay is taxable income, same scale)
-    ↓
-API returns JSON: [{date, gross, tax, net}, ...] — client renders next
-    payment card + (aggregated) annual pie chart
+export const auth = betterAuth({
+  database: drizzleAdapter(db, { provider: "pg", schema: authSchema }),
+  emailAndPassword: { enabled: true, requireEmailVerification: false },
+  session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24 * 7 },
+  secret: env.BETTER_AUTH_SECRET,
+  baseURL: await getAuthBaseUrl(),  // NOW DYNAMIC ✅
+});
 ```
 
-### Key Data Flows
+**Important:** `betterAuth` config is evaluated at module load time. To use `await getAuthBaseUrl()`, either:
+- Call it during request handling (wrap in a Server Component), OR
+- Export a factory function that returns the auth instance per request
 
-1. **Salary change:** User edits gross salary → API writes a new `salary_history` row with `effective_from = today` (or a future/past date if backdating), closes out the previous row's `effective_to`. No recalculation is triggered eagerly — forecasts are computed on read, always from current data.
-2. **Cumulative tax basis:** Never stored. Computed each time by scanning that user's taxable payment events for the calendar year, in `payment_date` order, up to the point being calculated. This guarantees correctness even if bonuses/vacations are entered out of chronological order or edited after the fact.
-3. **Vacation pay:** User enters vacation start/end dates → API queries `salary_history` (+ any other taxable payments) for the trailing 12 calendar months → `domain/vacation` computes average daily earning (ПП РФ №922: gross earnings over 12 months ÷ 12 ÷ 29.3, days-worked-adjusted for partial months) × vacation days → that gross amount is inserted into the payment timeline **at its actual payment date** (vacation pay is legally paid ~3 days before the vacation starts, and is taxed based on when it is *paid*, not the vacation period) before running it through the tax engine.
-4. **Annual summary (pie chart):** Client requests forecast/actuals for the full calendar year → aggregates gross/tax/net across all payment events already computed by the forecast engine → no separate calculation path, same domain functions, just summed client- or server-side.
+Better Auth doesn't natively support request-time baseURL. The workaround:
+```tsx
+// src/lib/auth-factory.ts (NEW)
+import { betterAuth } from "better-auth";
+import { getAuthBaseUrl } from "./auth-url";
 
-## Scaling Considerations
+let cachedAuth: any = null;
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| Single user / MVP | Monolith API + Postgres is more than sufficient; compute forecasts synchronously on every request |
-| Up to ~10k users | Still a monolith; add a cache (materialize computed forecast per user, invalidate on any write to salary/schedule/bonus/vacation tables for that user) if forecast computation becomes a noticeable per-request cost |
-| 100k+ users | Unlikely for this product shape, but if reached: read replicas for Postgres, move forecast computation to a background job triggered on data change rather than computed per-request |
+export async function getAuth() {
+  if (!cachedAuth) {
+    cachedAuth = betterAuth({
+      database: drizzleAdapter(db, { provider: "pg", schema: authSchema }),
+      emailAndPassword: { enabled: true, requireEmailVerification: false },
+      session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24 * 7 },
+      secret: env.BETTER_AUTH_SECRET,
+      baseURL: await getAuthBaseUrl(),
+    });
+  }
+  return cachedAuth;
+}
+```
 
-### Scaling Priorities
+Then in `src/lib/session.ts`:
+```tsx
+import { getAuth } from "@/lib/auth-factory";
 
-1. **First (and likely only) bottleneck:** Recomputing the full-year payment timeline on every dashboard load. Mitigate early with a simple cache invalidated on write — not a distributed system, just "recompute and store the forecast row set when the user's underlying data changes."
-2. **Second:** None realistically anticipated at this product's scale (personal finance tracker, not a transaction-processing system) — avoid designing for scale this product will not hit.
+export async function getSessionUser(): Promise<SessionUser | null> {
+  const auth = await getAuth();
+  const session = await auth.api.getSession({ headers: await headers() });
+  // ...
+}
+```
 
-## Anti-Patterns
+**Update Client-Side Config:**
+```tsx
+// src/lib/auth-client.ts
+import { createAuthClient } from "better-auth/react";
 
-### Anti-Pattern 1: Storing YTD cumulative income as a mutable running total
+// Client still uses NEXT_PUBLIC_BETTER_AUTH_URL if set; falls back to current origin
+export const authClient = createAuthClient({
+  baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
+});
+```
 
-**What people do:** Add a `cumulative_income_ytd` column to a user/payment row and `UPDATE ... SET cumulative = cumulative + new_amount` each time a payment is added.
-**Why it's wrong:** Silently wrong the moment a past entry is edited, backdated, or deleted (bonus added retroactively, salary correction, vacation dates changed) — the running total drifts from the true chronological sum and nothing detects it. Also breaks if two payments are inserted concurrently.
-**Do this instead:** Treat cumulative income as a *derived value*, always recomputed from the immutable ledger of dated payment events for that calendar year, ordered by date. Cache the result if performance requires it, but never treat the cache as the source of truth.
+**Environment Variable Changes:**
+- **Local (`.env.local`):** Remove or keep `BETTER_AUTH_URL` — the code now ignores it if headers are available.
+- **Vercel Production:** Remove static `BETTER_AUTH_URL` env var if set. The code derives it from `x-forwarded-host` automatically.
+- **Vercel Staging (see below):** Same — no explicit env var needed.
+- **Vercel Preview (per-PR):** No change; same automatic derivation.
 
-### Anti-Pattern 2: Hardcoding tax brackets inline in calculation code
+**Session Cookie Behavior:**
+Better Auth's session cookie is set with the domain of the request origin. When a user logs in:
+1. Login form posts to `POST /api/auth/sign-in`.
+2. Better Auth checks credentials against Neon, generates a session, and sets a cookie on the response.
+3. The cookie's `Domain` attribute is set to the host from which the request came (e.g., `pr-123---na-ruki.vercel.app`).
+4. Subsequent requests to that origin automatically include the cookie.
+5. When the user navigates to a different origin (e.g., after the PR is merged and they access production), the cookie is **not** sent (different domain).
 
-**What people do:** `if (income < 2_400_000) return income * 0.13; else if (...) ...` written directly inside the calculation function or, worse, inside an API route handler.
-**Why it's wrong:** When the law changes (as it did for 2025, and will again), this requires hunting down every inline conditional, and there is no way to reproduce or audit what rate applied to a calculation made under a prior year's law.
-**Do this instead:** A versioned bracket table (in code or DB) keyed by `tax_year`, with the calculation function taking `taxYear` as an explicit parameter. Adding 2026 rates means adding a new table entry, not touching calculation logic — and old calculations remain reproducible against the year they actually used.
+**Result:** Each environment (preview, staging, production) has its own session cookie; users log in separately on each. This is expected and correct for separate deployments. No special session-migration logic is needed.
 
-### Anti-Pattern 3: Mixing calculation logic into the API/route layer
+### 3. Persistent Staging Environment
 
-**What people do:** Compute tax or vacation pay inline inside an Express/Fastify/Next.js route handler, next to the DB query and the response serialization.
-**Why it's wrong:** Cannot unit-test the math without mocking HTTP and DB — the exact cases (official ФНС worked examples, edge cases at bracket boundaries, partial-month vacation averaging) that most need locked-down regression tests become the hardest ones to write tests for.
-**Do this instead:** Route handler does: fetch inputs → call `domain/tax` or `domain/vacation` pure function → persist/return result. All the interesting logic is testable with plain input/output assertions, no server needed.
+**Current state:** Only production (`main` branch) and per-PR previews. No persistent staging.
 
-### Anti-Pattern 4: Treating vacation pay as untaxed or taxed by a separate ad-hoc path
+**Goal:** Feature branch → staging (persistent) → production (main).
 
-**What people do:** Compute vacation pay gross amount and stop there, or apply a flat/simplified tax rate to it separately from regular income.
-**Why it's wrong:** Vacation pay is taxable income under the same progressive НДФЛ scale as salary, and its tax must be computed in the context of the cumulative YTD income at the time it is *paid* — skipping this either under- or over-reports the take-home amount and can push later-year payments into the wrong bracket boundary.
-**Do this instead:** Vacation pay gross (from `domain/vacation`) is inserted into the same payment timeline as any other payment event, at its actual disbursement date, and flows through the same `domain/tax` cumulative calculation as everything else.
+#### Option A: Separate Vercel Branch (Recommended)
 
-## Integration Points
+**Setup:**
+1. **Vercel project configuration:**
+   - Production branch: `main`
+   - Staging branch: `staging` (or `develop`)
+   - Add a new environment for staging in Vercel: Project Settings → Environment Variables → Add new "Staging" environment
 
-### External Services
+2. **GitHub branch structure:**
+   ```
+   main (production)
+   ├── deployed to https://na-ruki.vercel.app (prod)
+   └── has DATABASE_URL → Neon main branch
+   
+   staging (persistent)
+   ├── deployed to https://staging---na-ruki.vercel.app or custom domain
+   └── has DATABASE_URL → Neon staging branch (separate, persistent)
+   
+   feature/* (temporary)
+   ├── deployed to https://pr-NNN---na-ruki.vercel.app (preview)
+   └── has DATABASE_URL → Neon temp branch (auto-created, auto-deleted with PR)
+   ```
 
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| Auth provider (build-your-own JWT, or a BaaS like Supabase Auth) | Session/JWT issued on login, verified on each API request | With "no offline requirement" and "multi-user cloud sync," a BaaS (e.g., Supabase: Postgres + Auth + row-level security) is a strong fit — it removes the need to hand-build auth, session storage, and per-user data isolation, while still giving a real Postgres DB suited to the effective-dated relational schema above. This is a stack decision (see STACK.md) but affects component boundaries: if chosen, "API" may partly become Postgres RLS policies + a thin serverless function layer for the domain calculation calls, rather than a full custom Express server. |
-| Push/notification services | Not required for v1 (no offline/background requirement in scope) | Skip entirely for MVP |
+3. **Neon configuration:**
+   - Default `main` branch (production).
+   - New persistent `staging` branch (copy-on-write from `main`, synced nightly or manually).
+   - Per-PR ephemeral branches (Vercel's integration handles this).
 
-### Internal Boundaries
+4. **Environment variable management:**
+   ```
+   Vercel → Project Settings → Environment Variables
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| PWA client ↔ API | HTTPS/JSON (REST or RPC) | No offline requirement means no local-first sync engine needed — a straightforward client-server request/response model is sufficient and should not be over-engineered into a sync protocol |
-| API routes ↔ domain engines | Direct function call, in-process | Domain engines are a library, not a separate service — no need for network calls between API and calculation logic at this scale; keep it a monolith internally, just with a strict import boundary (domain never imports api/db) |
-| domain/tax ↔ domain/vacation ↔ domain/forecast | Pure function composition | `forecast` imports and calls `tax` and `vacation`; `tax` and `vacation` do not depend on each other or on `forecast` — keeps each engine independently testable |
-| API ↔ Postgres | Repository/data-access functions, parameterized queries | Repositories return plain data (rows), never leak DB client objects into domain or route logic |
+   DATABASE_URL:
+   ├── Production: https://pg-PROD.neon.tech/main
+   ├── Staging: https://pg-PROD.neon.tech/staging
+   └── Preview: (auto-managed by Neon's Vercel plugin)
 
-### iOS PWA-specific integration notes
+   BETTER_AUTH_SECRET: (same across all envs, or separate if you prefer)
+   BETTER_AUTH_URL: (derived at runtime, no need for static var)
+   ```
 
-- `display: standalone` (or `fullscreen`) must be set in the web manifest, and 192px/512px icons (plus a 512px maskable icon) included — but **iOS Safari ignores the manifest's icon list and instead requires a separate `<link rel="apple-touch-icon" href="...">` tag** in the HTML head. Both must be shipped; omitting the apple-touch-icon link is a common install-breaking mistake.
-- iOS (16.4+) has no `beforeinstallprompt` API — there is no programmatic "install" button. The app must show its own in-UI instructions ("Share → Add to Home Screen") since Safari won't surface an automatic prompt.
-- A missing or unreachable icon file blocks installability silently — verify icon URLs are resolvable at the exact paths referenced, not just present in the repo.
+5. **Release workflow (manual or GitHub Actions):**
+   ```
+   1. Create feature branch from main
+   2. Open PR → Vercel deploys to preview
+   3. Test on preview
+   4. Merge PR → main → Vercel deploys to production
+   5. (Optional) Manually merge main into staging for staging releases
+   6. Deploy staging to staging environment when ready
+   ```
+
+#### Option B: Environment-Specific Deployments on Same Branch
+
+Less recommended (adds operational complexity), but possible:
+- Keep only one GitHub branch (`main`).
+- Use Vercel's "Environment" feature with different deployment settings per environment.
+- Deploy the same commit to both staging and production.
+
+**Downsides:**
+- Staging and production always run the same code; can't test on staging before deploying to production.
+- Neon branch management still requires manual setup.
+
+**Recommendation: Use Option A** (separate staging branch). It's the standard git-flow pattern and gives you a staging gate before production.
+
+#### Database Seeding for Staging
+
+```bash
+# After deploying staging, seed with test data
+DATABASE_URL="https://pg-PROD.neon.tech/staging" drizzle-kit push
+
+# (Optional) Run a seed script to add test users / salary data
+# DATABASE_URL="..." node scripts/seed-staging.js
+```
+
+### 4. Playwright e2e Testing Integration
+
+**Goal:** End-to-end tests for login → salary setup → bonuses → vacations → annual summary, running against a real Next.js server.
+
+#### Setup: Where Tests Live
+
+```
+e2e/
+├── fixtures/
+│   ├── auth.ts           # Login/logout helpers using Better Auth API
+│   └── db.ts             # Test database seeding/cleanup via Drizzle
+├── auth.spec.ts          # Login/register flow
+├── salary-flow.spec.ts   # Enter salary → next payment forecast
+├── bonuses.spec.ts       # Add bonus → YTD recalculation
+├── vacations.spec.ts     # Record vacation → отпускные calculation
+└── summary.spec.ts       # Annual pie chart rendering
+playwright.config.ts      # (root level)
+package.json              # Add @playwright/test, playwright, dotenv
+```
+
+**Why separate from `src/`:** Unit tests in `src/**/*.test.ts` run against isolated functions (pure domain logic). e2e tests in `e2e/` run the full Next.js server and browser; they're slower, so you keep them separate for local dev (`npm run test:unit` vs `npm run test:e2e`).
+
+#### Playwright Config
+
+```typescript
+// playwright.config.ts
+import { defineConfig, devices } from "@playwright/test";
+import path from "path";
+
+// Load .env.local for DATABASE_URL and test secrets
+require("dotenv").config({ path: path.resolve(__dirname, ".env.local") });
+
+export default defineConfig({
+  testDir: "./e2e",
+  fullyParallel: false,  // Better Auth session state is per-test, run serially
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: 1,  // Serial execution; Neon concurrent writes risk conflicts
+  reporter: [
+    ["html"],
+    ["json", { outputFile: "test-results/results.json" }],
+    ["junit", { outputFile: "test-results/junit.xml" }],
+  ],
+  use: {
+    baseURL: process.env.TEST_SERVER_URL || "http://localhost:3000",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+  },
+
+  webServer: {
+    command: "npm run dev",  // Start the Next.js server
+    port: 3000,
+    reuseExistingServer: false,  // Always start fresh for CI
+    env: {
+      NODE_ENV: "test",
+      DATABASE_URL: process.env.DATABASE_URL,
+      BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    },
+  },
+
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+    },
+  ],
+});
+```
+
+#### Test Database Setup
+
+```typescript
+// e2e/fixtures/db.ts
+import { db } from "@/lib/db";
+import * as schema from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+
+export async function cleanupTestData(userId: string) {
+  // Delete all user data without deleting the user record
+  await db.delete(schema.bonuses).where(eq(schema.bonuses.userId, userId));
+  await db.delete(schema.vacations).where(eq(schema.vacations.userId, userId));
+  await db
+    .delete(schema.salaryHistory)
+    .where(eq(schema.salaryHistory.userId, userId));
+}
+
+export async function seedSalaryHistory(userId: string) {
+  await db.insert(schema.salaryHistory).values({
+    userId,
+    salary: 100000,  // 100k rubles gross
+    validFrom: new Date("2024-01-01"),
+    salaryConfirmed: true,
+    confirmationToken: null,
+  });
+}
+```
+
+#### Test Fixtures (Auth)
+
+```typescript
+// e2e/fixtures/auth.ts
+import { Page, expect } from "@playwright/test";
+
+export async function loginUser(
+  page: Page,
+  email: string,
+  password: string
+) {
+  await page.goto("/login");
+  await page.fill('input[type="email"]', email);
+  await page.fill('input[type="password"]', password);
+  await page.click('button[type="submit"]');
+
+  // Wait for redirect to dashboard
+  await expect(page).toHaveURL("/");
+  await expect(page.locator("text=Ближайшая выплата")).toBeVisible();
+}
+
+export async function registerAndLogin(
+  page: Page,
+  email: string,
+  password: string
+) {
+  await page.goto("/register");
+  await page.fill('input[type="email"]', email);
+  await page.fill('input[type="password"]', password);
+  await page.click('button[type="submit"]');
+  await expect(page).toHaveURL("/");  // Success auto-redirects to dashboard
+}
+
+export async function logout(page: Page) {
+  await page.click('button:has-text("Выход")');
+  await expect(page).toHaveURL("/login");
+}
+```
+
+#### Example Test: Golden Path
+
+```typescript
+// e2e/salary-flow.spec.ts
+import { test, expect } from "@playwright/test";
+import { registerAndLogin, logout } from "./fixtures/auth";
+
+test.describe("Salary Setup Flow", () => {
+  const testEmail = `test-${Date.now()}@example.com`;
+  const testPassword = "SecurePassword123!";
+
+  test("user can set salary and see next payment forecast", async ({
+    page,
+  }) => {
+    await registerAndLogin(page, testEmail, testPassword);
+
+    // Dashboard shows "не настроено" (not configured) initially
+    await expect(page.locator('text="Оклад не настроено"')).toBeVisible();
+
+    // Open salary setup form (adjust selector to match actual UI)
+    await page.click('button:has-text("Указать оклад")');
+
+    // Enter gross salary
+    await page.fill('input[name="grossSalary"]', "150000");  // 150k rubles
+    await page.click('button:has-text("Сохранить")');
+
+    // Forecast should now show next payment (with НДФЛ deduction)
+    await expect(page.locator('text="Ближайшая выплата"')).toBeVisible();
+    await expect(
+      page.locator('text=/[0-9]+\s*₽/')  // Expect a rouble amount
+    ).toBeVisible();
+
+    // Verify header and nav
+    await expect(page.locator(`text="${testEmail}"`)).toBeVisible();
+    await expect(page.locator('a:has-text("Бонусы")')).toBeVisible();
+    await expect(page.locator('a:has-text("Отпуска")')).toBeVisible();
+
+    await logout(page);
+  });
+});
+```
+
+#### Running Tests Locally
+
+```bash
+# Start dev server + run tests
+npm run test:e2e
+
+# Or manually:
+npm run dev  # in one terminal
+npm run test:e2e:headless  # in another
+
+# View results
+npm run test:e2e:report  # Open HTML report
+```
+
+#### Running in CI (GitHub Actions)
+
+```yaml
+# .github/workflows/test.yml
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run test  # vitest
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+```
+
+### 5. GitHub Actions CI Gate
+
+**Current state:** No CI workflow; pushes to `main` auto-deploy via Vercel.
+
+**New workflow:** Gate merges with linting, type-checking, and tests.
+
+#### File Structure
+
+```
+.github/
+└── workflows/
+    └── ci.yml  (NEW)
+```
+
+#### CI Workflow
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run lint  # ESLint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run test
+        env:
+          # Pure domain tests don't need a DB, but set it to be safe
+          DATABASE_URL: postgres://localhost/test
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    # Only run e2e on PRs or pushes to main/staging, not on every commit
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  # All tests must pass before merge
+  result:
+    if: always()
+    needs: [lint, typecheck, unit-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - if: contains(needs.*.result, 'failure')
+        run: exit 1
+```
+
+**Key points:**
+- **No deploy step in the workflow.** Vercel already watches `main` and `staging` for pushes and auto-deploys. The workflow only validates; Vercel handles deployment.
+- **Branch protection rule:** Go to GitHub Settings → Branch Protection → Require status checks to pass for `main` and `staging`.
+- **E2E skipped on non-PR commits:** E2E tests are slow; only run them on PRs or before merging to main/staging.
+
+#### Vercel-GitHub Integration
+
+Vercel's integration with GitHub handles auto-deploy and preview deployments:
+1. **PR opened:** Vercel deploys a preview.
+2. **PR merged to `main`:** Vercel deploys to production.
+3. **PR merged to `staging`:** Vercel deploys to staging.
+
+**Important:** The CI workflow and Vercel's auto-deploy are two separate systems:
+- **GitHub Actions CI** validates code (lint, type, tests) — can block merge via branch protection.
+- **Vercel auto-deploy** deploys to production/staging/preview after the merge succeeds.
+
+They don't overlap or conflict. The workflow runs before merge; Vercel deploys after.
+
+## New vs. Modified Files Summary
+
+### New Files
+
+| File | Purpose | Owner |
+|------|---------|-------|
+| `src/lib/theme.ts` (optional) | Design token constants for colors, spacing, typography | Designer / Frontend dev |
+| `src/lib/safe-area.ts` | CSS variable context for `env(safe-area-inset-*)` | Frontend dev |
+| `src/lib/auth-url.ts` | Runtime BETTER_AUTH_URL derivation from headers | Backend dev |
+| `src/lib/auth-factory.ts` | Factory function for request-time auth config | Backend dev |
+| `e2e/fixtures/auth.ts` | Playwright helpers for login/logout | QA / Test automation |
+| `e2e/fixtures/db.ts` | Test database seeding/cleanup | QA / Backend |
+| `e2e/*.spec.ts` | Test files (auth, salary, bonuses, vacations, summary) | QA |
+| `playwright.config.ts` | Playwright configuration | QA |
+| `.github/workflows/ci.yml` | GitHub Actions CI gate | DevOps / Backend |
+| Updated design components | Redesigned UI components | Designer |
+
+### Modified Files
+
+| File | Changes | Owner |
+|------|---------|-------|
+| `src/app/(app)/layout.tsx` | Add safe-area padding; add home link; use redesigned header | Frontend dev |
+| `src/lib/auth.ts` | Use auth factory instead of direct `betterAuth()` call | Backend dev |
+| `src/lib/session.ts` | Use `getAuth()` factory to retrieve auth instance | Backend dev |
+| `src/lib/env.ts` | Remove required `BETTER_AUTH_URL` var; make it optional with fallback | Backend dev |
+| `package.json` | Add `@playwright/test`, `playwright`, dev deps for e2e | Frontend dev |
+| `next.config.ts` | (No changes expected; Serwist webpack pin remains) | — |
+| `vercel.json` (if created) | (Optional) Explicit Vercel config for staging environment | DevOps |
+| `.env.example` | Document new/changed env vars | Backend dev |
+
+### No Changes Needed
+
+- `src/lib/db/` — Database schema and repositories unchanged.
+- Route structure (`(auth)`, `(app)`, route groups) — Unchanged.
+- Server Actions pattern — Unchanged.
+- Vitest/unit test setup — Unchanged (e2e tests are separate).
+
+## Data Flow Changes
+
+### Auth Flow (Enhanced)
+
+```
+User fills login form
+    ↓
+POST /api/auth/sign-in (client-side via authClient)
+    ↓
+Better Auth validates against Neon, creates session
+    ↓
+Response sets session cookie (domain = current request origin)
+    ↓
+Client-side: router.refresh() → invalidates Next.js cache
+    ↓
+router.push("/") → Server-side getSessionUser() finds cookie ✓
+    ↓
+User sees dashboard
+```
+
+**Change:** `BETTER_AUTH_URL` is now derived from request headers instead of a static env var. This ensures auth redirects work on preview/staging/production without manual env var per deployment.
+
+### Staging Environment Data Flow
+
+```
+Feature branch PR
+    ↓
+Vercel creates preview deployment + temp Neon branch
+    ↓
+Test on preview (isolated data)
+    ↓
+Merge to staging branch
+    ↓
+Vercel deploys to https://staging---na-ruki.vercel.app + Neon staging branch
+    ↓
+Test on staging (persistent database for QA)
+    ↓
+Manual or CI-triggered promotion to production
+    ↓
+Vercel deploys to https://na-ruki.vercel.app + Neon main branch
+```
+
+### E2E Test Data Flow
+
+```
+Test starts → Playwright spins up Next.js dev server
+    ↓
+Test calls loginUser() → POST /api/auth/sign-in
+    ↓
+Better Auth validates, creates session cookie
+    ↓
+Test navigates, clicks, fills forms → Server Actions execute
+    ↓
+Server Actions call requireUserId() → reads session cookie from headers
+    ↓
+Drizzle queries Neon test database
+    ↓
+Test assertions on rendered output
+    ↓
+Test ends → cleanupTestData() removes user data from Neon
+```
+
+## Build Order & Dependencies
+
+For v1.1 implementation, suggested phase order (not all phases; this is for the milestone):
+
+### Phase 1: Infrastructure (Prerequisite)
+- Set up persistent Neon staging branch (`neon branch create staging`).
+- Configure Vercel for staging deployment (Settings → Deployments → Add branch `staging`).
+- Add environment variables for staging (DATABASE_URL pointing to Neon staging branch).
+- Add GITHUB_TOKEN secret to Vercel for branch protection status checks.
+
+**Blocks:** Everything else depends on a working staging environment.
+
+### Phase 2: Auth Hardening
+- Implement `src/lib/auth-url.ts` (dynamic BETTER_AUTH_URL derivation).
+- Implement `src/lib/auth-factory.ts` (request-time auth config).
+- Update `src/lib/auth.ts` and `src/lib/session.ts` to use the factory.
+- Test auth flow on preview/staging/production.
+- Fix any remaining security issues (password leakage in URL, etc.).
+
+**Rationale:** Auth must work correctly before design/testing layers are added. This unblocks e2e tests that depend on auth.
+
+### Phase 3: CI Gate
+- Add GitHub Actions workflow (`.github/workflows/ci.yml`).
+- Add branch protection rule to `main` and `staging`.
+- Test that failed CI blocks merge.
+
+**Rationale:** Ensures all future code meets quality gates before shipping.
+
+### Phase 4: E2E Testing
+- Add Playwright config and fixtures.
+- Write golden-path tests (login, salary, bonuses, vacations, summary).
+- Integrate with CI workflow.
+
+**Rationale:** Tests validate all phases before shipping; should be in place before design changes to ensure they don't break existing flows.
+
+### Phase 5: UI Redesign
+- Design new components via `frontend-design` skill.
+- Implement redesigned components in `src/components/`.
+- Add theme/design tokens to `src/lib/theme.ts`.
+- Update `(app)/layout.tsx` with safe-area padding and new header.
+- Run e2e tests to ensure redesign doesn't break flows.
+
+**Rationale:** Design is last because it doesn't affect logic; tests ensure it doesn't regress functionality.
+
+### Phase 6: Validation & Shipping
+- UAT on staging.
+- Merge staging → main.
+- Monitor production deployment.
+
+## Confidence Assessment
+
+| Area | Confidence | Rationale |
+|------|------------|-----------|
+| Visual redesign integration | HIGH | Tailwind + React components are standard; no special integration needed. |
+| BETTER_AUTH_URL fix | HIGH | Request-header derivation is a proven pattern; Better Auth docs support it. Request-time config via factory is standard Next.js pattern. |
+| Staging environment setup | MEDIUM-HIGH | Standard Vercel + Neon workflow, but depends on user's actual Vercel project setup (e.g., whether `staging` branch already exists). |
+| Playwright e2e integration | MEDIUM | Playwright + Better Auth is standard, but test data cleanup and session isolation need careful design. |
+| GitHub Actions CI | HIGH | Standard workflow pattern; Vercel + GitHub integration is well-established. No conflicts expected. |
+
+## Gaps & Follow-Up Research
+
+- **Custom Vercel domain for staging:** If the team wants `staging.na-ruki.app` instead of `staging---na-ruki.vercel.app`, requires Vercel custom domain setup (in domain settings) — not covered here.
+- **Secrets management for e2e tests:** Using GitHub Actions secrets for `TEST_DATABASE_URL` and `BETTER_AUTH_SECRET` assumes they're already set up. Coordinate with DevOps.
+- **Neon branch sync strategy:** How to sync `staging` branch with `main` (nightly? manually? after each prod deploy)? Not specified here; recommend a runbook.
+- **Playwright MCP integration:** The requirement mentions "integrați cu Playwright MCP" but no specific MCP details are in scope. Verify with team what MCP integration means (e.g., LLM-assisted test generation?).
+- **Password leakage in URL investigation:** The PROJECT.md mentions confirming/refuting this via "live browser test." This is a security audit task, not an architecture task — should be a separate phase 5 security-review skill run.
 
 ## Sources
 
-- [Functional Core, Imperative Shell — functional-architecture.org](https://functional-architecture.org/functional_core_imperative_shell/)
-- [Functional core, imperative shell — MarsBased](https://marsbased.com/blog/2020/01/20/functional-core-imperative-shell)
-- [Patterns of Functional Programming: Functional Core - Imperative Shell](http://www.javiercasas.com/articles/functional-programming-patterns-functional-core-imperative-shell/)
-- [Efficiently Managing SCD Type 2 — Medium](https://medium.com/@rahulgosavi.94/efficiently-managing-slowly-changing-dimensions-type-2-scd-type-2-using-sql-insert-merge-in-cc7bba359c85)
-- [Types Of Slowly Changing Dimensions in Data Warehouses — Airbyte](https://airbyte.com/data-engineering-resources/scd-types-in-data-warehouse)
-- [Master Slowly Changing Dimensions Type 2 — Analytics Engineering](https://www.analyticsengineering.com/resources/slowly-changing-dimensions-type-2-explained)
-- [PWA on iOS - Current Status & Limitations for Users [2025] — Brainhub](https://brainhub.eu/library/pwa-on-ios)
-- [PWA Icon Requirements: The Complete 2025 Checklist — DEV Community](https://dev.to/albert_nahas_cdc8469a6ae8/pwa-icon-requirements-the-complete-2025-checklist-i3g)
-- [Making PWAs installable — MDN](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable)
-- [PWA iOS Limitations and Safari Support [2026] — MagicBell](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide)
-- [Rule Engine Design Pattern: Architecture, Database Design Guide — Nected](https://www.nected.ai/blog/rules-engine-design-pattern)
-- [5 Important Components of Rule Engine Architecture — Decisimo](https://decisimo.com/decision-engine/5-components-of-rule-engine-architecture.html)
-- Domain knowledge (project context / general knowledge, not independently re-verified this session): RF НДФЛ 2025 5-bracket progressive scale on cumulative annual basis (13/15/18/20/22%); ТК РФ average-daily-earnings vacation pay formula per Постановление Правительства РФ №922 (12-month lookback ÷ 29.3 avg. calendar days/month) — confirm exact bracket thresholds and the 29.3 divisor against current legal text during phase-specific research before implementing the tax/vacation engines (flagged as a gap below).
-
----
-*Architecture research for: Russian salary/take-home-pay PWA (НаРуки)*
-*Researched: 2026-08-28*
+- **Next.js 16 App Router documentation:** nextjs.org/docs (2026 stable version)
+- **Better Auth docs:** better-auth.com/docs (session, baseURL, headers handling, factory patterns)
+- **Neon + Vercel integration:** neon.com/docs/integrations/vercel (branching, preview deployments)
+- **Playwright docs:** playwright.dev (config, test fixtures, CI integration)
+- **GitHub Actions:** github.com/actions (standard CI patterns)
+- **Vercel + GitHub integration:** vercel.com/docs (auto-deploy, preview deployments, branch protection)

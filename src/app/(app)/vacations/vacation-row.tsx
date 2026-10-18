@@ -51,10 +51,17 @@ export function VacationRow({
         reset(values, { keepDirtyValues: false });
         return;
       }
+      let handled = false;
       for (const [field, messages] of Object.entries(result.fieldErrors)) {
         if ((field === "startDate" || field === "endDate") && messages?.[0]) {
           setError(field, { message: messages.join(" ") });
+          handled = true;
         }
+      }
+      if (!handled) {
+        setErrorMessage(
+          Object.values(result.fieldErrors).flat().join(" ") || "Не удалось сохранить отпуск.",
+        );
       }
     } catch {
       if (editSessionRef.current !== session) return; // superseded — do nothing
@@ -84,17 +91,37 @@ export function VacationRow({
 
   if (mode === "editing") {
     return (
-      <li className="border-b border-zinc-200 py-3">
-        <form onSubmit={handleSubmit(onEdit)} className="grid gap-2" noValidate>
+      <li className="border-b border-[color:var(--color-tertiary-surface)] py-3">
+        <form onSubmit={(e) => handleSubmit(onEdit)(e)} className="grid gap-2" noValidate>
           <input type="hidden" {...register("id")} />
-          <input type="date" className="rounded border border-zinc-300 px-3 py-2" {...register("startDate")} />
-          {errors.startDate && <p className="text-sm text-red-600">{errors.startDate.message}</p>}
-          <input type="date" className="rounded border border-zinc-300 px-3 py-2" {...register("endDate")} />
-          {errors.endDate && <p className="text-sm text-red-600">{errors.endDate.message}</p>}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          <input
+            type="date"
+            className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+            {...register("startDate")}
+          />
+          {errors.startDate && <p className="text-sm text-[color:var(--color-destructive)]">{errors.startDate.message}</p>}
+          <input
+            type="date"
+            className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+            {...register("endDate")}
+          />
+          {errors.endDate && <p className="text-sm text-[color:var(--color-destructive)]">{errors.endDate.message}</p>}
+          {error && <p className="text-sm text-[color:var(--color-destructive)]">{error}</p>}
           <div className="flex gap-2">
-            <button type="submit" disabled={isSubmitting} className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">{isSubmitting ? "Сохранение…" : "Сохранить"}</button>
-            <button type="button" onClick={() => { editSessionRef.current += 1; reset(toDefaults(vacation), { keepDirtyValues: false }); setMode("display"); }} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm">Отмена</button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-[8px] bg-[color:var(--color-accent-button)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+            >
+              {isSubmitting ? "Сохранение…" : "Сохранить"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { editSessionRef.current += 1; reset(toDefaults(vacation), { keepDirtyValues: false }); setMode("display"); }}
+              className="rounded-[8px] border border-[color:var(--color-tertiary-surface)] px-3 py-2 text-sm text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+            >
+              Отмена
+            </button>
           </div>
         </form>
       </li>
@@ -102,24 +129,43 @@ export function VacationRow({
   }
 
   return (
-    <li className="border-b border-zinc-200 py-3">
+    <li className="border-b border-[color:var(--color-tertiary-surface)] py-3">
       <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-2 text-sm sm:grid-cols-[6rem_6rem_4rem_7rem_auto] sm:items-center">
-        <span>{formatIsoDateRu(vacation.startDate)}</span>
-        <span>{formatIsoDateRu(vacation.endDate)}</span>
-        <span>{calculateVacationDays(vacation.startDate, vacation.endDate)}</span>
-        <span className="font-semibold">
+        <span className="tabular-nums text-[color:var(--color-text-secondary)] font-[family-name:var(--font-family-caption)] text-[length:var(--font-size-caption)]">
+          {formatIsoDateRu(vacation.startDate)}
+        </span>
+        <span className="tabular-nums text-[color:var(--color-text-secondary)] font-[family-name:var(--font-family-caption)] text-[length:var(--font-size-caption)]">
+          {formatIsoDateRu(vacation.endDate)}
+        </span>
+        <span className="text-[color:var(--color-text-secondary)]">
+          {calculateVacationDays(vacation.startDate, vacation.endDate)}
+        </span>
+        <span className="font-semibold text-[color:var(--color-text-primary)] tabular-nums">
           {grossKopecks === null ? (
-            <span className="font-normal text-zinc-500">Укажите оклад, чтобы увидеть сумму</span>
+            <span className="font-normal text-[color:var(--color-text-secondary)]">Укажите оклад, чтобы увидеть сумму</span>
           ) : (
             formatKopecks(grossKopecks)
           )}
         </span>
         <span className="col-span-2 flex justify-end gap-2 sm:col-span-1">
-          <button type="button" onClick={() => setMode("editing")} className="text-zinc-700 underline">Изменить отпуск</button>
-          <button type="button" onClick={onDelete} disabled={pending} className="text-red-700 underline disabled:opacity-50">{pending ? "Удаляется…" : "Удалить отпуск"}</button>
+          <button
+            type="button"
+            onClick={() => setMode("editing")}
+            className="text-[color:var(--color-text-primary)] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+          >
+            Изменить отпуск
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={pending}
+            className="text-[color:var(--color-destructive)] underline disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-destructive)]"
+          >
+            {pending ? "Удаляется…" : "Удалить отпуск"}
+          </button>
         </span>
       </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-[color:var(--color-destructive)]">{error}</p>}
     </li>
   );
 }

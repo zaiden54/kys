@@ -46,10 +46,20 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
         reset(values, { keepDirtyValues: false });
         return;
       }
+      let handled = false;
       for (const [field, messages] of Object.entries(result.fieldErrors)) {
-        if ((field === "amountRubles" || field === "date" || field === "note") && messages?.[0]) {
-          setError(field, { message: messages.join(" ") });
+        if (
+          (field === "amountRubles" || field === "date" || field === "note" || field === "type") &&
+          messages?.[0]
+        ) {
+          setError(field as keyof BonusInput, { message: messages.join(" ") });
+          handled = true;
         }
+      }
+      if (!handled) {
+        setErrorMessage(
+          Object.values(result.fieldErrors).flat().join(" ") || "Не удалось сохранить бонус.",
+        );
       }
     } catch {
       if (editSessionRef.current !== session) return; // superseded — do nothing
@@ -69,25 +79,39 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
   }
 
   if (mode === "editing") {
+    const editInputClassName =
+      "rounded-[8px] border border-[color:var(--color-tertiary-surface)] bg-[color:var(--color-dominant)] px-3 py-2 text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]";
     return (
-      <li className="border-b border-zinc-200 py-3">
-        <form onSubmit={handleSubmit(onEdit)} className="grid gap-2" noValidate>
+      <li className="border-b border-[color:var(--color-tertiary-surface)] py-3">
+        <form onSubmit={(e) => handleSubmit(onEdit)(e)} className="grid gap-2" noValidate>
           <input type="hidden" {...register("id")} />
-          <input type="date" className="rounded border border-zinc-300 px-3 py-2" {...register("date")} />
-          {errors.date && <p className="text-sm text-red-600">{errors.date.message}</p>}
-          <input type="number" step="0.01" className="rounded border border-zinc-300 px-3 py-2" {...register("amountRubles")} />
-          {errors.amountRubles && <p className="text-sm text-red-600">{errors.amountRubles.message}</p>}
-          <input type="text" className="rounded border border-zinc-300 px-3 py-2" {...register("note")} />
-          {errors.note && <p className="text-sm text-red-600">{errors.note.message}</p>}
-          <select aria-label="Тип выплаты" className="rounded border border-zinc-300 px-3 py-2" {...register("type")}>
+          <input type="date" className={editInputClassName} {...register("date")} />
+          {errors.date && <p className="text-sm text-[color:var(--color-destructive)]">{errors.date.message}</p>}
+          <input type="number" step="0.01" className={editInputClassName} {...register("amountRubles")} />
+          {errors.amountRubles && <p className="text-sm text-[color:var(--color-destructive)]">{errors.amountRubles.message}</p>}
+          <input type="text" className={editInputClassName} {...register("note")} />
+          {errors.note && <p className="text-sm text-[color:var(--color-destructive)]">{errors.note.message}</p>}
+          <select aria-label="Тип выплаты" className={editInputClassName} {...register("type")}>
             <option value="premium">Премия (учитывается при расчёте отпускных)</option>
             <option value="compensation">Компенсация — например, к отпуску (не учитывается при расчёте отпускных)</option>
           </select>
-          {errors.type && <p className="text-sm text-red-600">{errors.type.message}</p>}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {errors.type && <p className="text-sm text-[color:var(--color-destructive)]">{errors.type.message}</p>}
+          {error && <p className="text-sm text-[color:var(--color-destructive)]">{error}</p>}
           <div className="flex gap-2">
-            <button type="submit" disabled={isSubmitting} className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50">{isSubmitting ? "Сохранение…" : "Сохранить"}</button>
-            <button type="button" onClick={() => { editSessionRef.current += 1; reset(toDefaults(bonus), { keepDirtyValues: false }); setMode("display"); }} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm">Отмена</button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-lg bg-[color:var(--color-accent-button)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+            >
+              {isSubmitting ? "Сохранение…" : "Сохранить"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { editSessionRef.current += 1; reset(toDefaults(bonus), { keepDirtyValues: false }); setMode("display"); }}
+              className="rounded-lg border border-[color:var(--color-tertiary-surface)] px-3 py-2 text-sm text-[color:var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+            >
+              Отмена
+            </button>
           </div>
         </form>
       </li>
@@ -95,17 +119,30 @@ export function BonusRow({ bonus }: { bonus: BonusRowData }) {
   }
 
   return (
-    <li className="border-b border-zinc-200 py-3">
+    <li className="border-b border-[color:var(--color-tertiary-surface)] py-3">
       <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-2 text-sm sm:grid-cols-[6rem_7rem_minmax(0,1fr)_auto] sm:items-center">
-        <span>{formatIsoDateRu(bonus.date)}</span>
-        <span className="font-semibold">{formatKopecks(bonus.amountKopecks)}</span>
-        <span className="col-span-2 truncate text-zinc-600 sm:col-span-1" title={bonus.note ?? undefined}>{bonus.note || "—"}</span>
+        <span className="text-[color:var(--color-text-secondary)] tabular-nums font-[family-name:var(--font-family-caption)] text-[length:var(--font-size-caption)]">{formatIsoDateRu(bonus.date)}</span>
+        <span className="font-semibold tabular-nums text-[color:var(--color-text-primary)]">{formatKopecks(bonus.amountKopecks)}</span>
+        <span className="col-span-2 truncate text-[color:var(--color-text-secondary)] sm:col-span-1" title={bonus.note ?? undefined}>{bonus.note || "—"}</span>
         <span className="col-span-2 flex justify-end gap-2 sm:col-span-1">
-          <button type="button" onClick={() => setMode("editing")} className="text-zinc-700 underline">Изменить бонус</button>
-          <button type="button" onClick={onDelete} disabled={pending} className="text-red-700 underline disabled:opacity-50">{pending ? "Удаляется…" : "Удалить бонус"}</button>
+          <button
+            type="button"
+            onClick={() => setMode("editing")}
+            className="text-[color:var(--color-text-primary)] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-accent)]"
+          >
+            Изменить бонус
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={pending}
+            className="text-[color:var(--color-destructive)] underline disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--color-destructive)]"
+          >
+            {pending ? "Удаляется…" : "Удалить бонус"}
+          </button>
         </span>
       </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-[color:var(--color-destructive)]">{error}</p>}
     </li>
   );
 }

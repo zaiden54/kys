@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 // navigator.standalone is an iOS-Safari-only, non-standard property absent
 // from TypeScript's default DOM lib types.
@@ -18,24 +18,31 @@ function detectStandalone(): boolean {
   );
 }
 
+function getStandaloneServerSnapshot(): boolean {
+  return false;
+}
+
+function subscribeToStandalone(onStoreChange: () => void): () => void {
+  const mediaQuery = window.matchMedia("(display-mode: standalone)");
+  mediaQuery.addEventListener("change", onStoreChange);
+  return () => mediaQuery.removeEventListener("change", onStoreChange);
+}
+
 /**
  * Returns true when the app is running in standalone display mode (installed
  * to the iOS home screen / launched from it), false otherwise. Re-evaluates
  * on matchMedia "change" events.
+ *
+ * Uses useSyncExternalStore (not useState+useEffect) so the server snapshot
+ * (always `false`) and the client's first-paint snapshot never mismatch
+ * without needing a post-mount setState — which previously required an
+ * effect-driven `setState` that re-triggered ESLint's
+ * `react-hooks/set-state-in-effect` rule.
  */
 export function useIsStandalone(): boolean {
-  const [isStandalone, setIsStandalone] = useState(detectStandalone);
-
-  useEffect(() => {
-    setIsStandalone(detectStandalone());
-
-    const mediaQuery = window.matchMedia("(display-mode: standalone)");
-    function handleChange() {
-      setIsStandalone(detectStandalone());
-    }
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
-  return isStandalone;
+  return useSyncExternalStore(
+    subscribeToStandalone,
+    detectStandalone,
+    getStandaloneServerSnapshot,
+  );
 }

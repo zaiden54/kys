@@ -1,253 +1,770 @@
-# Pitfalls Research
+# Domain Pitfalls: Adding UI Redesign, PWA Safe-Area, Security Hardening, Playwright E2E, and Staging/Prod Pipeline
 
-**Domain:** Russian payroll/take-home-pay tracking PWA (НДФЛ progressive tax, otpusknye, iOS home-screen install)
-**Researched:** 2026-08-28
-**Confidence:** MEDIUM (tax/labor-law rules cross-verified across ConsultantPlus, Garant, nalog.gov.ru, Klerk; iOS PWA behavior cross-verified across MagicBell, Pushpad, Apple Developer Forums — no single source is a primary spec, so treat exact numeric constants as needing a final check against the current-year НК РФ/ТК РФ text before shipping tax code)
+**Project:** НаРуки (Next.js 16 App Router PWA)
+**Researched:** 2026-09-01
+**Scope:** Pitfalls specific to retrofitting these features into an existing shipped v1.0 system
+**Context:** v1.1 milestone focuses on production-quality polish, NOT new calculation features
+
+---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Treating the progressive НДФЛ scale as "whole payment taxed at the bracket's rate" instead of marginal/cumulative
+Critical pitfalls cause system-wide breakage, data loss, or production outages. Must be prevented, not fixed post-hoc.
 
-**What goes wrong:**
-A developer computes tax for a payment by looking at the employee's *current* cumulative annual income, finding which bracket it falls in, and applying that single rate to the *entire current payment*. This overtaxes (or undertaxes) any payment that straddles a bracket boundary, and produces wrong results for every payment once cumulative income crosses 2.4M ₽/year.
+### Pitfall 1: Double Deployment (GitHub Actions + Vercel Auto-Deploy Race Condition)
 
-**Why it happens:**
-The five brackets (13% / 15% / 18% / 20% / 22% for 2025, thresholds 2.4M / 5M / 20M / 50M ₽) look like flat marginal-rate tables you'd see for corporate tax, but the natural-seeming implementation is "if income > threshold, apply higher rate to it" rather than the correct method: tax on cumulative annual income is computed via the fixed-base formula (e.g. 15% bracket = 312,000 + 15% × (cumulative − 2,400,000)), and the tax **due at this payment** = tax(cumulative income through this payment) − tax already withheld this year. This "withhold the delta" method is the only correct approach for a per-payment, nарастающим итогом system.
+**What goes wrong:** GitHub Actions and Vercel's built-in git integration both trigger builds simultaneously. Vercel auto-deploys on every push to `main`, while your GitHub Actions workflow also runs `vercel deploy`. Result: two builds race, two preview/staging artifacts are created, both fail to coordinate session state or database schema versions, and tests may run against the wrong deployment target. Production promotion gates become impossible to enforce.
 
-**How to avoid:**
-- Implement a single pure function `taxOnCumulative(annualIncomeToDate) -> tax` using the fixed-base-plus-marginal-excess formula, not a "multiply by bracket rate" function.
-- Tax withheld at any given payment = `taxOnCumulative(cumulativeAfterThisPayment) - cumulativeTaxAlreadyWithheldThisYear`.
-- Write unit tests with a payment that straddles a bracket boundary (e.g. cumulative goes from 2,390,000 to 2,420,000 in one payment) and assert the split is 13%/15%, not a single rate.
-- Test against the 4 boundary values (2.4M, 5M, 20M, 50M) explicitly.
+**Why it happens:** Vercel's default behavior is to auto-deploy any push to linked branches. GitHub Actions workflows naively call `vercel deploy` without checking if Vercel already triggered. No explicit coordination means both systems act independently.
 
-**Warning signs:**
-- Tax code has an `if/else if` chain on the *payment amount* rather than on *cumulative* income.
-- No function that computes "tax already withheld year-to-date" as an explicit running total.
-- Rounding differences appear only for high earners near a bracket boundary.
+**Consequences:**
+- Flaky test runs due to test hitting old deployment while new one rolls out
+- Unreliable gating: tests pass, but production promotion deploys an untested version
+- Double CI/CD minutes wasted on redundant builds
+- Database migrations run twice, causing conflicts or rollback confusion
+- Preview/staging URL becomes ambiguous — which deploy am I hitting?
 
-**Phase to address:** Core tax-calculation engine phase (before any UI is built on top of it) — this must be a standalone, thoroughly unit-tested module.
+**Prevention:**
+- **Option A (Recommended):** Disable Vercel auto-deploy entirely. Add to `vercel.json`: `{"git": {"deploymentEnabled": false}}`. Let GitHub Actions own all deployments via `vercel deploy` and `vercel promote-production`.
+- **Option B:** Keep Vercel auto-deploy for previews only; use `ignoreCommand` in `vercel.json` to skip main/prod builds. GitHub Actions handles production promotion via Deployment Checks.
+- **Explicit coordination:** If using both, document which system owns which environment (Vercel → preview, Actions → staging/prod).
+- **Test against live URL:** Tests must run against the actual deployed Vercel URL, not localhost, to catch deployment-time issues.
 
----
+**Detection:**
+- Check Vercel project settings: is Git Integration enabled?
+- Review workflow logs: how many deployments per push?
+- Look for duplicate preview/staging URLs in Vercel dashboard during test runs.
 
-### Pitfall 2: Ignoring the 2023 rule change that НДФЛ is withheld from every payment (including the аванс), based on actual payment date
-
-**What goes wrong:**
-Older payroll guides (pre-2023) describe income as "received" on the last calendar day of the month, with tax withheld once at month-end. Building the calculator around that model means the аванс (advance, typically ~mid-month) is shown as untaxed/gross, and the whole month's tax is dumped onto the second payment — which doesn't match how take-home pay actually lands in 2025+ and will make the app's forecast wrong for the first payment of every month.
-
-**Why it happens:**
-This is a genuinely confusing area of Russian payroll history — many Russian-language tutorials and even some accounting software still reference the pre-2023 "date of receipt = last day of month" rule because it applied for years and old content ranks well in search.
-
-**How to avoid:**
-- Model "date of income receipt" (дата фактического получения дохода) as the actual payment date for every payment type (salary tranche, аванс, premium, vacation pay). НК РФ ст. 223 п.1 + 263-ФЗ (effective 2023) confirm this.
-- Each payment (аванс and зарплата) independently increases the cumulative annual base and independently triggers a withholding calculation at the moment it's paid — there is no "batch tax at month end" step.
-- When seeding "график выплат" (аванс + зарплата), make sure both payment dates feed the same cumulative-income timeline in date order.
-
-**Warning signs:**
-- Code path that computes tax "once per month" rather than "once per payment event."
-- Аванс always shown as a round, untaxed fraction of oklad (e.g. exactly 40%) with no tax line.
-
-**Phase to address:** Core tax-calculation engine / payment schedule design phase.
+**Phase:** Should be addressed in **Staging/Prod Pipeline phase** — before enabling production promotion gates.
 
 ---
 
-### Pitfall 3: Computing each payment's tax independently instead of processing all income events for the year in strict chronological order
+### Pitfall 2: `BETTER_AUTH_URL` Misconfiguration Across Environments (Preview/Staging/Prod)
 
-**What goes wrong:**
-Because a user's income now includes salary payments, premii, and otpusknye — potentially added or edited out of order relative to when the calculator runs — a naive implementation might compute each event's tax "in isolation" (e.g. by month, or by type) rather than replaying the full chronological sequence of payments for the calendar year to build up the cumulative base. This breaks the "delta from previous cumulative tax" method in Pitfall 1 and produces incorrect splits when, say, a one-off premium is paid between the аванс and the зарплата, or vacation pay lands mid-month.
+**What goes wrong:** Better Auth's `baseURL` is hardcoded to production domain or is missing entirely. When PR preview or staging deployment spins up, the auth client still redirects to the hardcoded domain, or `BETTER_AUTH_URL` isn't set for the environment. Login flow completes on prod database with session that doesn't match the preview/staging URL, so the preview looks "logged out" even though server has a valid session. Or, `BETTER_AUTH_ALLOWED_HOSTS` doesn't include the preview/staging domains, and auth endpoints reject them.
 
 **Why it happens:**
-It's tempting to calculate "this payment's tax" as a self-contained operation (nice for caching/memoization), but the progressive-cumulative model is fundamentally sequential and stateful across the whole tax year — the order of *all* payments (salary, premii, otpusknye) within the year determines which bracket each subsequent payment falls into.
+- `.env.local` has `BETTER_AUTH_URL=https://naruiki.production.com`, which works locally but is hardcoded for production.
+- Vercel environment variables aren't configured per-deployment (main, staging branches).
+- `baseURL` is a string, not a dynamic/object configuration, so it can't adapt to request URL.
+- Team doesn't realize Better Auth validates `Host` header against `allowedHosts` — assumed it auto-detects like other frameworks.
 
-**How to avoid:**
-- Model the tax engine as: given a user + calendar year, gather *all* income events (salary tranches, premii, otpusknye) sorted by actual payment date, then fold over them sequentially maintaining a running cumulative-income and cumulative-tax-withheld state.
-- Any edit to a past-dated event (backdated premium, changed vacation date) must invalidate and recompute the cumulative chain forward from that point, not just the single edited event.
-- Never memoize/cache a payment's tax amount independent of its position in the year's sequence.
+**Consequences:**
+- Auth callbacks redirect to wrong domain (user logs into prod instead of preview).
+- Session cookie is set for `production.com` but browser is on `preview.vercel.app` — cookie never sent with requests.
+- Preview/staging feels completely broken ("you're not logged in"), blocking testing.
+- Staging promotion to prod works fine, so bug goes unnoticed until users on staging test against live.
 
-**Warning signs:**
-- Tax calculation function signature takes only `(paymentAmount, priorCumulativeIncome)` without also considering *what already happened this year* being sourced from a live, correctly-ordered ledger.
-- Editing an earlier-dated event doesn't visibly change later forecasted payments.
+**Prevention:**
+- Use Better Auth's **dynamic `baseURL` configuration** with `allowedHosts` object:
+  ```typescript
+  baseURL: {
+    allowedHosts: [
+      "localhost:3000",
+      "*.vercel.app",  // Wildcard for all preview/staging deployments
+      "naruiki.production.com"
+    ],
+    fallback: "https://naruiki.production.com"  // Only used if no match
+  }
+  ```
+- Set `BETTER_AUTH_ALLOWED_HOSTS` as environment variable for each deployment tier (main/staging branches get different env vars on Vercel).
+- Test preview deployments explicitly: log in on PR preview, verify session cookie domain matches preview URL.
+- Document: "If auth doesn't work on preview/staging, check Vercel Environment Variables — is `BETTER_AUTH_URL` or `BETTER_AUTH_ALLOWED_HOSTS` set for this branch?"
 
-**Phase to address:** Core tax-calculation engine phase; revisit when premii and otpusknye features are added, since they inject extra events into the year's sequence.
+**Detection:**
+- Playwright test fails to log in on preview but passes on prod.
+- Browser DevTools → Application → Cookies shows no auth cookie on preview URL, but shows one on prod.
+- Vercel logs show auth endpoint returning 403 "Untrusted origin".
+
+**Phase:** Must be fixed in **Security Hardening phase**, before staging environment is live, or it will block all staging UAT.
 
 ---
 
-### Pitfall 4: Computing otpusknye average daily earnings with a naive `totalEarnings / 12 / 29.3` and no exclusions/proration
+### Pitfall 3: Better Auth Password Leak Scenarios (Misconfigured Auth Flow Exposes URL or Network Tab)
 
-**What goes wrong:**
-ТК РФ ст. 139 + Постановление Правительства РФ №922 define средний дневной заработок as earnings over the preceding 12 calendar months divided by 12 and by 29.3 — but only when *all 12 months were fully worked and fully paid*. In practice: (a) employees with under 12 months of tenure need a different period (from hire date, or from the month worked), (b) months containing sick leave, other paid vacation, unpaid leave, or downtime must be excluded or prorated (`29.3 / daysInMonth × actualCalendarDaysWorked`), and (c) if a salary increase (indexation) happened during or right after the 12-month period, earlier months must be scaled up by a coefficient before averaging. A calculator that just sums 12 months of salary-history rows and divides by 12×29.3 will be measurably wrong for any user with a raise, a sick day, or under a year of tenure in the app.
+**What goes wrong:** During login/registration, password or sensitive token appears in:
+- Browser URL bar (visible to anyone looking over shoulder, screenshot in chat)
+- DevTools Network tab (visible to users with F12 open, cached in session files)
+- Server logs (if `signIn` request is logged with query params instead of POST body)
+- Browser password manager autofill dropdown (if form is misconfigured as GET)
 
-**Why it happens:**
-The "12 months / 29.3" formula is the one everyone quotes, but it's the *simple case* — the actual regulation (Order 922) is a dense set of exclusion rules that most blog-level sources gloss over or only partially list.
+**Why it happens (specific to Better Auth + Next.js):**
+1. **Form accidentally becomes GET:** HTML form falls back to GET if JS doesn't load, or error handler doesn't prevent submission.
+2. **Next.js RSC prefetch query params:** App Router may append CSRF tokens or state params to URLs during soft navigation.
+3. **Browser password manager:** Autofill dropdown captures form action URL and leaks it if URL has sensitive params.
+4. **Better Auth `sendOTP` flow leaks code:** If email/SMS contains a direct link with the OTP in query string, and user bookmarks it or shares via chat, the code is exposed.
 
-**How to avoid:**
-- Explicitly scope v1: decide whether excluded periods (sick leave, other leave, downtime) and indexation coefficients are modeled, or explicitly deferred with a documented "assumes no gaps/no mid-period raises" caveat surfaced to the user (e.g. a disclaimer on the otpusknye estimate).
-- If deferred, still handle the *tenure-under-12-months* case correctly (it's the most common real edge case for a first-year product) — don't let it silently divide by a wrong denominator or throw.
-- If salary history is tracked (per PROJECT.md's "хранит историю окладов"), that history is the natural data source for reconstructing which months are affected — use it rather than assuming a flat rate for the whole lookback window.
-- Write test cases: (a) full 12 months no changes, (b) mid-period raise, (c) employee with 4 months of tenure, (d) a month partially worked.
+**Consequences:**
+- User's password visible in browser history, system clipboard from copy-paste, screenshots, screen recordings.
+- Attacker with access to one user's browser history has plaintext passwords for all devices that user logged into.
+- Reset tokens (if leaked in email links) are valid for hours (default 3600s per Better Auth), giving attacker full account takeover.
 
-**Warning signs:**
-- Otpusknye formula is a single one-liner with no reference to salary-history rows or excluded-period data.
-- No handling for `< 12 months of history` — either a crash, a NaN, or a silently wrong number.
+**Prevention:**
+- **Always use POST for auth forms**, never GET:
+  ```html
+  <form method="POST" action="/api/auth/signin">
+    <!-- Never GET -->
+  </form>
+  ```
+- **No query params in auth flows:** State tokens go in POST body or hidden form fields, not URL.
+- **Server Actions for auth:** Better Auth is already compatible; use `authClient.signIn.email()` which POSTs. Verify in DevTools Network tab: POST request, credentials in body, not params.
+- **Disable browser password manager on auth forms** if you can't control the form action (risky, not recommended—better to fix the form).
+- **For reset/OTP tokens:** 
+  - Store tokens server-side (hashed), send short-lived code (5 min expiry) in email, not the full token.
+  - Set `resetPasswordTokenExpiresIn: 300` (5 min) instead of default 3600s.
+- **Log only non-sensitive auth data:** Never log request body in auth endpoints; log email and success status only.
+- **Test with Network tab open:** During dev, open DevTools, submit login form, verify only POST request with no plaintext password in URL or visible in response headers.
 
-**Phase to address:** Otpusknye feature phase — flag explicitly for deeper research/scoping decision before implementation (this is the single most legally complex calculation in the product).
+**Detection (for existing system):**
+- Search repo for `method="get"` on auth forms.
+- Check `authClient.signIn.email()` call — if it's being awaited without `.then()`, it's a fetch, which Better Auth handles as POST (good).
+- Look at Vercel production logs for auth endpoints — grep for `password` in log output.
+- Manual check: Log in on staging with DevTools open, inspect Network tab for the login POST request.
 
----
-
-### Pitfall 5: Building around iOS PWA install/session assumptions that don't hold — no install prompt, no reliable "installed" detection, and standalone-only push
-
-**What goes wrong:**
-Unlike Android/Chrome, iOS Safari has no automatic "Install this app" banner — users must manually use Share → Add to Home Screen, and that option silently disappears if the site is opened inside an in-app browser (e.g. from a link shared in Telegram/Instagram). Teams often build an "install CTA" assuming they can trigger a native prompt (`beforeinstallprompt` — not fired on iOS Safari at all) and are surprised when nothing happens. Separately, any future push-notification feature (e.g. "payment coming up") requires iOS 16.4+, the app already added to home screen, `display: standalone` or `fullscreen` in the manifest, and a permission prompt triggered by a real user gesture (not on page load) — none of which work from a plain browser tab.
-
-**Why it happens:**
-Cross-platform PWA tutorials describe the Android/Chrome install flow as if it's universal; iOS's manual, share-sheet-based flow and its push-notification gating are easy to miss until testing on a real iPhone.
-
-**How to avoid:**
-- Design the install UX around manual instructions ("Tap Share, then Add to Home Screen") with iOS-specific copy/screenshots, detected via UA sniffing or `navigator.standalone` — don't rely on `beforeinstallprompt`.
-- Detect standalone mode via `window.navigator.standalone === true` (iOS-specific) or `window.matchMedia('(display-mode: standalone)').matches`, and gate any "add to home screen" nudge on *not* already being standalone.
-- If the app is ever opened from an in-app browser (Telegram, Instagram, etc.), detect this and tell the user to open in Safari first, since Add to Home Screen is unavailable there.
-- Since v1 has no push-notification requirement (per PROJECT.md), defer push entirely rather than half-building it — but if it's added later, budget for the "must already be installed + iOS 16.4+" gate as a hard blocker, not an edge case.
-
-**Warning signs:**
-- Code references `beforeinstallprompt` as the primary install trigger.
-- No iOS-specific onboarding copy/screenshot for "Add to Home Screen."
-- No real-device (or at least iOS Simulator) testing pass before considering the PWA phase done.
-
-**Phase to address:** PWA installability phase (manifest, icons, standalone mode) — the install-instructions UI and standalone detection should ship together with the manifest/icons work, not be an afterthought.
-
----
-
-### Pitfall 6: Assuming client-side auth/session state survives reliably across iOS standalone-app launches and reinstalls
-
-**What goes wrong:**
-Because this product is multi-user with cloud sync and a real backend (per PROJECT.md — not local-only storage), the actual data lives server-side, which is the right call. But if any part of the auth flow (e.g. token caching, "remember me") relies on `localStorage`/cookies written while the site was open in a regular Safari tab, that data is subject to Safari's 7-day ITP script-writable-storage cap. A web app added to the Home Screen gets its own separate WKWebView storage jar (not subject to the 7-day cap, since it has its own usage-based counter) — but only *after* installation, and only for storage written *inside* the standalone context. A common bug: user logs in inside Safari, then adds to Home Screen — the standalone instance starts with a **different, empty storage jar** and the user has to log in again, which looks like "sync is broken" if not designed for.
-Additionally, if the user later removes and re-adds the icon, the standalone WKWebView data store is wiped, silently logging them out.
-
-**Why it happens:**
-Developers test primarily in a regular browser tab during development and only discover the storage-jar split when testing the actual "Add to Home Screen → open from icon" flow late in the process.
-
-**How to avoid:**
-- Design the auth flow so that "install to Home Screen" is presented as a step users take *after* first launching from the icon (or explicitly re-authenticate once after installing) rather than assuming session continuity across the Safari-tab → standalone-app boundary.
-- Keep the source of truth server-side (already the plan) and treat any client-stored token purely as a cache that can be safely lost — never store data that can't be re-fetched from the server after a silent local wipe.
-- If using OAuth/third-party login, verify the redirect flow completes *inside* the standalone context and doesn't bounce the user out to Safari (which can break the perceived "installed app" experience and sometimes strands the session in the wrong storage jar).
-- Test explicitly: login → add to home screen → close app → reopen from icon after several days, and login → remove icon → re-add icon → reopen.
-
-**Warning signs:**
-- No test pass covering "reopen from home screen icon after N days."
-- Auth relies solely on `localStorage` token with no silent-refresh-from-server path.
-
-**Phase to address:** Auth/cloud-sync phase, cross-checked during the PWA installability phase.
+**Phase:** Part of **Security Hardening phase**. Must be validated before shipping to production.
 
 ---
 
-### Pitfall 7: Getting kopeck-level rounding wrong, causing forecasted "на руки" amounts to visibly drift from what the user actually receives
+### Pitfall 4: Safe-Area-Inset CSS Retrofit Breaks Layout or Hides Content on iOS
 
-**What goes wrong:**
-НК РФ ст. 52 requires tax amounts to be rounded to whole rubles per payment (under 50 kopecks dropped, 50+ rounds up) — not carried in fractional rubles internally. If the calculator instead keeps tax as a float and rounds only for display, or rounds inconsistently (e.g. always floors, or rounds at the annual level only), the sum of individually-rounded "on-hand" amounts across a year won't match `gross − totalTaxDisplayed` exactly, and users doing their own arithmetic will notice a few-ruble discrepancy and lose trust in the tool.
+**What goes wrong:** You add `env(safe-area-inset-top)` padding to the header to avoid the dynamic island, but the padding appears on all browsers (adding unnecessary height on Android/desktop), or it doesn't apply at all on iOS because viewport-fit wasn't set, or it applies but other components shift unexpectedly, pushing content off-screen. The app looks broken on iPhone but fine everywhere else.
 
 **Why it happens:**
-Floating-point arithmetic and "round at the end" habits are the default in most calculators; the specific per-payment rounding rule for Russian tax withholding is a legal requirement most generic finance-app patterns don't anticipate.
+- `viewport-fit=cover` isn't in the `<meta name="viewport">` tag, so iOS ignores safe-area insets entirely.
+- Safe-area padding is applied globally to `html` or `body`, pushing the whole layout down, cascading into unintended layout shifts.
+- You forgot to add `apple-mobile-web-app-capable: yes` meta tag, so iOS doesn't enable standalone mode and safe-area doesn't apply.
+- Tailwind classes use `pl-safe` / `pb-safe` but the custom plugin isn't registered in `tailwind.config.ts`, so classes are silently ignored.
+- Touch handlers conflict: `touch-action: manipulation` on `html` breaks iOS input focus, while safe-area is supposed to work alongside it.
 
-**How to avoid:**
-- Work in integer kopecks (or minor units) internally, never floats, for all money math.
-- Apply the ст. 52 rounding rule (round to nearest ruble, .5 rounds up) at the point tax is withheld for *each payment*, matching how an actual employer's payroll system would compute and display it — this is also what makes the cumulative-delta method in Pitfall 1 well-defined (rounding must happen on cumulative tax, then take the delta, to avoid compounding rounding error across payments).
-- Add a reconciliation test: sum of net amounts shown across a full year's payments + sum of tax shown should equal the sum of gross amounts, exactly, to the ruble.
+**Consequences:**
+- Dynamic island on iPhone 15/Pro overlaps with header text, rendering app unreadable.
+- Or: Safe-area padding applies, but layout shifts and content drops below the fold.
+- Android users see extra padding that doesn't exist in design mockups.
+- Desktop users see unnecessary spacing reserved for mobile notches.
+- Existing Vitest render tests pass (they run in jsdom without viewport), but real iPhone breaks immediately.
 
-**Warning signs:**
-- Money represented as JS `number`/floating decimal anywhere in the tax engine.
-- No test asserting the annual gross/tax/net pie chart totals reconcile exactly with the sum of individual payment breakdowns.
+**Prevention:**
+- **Viewport meta tag setup (required first):**
+  ```html
+  <meta name="viewport" 
+    content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  ```
+- **Use a Tailwind plugin for safe-area classes:**
+  ```typescript
+  // tailwind.config.ts
+  module.exports = {
+    plugins: [
+      require('tailwindcss-safe-area')
+      // or define custom plugin:
+      // ({ addUtilities }) => {
+      //   addUtilities({
+      //     '.pt-safe': { paddingTop: 'env(safe-area-inset-top)' },
+      //     '.pb-safe': { paddingBottom: 'env(safe-area-inset-bottom)' },
+      //   })
+      // }
+    ]
+  }
+  ```
+- **Apply safe-area padding only to iOS-specific components:**
+  ```tsx
+  export function Header() {
+    return (
+      <header className="pt-safe">
+        {/* Dynamic island space is now reserved */}
+      </header>
+    )
+  }
+  ```
+  Not to the whole layout.
+- **Test on real iPhone or Safari Device Emulation (Responsive Design Mode won't show safe-area correctly):** 
+  - Use Xcode simulator with Safari remote debugging, or 
+  - Use real device with `vercel preview` URL.
+- **Screenshot on iOS before/after to verify visually in tests:**
+  - Add Playwright visual regression test with `toMatchScreenshot()` on iPhone 15 Pro viewport.
+- **Never apply `touch-action: manipulation` globally** on iOS — it conflicts with input focus. Keep it on specific interactive elements only.
 
-**Phase to address:** Core tax-calculation engine phase.
+**Detection:**
+- Run app in iPhone 15 Pro simulator (notch + dynamic island).
+- Open DevTools in Safari remote inspector, check computed styles for `.pt-safe` — should show `padding-top: env(safe-area-inset-top)`.
+- Screenshot: header text should clear the dynamic island by at least 8-12px.
+
+**Phase:** Part of **PWA Safe-Area Fix phase**. Test thoroughly on real device before marking done.
 
 ---
 
-## Technical Debt Patterns
+### Pitfall 5: Playwright E2E Tests Flake Due to Auth State or Database State Pollution
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|-----------------|------------------|
-| Hardcode 2025 НДФЛ bracket thresholds/rates as constants with no "effective year" versioning | Faster to ship v1 | Brackets are set by law and can change year to year (they did in 2021 and again in 2025); a hardcoded table silently miscalculates every January if not revisited | Acceptable for v1 only if the constants live in one clearly-named, dated module and a manual review is scheduled each January |
-| Skip otpusknye exclusion-period/indexation logic, average blindly over 12 months | Ships the otpusknye feature much faster | Wrong numbers for anyone with sick leave, other vacation, or a raise in the lookback window — likely a large share of real users within a year | Acceptable only if explicitly disclosed to the user as an approximation, and salary-history data model still supports adding exclusions later without a schema rewrite |
-| Store money as floating-point numbers in the DB/API layer | Simpler to wire up initial CRUD | Rounding drift compounds across a year of cumulative tax calculations (see Pitfall 7) | Never acceptable for the tax engine; tolerable only for pure UI display formatting downstream of integer math |
-| Treat "Add to Home Screen" as equivalent to a native install with reliable session persistence | Simpler auth flow in early testing | Breaks on real iPhones when storage jars diverge or icon is removed/re-added (Pitfall 6) | Acceptable only if tested on-device before considering the PWA phase complete |
+**What goes wrong:** Playwright tests pass individually but fail in CI when run in parallel, or they fail intermittently because:
+- Auth state from previous test isn't cleaned up, next test logs in as wrong user.
+- Neon database branch isn't created before tests start, so all test workers hit the same database and race for the same rows.
+- Form submission in one test succeeds, but response isn't awaited, next test sees stale data.
+- Vercel preview deployment is mid-rollout when test starts, test times out waiting for deployment to be ready.
 
-## Integration Gotchas
+**Why it happens:**
+- No `globalSetup.ts` to create isolated database branch per test run.
+- `authStorage` (from Playwright cookie state) isn't isolated per test file or worker.
+- Multiple Playwright workers (`fullyParallel: true` in config) all query the same Neon `main` branch simultaneously.
+- Test doesn't wait for `page.waitForLoadState('networkidle')` after form submission, assumes response is instant.
+- `PLAYWRIGHT_API_URL` points to `localhost:3000` instead of the actual Vercel preview deployment URL.
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|-----------------|-------------------|
-| iOS Safari "Add to Home Screen" | Assuming a JS-triggerable install prompt exists (`beforeinstallprompt`) | Show manual iOS-specific instructions; detect standalone mode via `navigator.standalone` / `matchMedia('(display-mode: standalone)')` |
-| Web App Manifest on iOS | Relying only on `manifest.json` for icons/splash/theme color | Also add `apple-touch-icon`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style` meta tags — iOS historically ignores or partially supports manifest-only config |
-| Cloud auth (any provider) opened inside the standalone PWA | OAuth redirect flow bounces the user into Safari and back, landing outside the standalone storage context | Verify the redirect completes inside the standalone WKWebView; prefer flows that don't require leaving the app shell (e.g. an in-app web view / native-feeling redirect handling), and treat any resulting session token as re-derivable from the server, not sacred |
-| Service worker / app updates on iOS | Deploying a new build and assuming users get it immediately — iOS caches aggressively and standalone apps have no visible "reload" chrome | Use `skipWaiting()` + `clients.claim()` in the service worker and a visible in-app "update available, tap to refresh" affordance, since users can't pull-to-refresh a stale standalone shell the way they would a browser tab |
+**Consequences:**
+- Same tests pass/fail randomly in CI, breaking CI reliability.
+- Test suite takes 10x longer because all tests wait for DB locks.
+- Feature branch can't be tested until main CI finishes and cleans up.
+- Engineers give up on E2E tests ("they're flaky") and skip them.
+- Bug reaches production because it only surfaces under parallel DB load.
 
-## Performance Traps
+**Prevention:**
+- **Create isolated Neon database branches per test run:**
+  ```typescript
+  // playwright.config.ts
+  import { defineConfig, devices } from '@playwright/test'
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|-----------------|
-| Recomputing the full year's cumulative tax chain from scratch on every read (e.g. every dashboard load re-folds all events for the year) | Dashboard/forecast screen feels slow as a user accumulates a year of salary + premii + otpusknye events | Cache the cumulative-tax-to-date snapshot per user per year, invalidated only when an earlier-dated event is added/edited (see Pitfall 3) | Noticeable once a user has a full year of biweekly payments (~24+ events) plus several premii/otpusknye entries — still small-N for a single user, so this is a low-severity trap for v1's scale, but worth a cache from day one since the fix is cheap |
-| Fetching full salary/payment history from the backend on every screen just to render "next payment" | Unnecessary network/data volume as history grows across years | Serve a purpose-built "next payment + current year summary" endpoint rather than shipping the full ledger to the client for every view | Not urgent at single-user-history scale, but establishes a bad pattern once yearly pie-chart and multi-year history accumulate |
+  export default defineConfig({
+    globalSetup: require.resolve('./e2e/global-setup.ts'),
+    globalTeardown: require.resolve('./e2e/global-teardown.ts'),
+    webServer: {
+      command: 'npm run dev',
+      url: process.env.PLAYWRIGHT_API_URL || 'http://localhost:3000',
+      reuseExistingServer: !process.env.CI
+    }
+  })
+  ```
 
-## Security Mistakes
+  ```typescript
+  // e2e/global-setup.ts
+  import { chromium } from '@playwright/test'
+  import { neon } from '@neondatabase/serverless'
 
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Trusting client-submitted gross salary/tax figures for cross-user data (e.g. multi-tenant queries without server-side ownership checks) | One user could read or forecast another user's salary/tax data via a manipulated request, since this is explicitly multi-user with cloud sync | Enforce ownership checks server-side on every read/write of salary, payment, premium, and vacation records — never trust a client-supplied user ID |
-| Performing tax calculations client-side only, treating the client-computed number as authoritative and syncing it as-is | A modified client could sync fabricated "net pay" figures that then get treated as truth by other devices/views | Compute (or at minimum re-validate) tax figures server-side before persisting/syncing, even if the client also computes them for responsiveness |
-| Storing salary/income data (sensitive personal financial data) without encryption at rest or without restricting export/logging | Salary data leak is high-impact for individual users (income data is sensitive under Russian personal data law — 152-ФЗ) | Encrypt sensitive fields at rest where the backend supports it, avoid logging raw salary amounts, and be mindful of 152-ФЗ data-residency implications if using a non-Russian cloud backend for a Russian user base |
+  async function globalSetup() {
+    // Create a Neon branch for this test run
+    const branchName = `test-${Date.now()}`
+    const parentBranch = process.env.DATABASE_BRANCH || 'main'
+    
+    // Call Neon API to create branch
+    const response = await fetch('https://api.neon.tech/v2/branches', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.NEON_API_KEY}` },
+      body: JSON.stringify({
+        project_id: process.env.NEON_PROJECT_ID,
+        branch: { parent_id: parentBranch, name: branchName }
+      })
+    })
+    const data = await response.json()
+    process.env.DATABASE_BRANCH = data.branch.id
+    process.env.DATABASE_URL = `postgresql://...@ep-${data.branch.id}.neon.tech/...`
+  }
 
-## UX Pitfalls
+  export default globalSetup
+  ```
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-------------------|
-| Showing "на руки" amounts as if they're guaranteed/final rather than a forecast | Users budget against a number that assumes no exclusion periods, no indexation edge cases, no employer rounding quirks — a mismatch on payday erodes trust | Label estimates as forecasts, and where a calculation relies on simplifying assumptions (e.g. otpusknye without exclusion-period modeling), surface that plainly near the number, not buried in help text |
-| No visible explanation of *why* a payment's tax rate looks different from the last one (bracket crossing) | User sees an unexpected tax jump on a bonus or high-earning month and assumes a bug | Show a breakdown (e.g. "of this payment, X ₽ taxed at 13%, Y ₽ taxed at 15%") rather than just a single blended number, at least on a details/expand view |
-| Silent zero/blank otpusknye estimate for a user with under 12 months of history | Feature looks broken for a large share of first-year users | Explicitly handle short-tenure users with a clearly labeled partial-period calculation rather than erroring or showing nothing |
-| Prompting "Add to Home Screen" while opened inside an in-app browser (Telegram/Instagram link) | The instructions reference a Share-sheet option that isn't available in that context, confusing the user | Detect in-app browser UAs and tell the user to open in Safari first |
+- **Use Playwright's `storageState` for auth:**
+  ```typescript
+  // e2e/auth.setup.ts
+  test('authenticate', async ({ page }) => {
+    await page.goto('/login')
+    await page.fill('input[name="email"]', 'test@example.com')
+    await page.fill('input[name="password"]', 'password123')
+    await page.click('button[type="submit"]')
+    await page.waitForURL('/')
+    
+    await page.context().storageState({ path: 'playwright/.auth/user.json' })
+  })
 
-## "Looks Done But Isn't" Checklist
+  // playwright.config.ts
+  projects: [
+    { name: 'auth', testMatch: /auth\.setup\.ts/ },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/user.json' },
+      dependencies: ['auth']
+    }
+  ]
+  ```
 
-- [ ] **Progressive tax calculation:** Often looks done after testing only round, single-bracket salaries — verify a payment that straddles a bracket boundary produces a split-rate result, not a single-rate result.
-- [ ] **Otpusknye calculation:** Often looks done after testing only a "clean" 12-month history with no gaps — verify behavior for under-12-months tenure and for a mid-period salary raise.
-- [ ] **PWA installability:** Often looks done after testing "Add to Home Screen" once in Safari — verify standalone-mode detection, icon/splash rendering on an actual iPhone (not just Chrome DevTools device emulation, which does not reproduce iOS Safari's manifest quirks), and behavior when opened from an in-app browser link.
-- [ ] **Cloud sync across devices:** Often looks done after testing sync between two open browser tabs — verify the standalone home-screen app instance actually receives the same synced state as a browser tab, given the separate storage jar (Pitfall 6).
-- [ ] **Annual gross/tax/net pie chart:** Often looks done once it renders *a* number — verify it reconciles exactly (to the ruble) with the sum of the individual payment breakdowns shown elsewhere in the app (Pitfall 7).
-- [ ] **Salary history / raise handling:** Often looks done once a new oklad value can be saved — verify that a raise mid-year does not reset the cumulative annual tax base (it must continue accumulating, not restart) and correctly feeds into future otpusknye averaging.
+- **Target the actual Vercel preview deployment:**
+  ```bash
+  # In GitHub Actions
+  - name: Run Playwright tests
+    env:
+      PLAYWRIGHT_API_URL: ${{ steps.deploy.outputs.preview_url }}
+    run: npx playwright test
+  ```
 
-## Recovery Strategies
+- **Always await network idle:**
+  ```typescript
+  // Don't do this:
+  await page.click('button[type="submit"]')
+  await page.goto('/salary') // Might race with redirect
 
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|-----------------|------------------|
-| Marginal tax calc bug shipped (Pitfall 1) | MEDIUM | Isolate the pure tax function, add the boundary-straddling test cases that would have caught it, patch, then re-derive all previously-stored/synced payment records for affected users going forward (don't silently rewrite past displayed figures without a changelog note) |
-| Otpusknye formula missing exclusions/indexation (Pitfall 4) | MEDIUM–HIGH | Ship as an explicitly-labeled approximation first; track it as a known-gap in the roadmap and design the salary-history data model up front so exclusions/indexation can be layered in without a data migration |
-| iOS storage-jar/session pitfall discovered late (Pitfall 6) | LOW–MEDIUM | Since the source of truth is server-side, recovery is mostly UX: add a "you may need to log in again after installing" notice and a smoother re-auth path, no data loss risk if designed correctly from the start |
-| Float-based money math causing rounding drift (Pitfall 7) | HIGH | Requires migrating the money representation (float → integer minor units) throughout the tax engine and any persisted records — best avoided entirely rather than recovered from, since it touches the core data model |
+  // Do this:
+  await page.click('button[type="submit"]')
+  await page.waitForURL('**/salary') // Wait for redirect
+  ```
 
-## Pitfall-to-Phase Mapping
+**Detection:**
+- Run tests locally: `npm run test:e2e` (should pass).
+- Run tests in CI with parallelism: Check GitHub Actions logs for random failures.
+- Look for timeout errors related to database locks (Neon logs will show conflict).
 
-| Pitfall | Prevention Phase | Verification |
-|---------|-------------------|----------------|
-| Marginal/cumulative tax miscalculation (P1) | Core tax-calculation engine phase | Unit tests covering all 4 bracket boundaries with straddling payments |
-| Pre-2023 "tax at month-end" model (P2) | Core tax-calculation engine / payment schedule phase | Аванс payments show correct withheld tax, not zero |
-| Non-chronological cumulative processing (P3) | Core tax-calculation engine phase; revisited at premii and otpusknye phases | Backdated/edited event correctly recomputes all later payments in the year |
-| Naive otpusknye averaging (P4) | Otpusknye feature phase (flagged for deeper research before implementation) | Test cases for short tenure, mid-period raise, partially-worked month |
-| iOS install-prompt/detection assumptions (P5) | PWA installability phase | Manual QA on a real iPhone: install flow, standalone detection, in-app-browser fallback |
-| iOS session/storage-jar assumptions (P6) | Auth/cloud-sync phase, cross-checked in PWA installability phase | On-device test: login → install → reopen after days; remove/re-add icon |
-| Rounding/float drift (P7) | Core tax-calculation engine phase | Reconciliation test: sum of displayed net amounts + displayed tax = displayed gross, exactly, across a full year |
+**Phase:** Part of **Playwright E2E Testing phase**. Must be working reliably before marking phase complete.
+
+---
+
+### Pitfall 6: Visual Regression Due to UI Redesign (Existing Vitest Render Tests Break or Pass Silently)
+
+**What goes wrong:** You redesign the UI components (new fonts, colors, spacing). Vitest render tests using jsdom/`@testing-library` don't catch visual changes because jsdom doesn't render pixels — it only validates DOM structure. Tests still pass, but the app looks completely different on the real browser. Alternatively, snapshots of old render trees are regenerated with the new classNames, making the tests useless as a regression detector.
+
+**Why it happens:**
+- Vitest tests are structure-only: `expect(screen.getByRole('button')).toBeInTheDocument()` doesn't care about color, font, or spacing.
+- Snapshot tests (if used) capture HTML/className strings, not visual output. Redesign changes classNames, snapshots are regenerated, and the old snapshot is lost.
+- No visual regression testing framework set up (e.g., Percy, Chromatic, Playwright `toMatchScreenshot()`).
+- Team assumes "if tests pass, UI didn't break," but structure and visuals are independent.
+
+**Consequences:**
+- QA catches the broken UI on staging, but it's too late to fix gracefully.
+- Component redesign accidentally breaks dark mode or accessibility (font contrast).
+- Icon redesign breaks mobile layout (new SVGs have different aspect ratios).
+- App ships with a button that looks totally different from the design mockup.
+
+**Prevention:**
+- **Set up visual regression testing with Playwright:**
+  ```typescript
+  // e2e/visual.spec.ts
+  test('Header renders correctly', async ({ page, browserName }) => {
+    test.skip(browserName === 'firefox', 'Visual test run only on Chromium')
+    
+    await page.goto('/')
+    await expect(page.locator('header')).toMatchSnapshot('header.png')
+  })
+  ```
+
+  Run with: `npm run test:e2e -- --update-snapshots` after confirming design is intentional.
+
+- **Keep render tests for structure, add visual tests for appearance:**
+  ```typescript
+  // Render test: structure
+  it('renders salary input and submit button', () => {
+    render(<SalaryForm />)
+    expect(screen.getByLabelText(/gross salary/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument()
+  })
+
+  // Visual test: appearance (Playwright)
+  test('salary form looks correct', async ({ page }) => {
+    await page.goto('/settings/salary')
+    await expect(page.locator('form')).toMatchSnapshot('salary-form.png')
+  })
+  ```
+
+- **Don't auto-regenerate snapshots in CI.** Make snapshot updates a manual, reviewed step:
+  ```bash
+  npm run test:e2e -- --update-snapshots  # Local only, commit reviewed
+  ```
+
+- **Screenshot key user flows during redesign:**
+  - Login screen
+  - Salary entry form
+  - Dashboard with next payment
+  - Pie chart
+  - PWA standalone mode on iPhone
+  
+  Commit these as golden screenshots, then CI compares new screenshots to golden.
+
+**Detection:**
+- Before redesign: `npm run test:e2e` passes with current screenshots baseline.
+- After redesign: `npm run test:e2e` fails on visual assertions.
+- Manually verify the design matches mockups.
+- Update snapshots: `npm run test:e2e -- --update-snapshots`.
+- Commit updated screenshots as part of the redesign PR.
+
+**Phase:** Part of **UI Redesign phase**. Establish visual regression testing baseline before major redesign, then use it to catch unintended side effects.
+
+---
+
+## Moderate Pitfalls
+
+Moderate pitfalls cause partial breakage, data loss, or significant manual recovery. Should be prevented; if they happen, fix quickly.
+
+### Pitfall 7: PWA Manifest Icons Become Inaccessible After Redesign
+
+**What goes wrong:** During UI redesign, you move assets from `/public/icons/` to `/public/assets/icons/` and update the manifest. But old installed PWAs still reference the old path, so their home screen icons break (show blank). New installs use the new path correctly. App looks unbranded and unprofessional on existing user devices.
+
+**Why it happens:**
+- SVG icon asset paths changed during redesign/refactor.
+- `manifest.json` was updated, but old PWA installations cached it.
+- iOS PWAs cache the manifest aggressively and don't auto-update.
+- Team didn't test by actually reinstalling the PWA and checking home screen.
+
+**Consequences:**
+- Users who installed v1.0 see broken icon on home screen after v1.1 ships.
+- Support requests: "Why is my app icon blank?"
+- App looks unprofessional compared to native apps with stable icons.
+
+**Prevention:**
+- **Never change icon paths without versioning the manifest:**
+  ```json
+  {
+    "name": "НаРуки",
+    "icons": [
+      {
+        "src": "/icon-192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "any"
+      },
+      {
+        "src": "/icon-512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "any maskable"
+      }
+    ]
+  }
+  ```
+  Keep icons in `/public/` at the root level, or use a versioned path like `/assets/v2/icon-192.png`.
+
+- **Test PWA reinstall on real device:**
+  1. Build production deployment: `npm run build`.
+  2. Deploy to staging or Vercel preview.
+  3. On iPhone, open Safari to the URL.
+  4. "Add to Home Screen" → install.
+  5. Go to Home Screen, launch app.
+  6. Verify icon displays correctly (not blank).
+
+- **Commit icon assets alongside manifest.json** so they're never accidentally moved without manifest update.
+
+**Detection:**
+- After redesign, manually test: Safari → "Add to Home Screen" → check home screen.
+- Or: Check `/public/` directory structure matches icon paths in `manifest.json`.
+
+**Phase:** Part of **UI Redesign phase**. Test PWA install before marking complete.
+
+---
+
+### Pitfall 8: Serwist `--webpack` Flag Forgotten, Build Breaks on CI (Turbopack Issue)
+
+**What goes wrong:** During setup or after a team member forgets, the build command runs without `--webpack` flag. Serwist tries to inject the service worker into Turbopack, which it doesn't support yet. Build silently succeeds but produces no service worker, so PWA installation heuristics fail. App still works but isn't installable on iOS ("Add to Home Screen" option disappears).
+
+**Why it happens:**
+- Serwist's `@serwist/next` plugin doesn't support Turbopack (Next.js 16's default bundler).
+- `next dev --webpack` and `next build --webpack` flags are needed, but they're buried in `package.json` scripts.
+- New team member runs `next build` without the flag and assumes it's fine.
+- CI script doesn't include the flag, so production build is broken.
+
+**Consequences:**
+- PWA installability broken in production.
+- No obvious error — build succeeds, app runs, but service worker is missing.
+- Users can't install to home screen.
+- Staging/prod split causes confusion: staging works (flag present), prod doesn't (flag forgotten).
+
+**Prevention:**
+- **Always use the flag in package.json scripts:**
+  ```json
+  {
+    "scripts": {
+      "dev": "next dev --webpack",
+      "build": "next build --webpack",
+      "start": "next start"
+    }
+  }
+  ```
+- **Document in README:**
+  ```markdown
+  ## Development
+
+  Serwist PWA requires the --webpack flag due to Turbopack incompatibility.
+  Always use `npm run dev` (not `next dev`) and `npm run build` (not `next build`).
+  ```
+- **Add a check in CI to fail if the flag is missing:**
+  ```bash
+  # ci.yaml
+  - name: Verify Serwist webpack flag
+    run: grep -q "next build --webpack" package.json || exit 1
+  ```
+
+**Detection:**
+- After build: `ls -la .next/server/app-manifest.json` (service worker manifest) — should exist.
+- Open DevTools → Application → Service Workers — should show one registered.
+- If missing, check CI build logs for Serwist errors or warnings.
+
+**Phase:** Part of **PWA Safe-Area Fix phase**. Verify during build setup.
+
+---
+
+### Pitfall 9: GitHub Actions Secrets Scoped to Wrong Environment, Staging Deploys with Prod Secrets
+
+**What goes wrong:** You set up a GitHub Actions secret `DATABASE_URL` at the repository level (applies to all branches). When you deploy to staging from a feature branch, the workflow reads the repository-level `DATABASE_URL` (which is the production database URL) and deploys to prod database instead of staging. Staging tests corrupt production data.
+
+**Why it happens:**
+- Environment-specific secrets weren't configured in GitHub. Only repo-level secrets were used as a shortcut.
+- The workflow doesn't check which branch it's on; it just reads `secrets.DATABASE_URL`.
+- Vercel environment variables are per-environment, but GitHub Actions secrets aren't, so they must be configured separately.
+- Team didn't realize the difference between repository secrets (global) and environment secrets (per-environment) in GitHub.
+
+**Consequences:**
+- Staging tests write test data to production Neon database.
+- Production database gets polluted with test salary/bonus/user rows.
+- Users see test data mixed with real data (confusion, support requests).
+- Data cleanup is manual and error-prone.
+- Trust in the system is lost.
+
+**Prevention:**
+- **Configure GitHub environment-specific secrets:**
+  1. Go to repo → Settings → Environments.
+  2. Create three environments: `preview`, `staging`, `production`.
+  3. For each environment, set its own secrets (e.g., `STAGING_DATABASE_URL`, `PROD_DATABASE_URL`).
+
+  ```yaml
+  # .github/workflows/deploy.yml
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+      steps:
+        - uses: actions/checkout@v4
+        - name: Deploy
+          env:
+            DATABASE_URL: ${{ secrets.DATABASE_URL }}
+            VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          run: vercel deploy --token ${{ secrets.VERCEL_TOKEN }}
+  ```
+
+- **Explicitly map branch → environment:**
+  ```yaml
+  jobs:
+    deploy:
+      strategy:
+        matrix:
+          include:
+            - branch: main
+              environment: production
+            - branch: staging
+              environment: staging
+            - branch: dev
+              environment: preview
+      runs-on: ubuntu-latest
+      if: github.ref == 'refs/heads/${{ matrix.branch }}'
+      environment: ${{ matrix.environment }}
+  ```
+
+- **Test locally with a `.env.local` that points to a test Neon branch**, verify it works, then promote to staging.
+
+**Detection:**
+- Check repo Settings → Secrets & Variables → Actions: are there repository-level secrets, or only per-environment?
+- In workflow file, search for `secrets.` references — verify they match the expected environment.
+- Run a staging deploy, check Neon console for which database was hit.
+
+**Phase:** Part of **Staging/Prod Deploy Pipeline phase**. Must be configured before any staging tests run against a real database.
+
+---
+
+### Pitfall 10: Playwright Tests Pass Locally but Fail in CI (Headless vs. Headed Browser Differences)
+
+**What goes wrong:** Tests pass when run locally (`npm run test:e2e`) but fail in CI with timeout errors or assertion mismatches. The difference: local runs use headed browser mode (you see it), CI runs headless (invisible). Headless browsers render differently (fonts, timing, network throttling), so tests that rely on visual timing or DOM metrics fail in CI only.
+
+**Why it happens:**
+- Local config: `headless: false` or uses headed browser.
+- CI config: `headless: true`, which changes rendering and network behavior.
+- Tests assume instant form submission or DOM updates, but headless rendering is slower.
+- Network throttling simulated in CI but not locally.
+
+**Consequences:**
+- Tests are unreliable: green locally, red in CI, blocking merges.
+- Team disables CI tests or ignores failures, defeating the purpose of tests.
+- Bugs slip through because tests aren't trusted.
+
+**Prevention:**
+- **Ensure CI config matches local config:**
+  ```typescript
+  // playwright.config.ts
+  export default defineConfig({
+    use: {
+      headless: true,
+      trace: 'on-first-retry' // Capture trace on failure for debugging
+    },
+    webServer: {
+      command: 'npm run build && npm start',
+      port: 3000,
+      reuseExistingServer: process.env.CI === 'true' ? false : true
+    }
+  })
+  ```
+
+- **Use the same browser versions locally and in CI:**
+  ```bash
+  # Install same versions as CI
+  npx playwright install
+  ```
+
+- **Add network throttling to local tests to match CI conditions:**
+  ```typescript
+  test('form submission works under slow network', async ({ page }) => {
+    await page.route('**/*', (route) => {
+      setTimeout(() => route.continue(), 1000)
+    })
+    await page.goto('/')
+    // Now network is throttled locally, matching CI
+  })
+  ```
+
+**Detection:**
+- Run test locally: passes.
+- Push to GitHub, CI fails: check CI logs for timeout or assertion mismatch.
+- Compare local browser DevTools (opened during test) with CI video trace.
+
+**Phase:** Part of **Playwright E2E Testing phase**. Establish CI parity before declaring tests reliable.
+
+---
+
+## Minor Pitfalls
+
+Minor pitfalls cause inconvenience, wasted time, or rework. Should be prevented; if they happen, the cost is acceptable.
+
+### Pitfall 11: Accessibility Broken by Safe-Area or Redesign (Focus Outline, Keyboard Navigation)
+
+**What goes wrong:** During safe-area retrofit or redesign, you apply `outline: none` to remove the default focus ring (common in overzealous CSS resets). Keyboard users can't navigate the app anymore because focused elements are invisible. Or, you redesign buttons with custom styles and forget to add `:focus-visible` pseudo-class, so only mouse users can see what's focused.
+
+**Prevention:**
+- Always include a visible focus indicator for keyboard navigation:
+  ```css
+  button:focus-visible {
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
+  }
+  ```
+- Don't remove default outlines without providing an alternative.
+- Test keyboard navigation: Tab through the entire app using only the keyboard.
+
+**Detection:**
+- Use keyboard to navigate: Tab through form fields, should see focus outline on each.
+- Run accessibility audit: Lighthouse → Accessibility → check for low contrast or missing focus indicators.
+
+**Phase:** Part of **UI Redesign phase**. Test with keyboard before marking complete.
+
+---
+
+### Pitfall 12: Environment Variables Hardcoded Somewhere, Breaks in CI or Staging
+
+**What goes wrong:** A developer hardcodes `DATABASE_URL` or `BETTER_AUTH_URL` in a `.ts` file (not `.env`), assuming it's for local dev only. Code gets committed, CI runs with that hardcoded value, and prod deploy uses the wrong URL. Or, an environment variable is referenced but not added to the `.env.example`, so the next developer doesn't know it's required.
+
+**Prevention:**
+- Use `@t3-oss/env-nextjs` to validate and type all environment variables at startup:
+  ```typescript
+  // env.ts
+  import { createEnv } from "@t3-oss/env-nextjs"
+  import { z } from "zod"
+
+  export const env = createEnv({
+    server: {
+      DATABASE_URL: z.string().url(),
+      BETTER_AUTH_URL: z.string().url(),
+      NEON_API_KEY: z.string(),
+    },
+    runtimeEnv: {
+      DATABASE_URL: process.env.DATABASE_URL,
+      BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+      NEON_API_KEY: process.env.NEON_API_KEY,
+    },
+  })
+  ```
+- If any required variable is missing, the app fails to start with a clear error.
+- Keep `.env.example` updated whenever you add a new variable.
+
+**Detection:**
+- On fresh clone: `cp .env.example .env.local` → run `npm run dev` → should fail with clear error if any var is missing.
+
+**Phase:** Already established in v1.0. Maintain during v1.1.
+
+---
+
+### Pitfall 13: PR Preview Deployment is Stale (Old Code, Old Database Schema)
+
+**What goes wrong:** You push a PR with database schema changes. Vercel creates a preview deployment, but it uses the old Neon branch (`main` instead of PR-specific branch), so migrations don't run. Frontend expects new schema, but database has old schema. Preview looks broken, but the code is fine.
+
+**Why it happens:**
+- Neon branching isn't hooked into Vercel preview deployments.
+- Your CI doesn't create a Neon branch for PR preview; Vercel just points to `main`.
+
+**Prevention:**
+- Automate Neon branch creation in GitHub Actions:
+  ```yaml
+  # .github/workflows/preview.yml
+  name: Create Preview DB Branch
+  on:
+    pull_request:
+      types: [opened, synchronize]
+
+  jobs:
+    create-branch:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Create Neon branch
+          run: |
+            BRANCH_ID=$(curl -X POST https://api.neon.tech/v2/branches \
+              -H "Authorization: Bearer ${{ secrets.NEON_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "project_id": "${{ secrets.NEON_PROJECT_ID }}",
+                "branch": { "parent_id": "main", "name": "pr-${{ github.event.number }}" }
+              }' | jq -r '.branch.id')
+            echo "NEON_BRANCH_ID=$BRANCH_ID" >> $GITHUB_ENV
+
+        - name: Update Vercel env var
+          run: |
+            vercel env add DATABASE_URL_PREVIEW_${{ github.event.number }} \
+              "postgresql://...@${{ env.NEON_BRANCH_ID }}.neon.tech/..." \
+              --token ${{ secrets.VERCEL_TOKEN }}
+  ```
+
+**Detection:**
+- Open PR preview, run migration check: does `SELECT * FROM information_schema.tables` show new tables? If using old schema, migration didn't run.
+
+**Phase:** Part of **Staging/Prod Deploy Pipeline phase**. Automate before it becomes a blocker.
+
+---
+
+## Checklist: Before Each Phase Transition
+
+- [ ] **UI Redesign:** Visual regression tests pass on real device (iOS screenshot matches design); existing Vitest tests updated to match new classNames; PWA manifest icons still accessible.
+- [ ] **Safe-Area Fix:** `viewport-fit=cover` and `apple-mobile-web-app-capable` meta tags added; safe-area padding applied to header/footer only; tested on iPhone 15/15 Pro simulator with dynamic island visible; no unexpected layout shifts on Android/desktop.
+- [ ] **Security Hardening:** Better Auth `baseURL` uses dynamic allowedHosts configuration; auth forms are POST-only (verified in DevTools Network tab); `BETTER_AUTH_URL` and `BETTER_AUTH_ALLOWED_HOSTS` set per environment in Vercel; password reset token expiry is 5 min or less.
+- [ ] **Playwright E2E:** Tests pass individually and in parallel (`npm run test:e2e`); Neon database branching integrated into globalSetup; tests run against actual Vercel preview URL (not localhost); auth state is isolated via storageState; database state is cleaned up between test runs.
+- [ ] **Staging/Prod Pipeline:** GitHub Actions environment secrets configured (not repo secrets); double-deploy prevention working (Vercel auto-deploy disabled or actions/deploy doesn't run on preview); Deployment Checks gate production promotion on passing CI.
+
+---
 
 ## Sources
 
-- [Прогрессивная шкала НДФЛ с 2025 года — Garant](https://www.garant.ru/1c-wiseadvice/guide/progressivnaya-shkala-ndfl-s-2025-goda/) — MEDIUM confidence (cross-checked)
-- [Прогрессивная шкала НДФЛ с 2025 года: расчет по новым ставкам — Astral](https://astral.ru/aj/elem/progressivnaya-shkala-ndfl/) — MEDIUM confidence (cross-checked)
-- [Новый порядок удержания НДФЛ в 2023 году — ФНС](https://www.nalog.gov.ru/) — MEDIUM confidence, official tax-authority source
-- [Как удерживать НДФЛ с аванса в 2023 году — Garant news](https://www.garant.ru/news/1560509/) — MEDIUM confidence (cross-checked)
-- [Округление НДФЛ до рублей — КонсультантПлюс](https://www.consultant.ru/law/podborki/ndfl_okruglenie_do_rublej/) — MEDIUM confidence, legal reference aggregator
-- [ПОРЯДОК РАСЧЕТА СРЕДНЕЙ ЗАРАБОТНОЙ ПЛАТЫ — КонсультантПлюс](https://www.consultant.ru/document/cons_doc_LAW_283050/291547ebc44b6879b3770b58c8d9e065c430ee4e/) — MEDIUM confidence, primary legal text reference
-- [Расчет отпускных в 2026 году — Контур.Экстерн](https://kontur.ru/extern/spravka/50486-raschet_otpusknyh) — MEDIUM confidence (cross-checked)
-- [Как рассчитать отпускные, если в расчетном периоде не было начислений — Garant](https://www.garant.ru/consult/work_law/1862842/) — MEDIUM confidence
-- [PWA iOS Limitations and Safari Support — MagicBell](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide) — MEDIUM confidence (cross-checked)
-- [iOS special requirements for web push notifications — Pushpad](https://pushpad.xyz/blog/ios-special-requirements-for-web-push-notifications) — MEDIUM confidence (cross-checked)
-- [iOS Safari PWA limitations on cross origin iframes / localStorage / cookies — Apple Developer Forums](https://developer.apple.com/forums/thread/125109) — MEDIUM confidence, primary-vendor forum
-- [Safari 13.1 / iOS 13.4 7-day storage deletion — iTnews](https://www.itnews.com.au/news/apple-cops-flak-for-deleting-local-browser-storage-after-7-days-539833) — MEDIUM confidence (cross-checked against Apple Developer Forums discussion)
-- General domain knowledge synthesis on Russian payroll accounting practice and PWA architecture patterns (LOW-to-MEDIUM confidence where not independently web-verified — flagged inline above)
+- [Safe Area Insets - Mohammad Shehadeh](https://mohammadshehadeh.com/css/safe-area-insets)
+- [Understanding env() Safe Area Insets - Medium](https://medium.com/@developerr.ayush/understanding-env-safe-area-insets-in-css-from-basics-to-react-and-tailwind-a0b65811a8ab)
+- [Fixing iPhone Notch Display in React - TechNetexperts](https://www.technetexperts.com/react-iphone-notch-safe-area-fix/)
+- [PWA on iOS: Save to Home Screen Guide - naildrivin5.com](https://naildrivin5.com/blog/2023/08/24/braindump-of-pwa-on-ios.html)
+- [Getting PWA Fullscreen on iOS - DEV Community](https://dev.to/oncode/display-your-pwa-website-fullscreen-4776)
+- [Better Auth: Dynamic Base URL Guide](https://better-auth.com/docs/guides/dynamic-base-url)
+- [Better Auth: Options Reference](https://better-auth.com/docs/reference/options)
+- [Complete Guide to Authentication on Vercel - Vercel Knowledge Base](https://vercel.com/kb/guide/complete-guide-authentication-vercel)
+- [Testing User Session with Cookies in Playwright + Next.js - GitHub Discussion](https://github.com/vercel/next.js/discussions/62254)
+- [Test Next.js Apps with Playwright: 5 Best Practices - JSMastery](https://jsmastery.com/blogs/test-next-js-apps-with-playwright-5-best-practices)
+- [End-to-End Testing Auth Flows with Playwright and Next.js - Test Double](https://testdouble.com/insights/how-to-test-auth-flows-with-playwright-and-next-js)
+- [Automated E2E Testing with Neon Branching and Playwright - Neon Guides](https://neon.com/guides/e2e-playwright-tests-with-neon-branching)
+- [GitHub Actions Environment Secrets Guide - onboardbase.com](https://onboardbase.com/blog/github-actions-environment-variables/)
+- [Multiple Environment Deployments with Vercel & GitHub Actions - kevinyipeio](https://kevinyipeio.com/blog/2023/06/30/vercel-how-to-deploy-to-multiple-environments-test-staging-production-more-with-their-own-env-variables-using-github-actions/)
+- [Block Vercel Deployment Promotions with GitHub Actions - Vercel Changelog](https://vercel.com/changelog/block-vercel-deployment-promotions-with-github-actions)
+- [Deployment Checks - Vercel Docs](https://vercel.com/docs/deployment-checks)
+- [Serwist with Turbopack Support - npm](https://www.npmjs.com/package/@serwist/turbopack)
+- [Build Next.js 16 PWA with Offline Support - LogRocket Blog](https://blog.logrocket.com/nextjs-16-pwa-offline-support/)
+- [Visual Regression Testing - Vitest Guide](https://vitest.dev/guide/browser/visual-regression-testing)
+- [Catching UI Bugs with Visual Regression Testing - OpenReplay](https://blog.openreplay.com/catch-ui-bugs-visual-regression-testing/)
+- [Visual Regression Testing with Vitest - Markus Oberlehner](https://markus.oberlehner.net/blog/visual-regression-testing-with-vitest/)
+- [Best Visual Regression Testing Tools 2026 - Sauce Labs](https://saucelabs.com/resources/blog/comparing-the-20-best-visual-testing-tools-of-2026)
+- [GitHub Actions with Vercel Guide - Aaron Francis](https://aaronfrancis.com/2021/the-perfect-vercel-github-actions-deployment-pipeline)
+- [Implementing GitHub Actions for Vercel Deployment - Medium](https://medium.com/@sanduniP/implementing-github-actions-for-vercel-deployment-b8412b28a586)
+- [How to Use GitHub Actions with Vercel - Vercel Knowledge Base](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel)
 
 ---
-*Pitfalls research for: Russian salary/take-home-pay tracking PWA (НаРуки)*
-*Researched: 2026-08-28*
+
+*Pitfalls research for: v1.1 Polishing milestone (UI redesign, PWA safe-area, security hardening, Playwright e2e, staging/prod pipeline)*
+*Researched: 2026-09-01*
