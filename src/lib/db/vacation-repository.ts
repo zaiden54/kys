@@ -38,11 +38,19 @@ if (typeof window !== "undefined") {
  * `EXCLUDE USING gist` range constraint or a transaction-capable driver if
  * this proves to matter in practice.
  */
+import { cache } from "react";
 import { and, desc, eq, gte, lte, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { vacations } from "@/lib/db/schema";
 import { todayIsoInMoscow } from "@/domain/time";
 import { resolveVacationPaymentDate } from "@/domain/vacation/calculate-average-daily-earnings";
+
+// Request-scoped memoization: the read functions below wrapped in cache()
+// are memoized by React for a single server request/render only, never across
+// requests or users (the userId argument is part of the key). Only READ
+// functions are wrapped. Returned arrays and rows are shared between callers
+// in the same request and must be treated as read-only (no current caller
+// mutates a raw result in place). Never call a memoized read from a write path.
 
 export type VacationRow = typeof vacations.$inferSelect;
 
@@ -57,9 +65,9 @@ export async function createVacation(
   return row;
 }
 
-export async function listVacations(userId: string): Promise<VacationRow[]> {
+export const listVacations = cache(async (userId: string): Promise<VacationRow[]> => {
   return db.select().from(vacations).where(eq(vacations.userId, userId)).orderBy(desc(vacations.startDate));
-}
+});
 
 export async function updateVacation(
   userId: string,
