@@ -1,0 +1,5 @@
+# ripgrep ignore file (also used by Claude Code's Grep/Glob): keeps
+# multi-megabyte generated graph JSON/HTML out of repo-wide search results.
+# GSD reads these files directly by path, which this file does not affect.
+/graphify-out/
+/.planning/graphs/
