@@ -20,6 +20,7 @@ function makeVacation(overrides: Partial<VacationRowData> = {}): VacationRowData
     userId: "user-01",
     startDate: "2026-09-10",
     endDate: "2026-09-16",
+    kind: "paid",
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

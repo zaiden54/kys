@@ -30,7 +30,7 @@ import { and, desc, eq, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salaryHistory, paymentSchedule, ytdBaseline } from "@/lib/db/schema";
 import { todayIsoInMoscow } from "@/domain/time";
-import { accruedGrossBetween, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
+import { accruedGrossBetween, leavesFrom, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
 import type { PaymentKind } from "@/domain/schedule/resolve-payment-date";
 import { listBonuses, type BonusRow } from "@/lib/db/bonus-repository";
 import { listVacations, type VacationRow } from "@/lib/db/vacation-repository";
@@ -399,7 +399,10 @@ export function computeCumulativeIncome(
   // windowBoundIso and isoDate contributes its own recomputed gross
   // (never a stored amount, per this plan's prohibition) — the identical
   // strict-inequality window rule the bonus term above already uses.
+  // Only paid vacations earn vacation pay; unpaid leave just reduces the
+  // worked days of the salary/avans it overlaps (via accruedGrossBetween).
   const vacationAccruedKopecks = vacationRows
+    .filter((vacation) => vacation.kind === "paid")
     .map((vacation) => ({
       vacation,
       paymentDateIso: resolveVacationPaymentDate(vacation.startDate),
@@ -426,6 +429,7 @@ export function computeCumulativeIncome(
     salaryHistoryEntries,
     windowBoundIso,
     { dateIso: isoDate, kind },
+    leavesFrom(vacationRows),
   );
 
   return baselineAmountKopecks + accruedKopecks + bonusAccruedKopecks + vacationAccruedKopecks;

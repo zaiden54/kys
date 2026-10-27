@@ -1,283 +1,152 @@
 /**
- * Pure, database-free table for `accruedGrossBetween` and the relocated
- * `halfSplitGross` (moved here from src/app/actions/forecast.ts).
+ * Pure, database-free table for `periodGross` (pro-rata pay for one pay
+ * period) and `accruedGrossBetween` (the sum over scheduled payments).
  *
- * Real payment dates asserted below were confirmed against the installed
- * `date-holidays@3.36.0` RU calendar data via a throwaway Node check before
- * being written into this file (see 01-10-SUMMARY.md), matching the project
- * convention established in plan 01-06 (see STATE.md).
+ * Working-day counts are taken from the installed `date-holidays` RU data:
+ * October 2026 has 22 working days (11 of them on days 1–15), November 2026
+ * has 20 (4 November is a holiday; 9 on days 1–15), January 2027 has 15.
  */
 
 import { describe, expect, it } from "vitest";
-import { accruedGrossBetween, halfSplitGross, type SalaryHistoryEntry } from "./payment-accrual";
+import { format } from "date-fns";
+import { generatePaymentEvents } from "../schedule/resolve-payment-date";
+import { accruedGrossBetween, leavesFrom, periodGross, type SalaryHistoryEntry } from "./payment-accrual";
 
-describe("halfSplitGross", () => {
-  it.each([1, 2, 3, 99_999_99, 10_000_001, 10_000_002, 100_000_00])(
-    "reconciles exactly for %i kopecks: avans + salary === gross",
+const OKLAD = 100_000_00;
+const flat: SalaryHistoryEntry[] = [{ effectiveFrom: "2025-01-01", grossAmountKopecks: OKLAD }];
+const NOV_FIRST_HALF = { year: 2026, monthIndex: 10, fromDay: 1, toDay: 15 };
+const NOV_SECOND_HALF = { year: 2026, monthIndex: 10, fromDay: 16, toDay: 30 };
+
+describe("periodGross", () => {
+  it("pays each half-month by its share of the month's working days", () => {
+    expect(periodGross(NOV_FIRST_HALF, flat)).toBe(45_000_00); // 9 / 20
+    expect(periodGross(NOV_SECOND_HALF, flat)).toBe(55_000_00); // 11 / 20
+    expect(periodGross({ year: 2026, monthIndex: 9, fromDay: 1, toDay: 15 }, flat)).toBe(50_000_00); // 11 / 22
+  });
+
+  it.each([1, 3, 99_999_99, 333_333_33, 10_000_001])(
+    "a full month with no leave pays exactly the oklad across both halves (%i kopecks)",
     (gross) => {
-      expect(halfSplitGross(gross, "avans") + halfSplitGross(gross, "salary")).toBe(gross);
+      const history = [{ effectiveFrom: "2025-01-01", grossAmountKopecks: gross }];
+      for (const monthIndex of [0, 1, 4, 9, 10, 11]) {
+        const lastDay = new Date(2026, monthIndex + 1, 0).getDate();
+        const first = periodGross({ year: 2026, monthIndex, fromDay: 1, toDay: 15 }, history);
+        const second = periodGross({ year: 2026, monthIndex, fromDay: 16, toDay: lastDay }, history);
+        expect(first + second).toBe(gross);
+      }
     },
   );
 
-  it("the review's exact case: the odd remainder kopeck lands on salary, never on both", () => {
-    expect(halfSplitGross(10_000_001, "avans")).toBe(5_000_000);
-    expect(halfSplitGross(10_000_001, "salary")).toBe(5_000_001);
+  it("leave days (paid or unpaid) are not worked days", () => {
+    // 16–20 November are five working days out of the second half's eleven.
+    const leaves = leavesFrom([{ startDate: "2026-11-16", endDate: "2026-11-20" }]);
+    expect(periodGross(NOV_SECOND_HALF, flat, leaves)).toBe(30_000_00); // 6 / 20
+    expect(periodGross(NOV_FIRST_HALF, flat, leaves)).toBe(45_000_00); // untouched
   });
 
-  it("splits an even-kopeck gross evenly between the two kinds", () => {
-    expect(halfSplitGross(100_000_00, "avans")).toBe(5_000_000);
-    expect(halfSplitGross(100_000_00, "salary")).toBe(5_000_000);
+  it("a leave covering a whole half pays nothing for it", () => {
+    const leaves = leavesFrom([{ startDate: "2026-11-01", endDate: "2026-11-15" }]);
+    expect(periodGross(NOV_FIRST_HALF, flat, leaves)).toBe(0);
   });
 
-  it("is deterministic: identical arguments always return identical values", () => {
-    expect(halfSplitGross(10_000_001, "avans")).toBe(halfSplitGross(10_000_001, "avans"));
-    expect(halfSplitGross(10_000_001, "salary")).toBe(halfSplitGross(10_000_001, "salary"));
+  it("a raise inside a period applies from its effective day", () => {
+    const history: SalaryHistoryEntry[] = [
+      { effectiveFrom: "2025-01-01", grossAmountKopecks: 100_000_00 },
+      { effectiveFrom: "2026-11-09", grossAmountKopecks: 200_000_00 },
+    ];
+    // Working days 1–15 Nov: 2, 3, 5, 6 at the old oklad, 9–13 at the new one.
+    expect(periodGross(NOV_FIRST_HALF, history)).toBe(Math.round((4 * 100_000_00 + 5 * 200_000_00) / 20));
+  });
+
+  it("days before the first salary entry earn nothing (a mid-month start is pro rata)", () => {
+    const history: SalaryHistoryEntry[] = [{ effectiveFrom: "2026-11-09", grossAmountKopecks: OKLAD }];
+    expect(periodGross(NOV_FIRST_HALF, history)).toBe(25_000_00); // 5 / 20
+    expect(periodGross({ year: 2026, monthIndex: 9, fromDay: 16, toDay: 31 }, history)).toBe(0);
+  });
+});
+
+describe("pay periods of scheduled payments", () => {
+  it("payments on the 1st and 15th: the 15th pays this month's 1–15, the 1st pays last month's 16–end", () => {
+    const events = generatePaymentEvents({ avansDay: 15, salaryDay: 1 }, new Date(2026, 10, 1), 2);
+    const summary = events.map((event) => [
+      format(event.date, "yyyy-MM-dd"),
+      event.kind,
+      `${event.period.monthIndex + 1}: ${event.period.fromDay}–${event.period.toDay}`,
+    ]);
+    expect(summary).toEqual([
+      ["2026-10-30", "salary", "10: 16–31"], // 1 Nov is a Sunday -> last working day before it
+      ["2026-11-13", "avans", "11: 1–15"], // 15 Nov is a Sunday
+      ["2026-12-01", "salary", "11: 16–30"],
+      ["2026-12-15", "avans", "12: 1–15"],
+    ]);
+  });
+
+  it("payments on the 6th and 21st: the 21st pays 1–15, the 6th pays last month's 16–end", () => {
+    const events = generatePaymentEvents({ avansDay: 21, salaryDay: 6 }, new Date(2026, 10, 1), 1);
+    expect(events.map((event) => [event.kind, event.period.monthIndex + 1, event.period.fromDay, event.period.toDay])).toEqual([
+      ["salary", 10, 16, 31],
+      ["avans", 11, 1, 15],
+    ]);
+  });
+
+  it("an avans scheduled before the 15th still pays days 1–15", () => {
+    const events = generatePaymentEvents({ avansDay: 10, salaryDay: 25 }, new Date(2026, 10, 1), 1);
+    const avans = events.find((event) => event.kind === "avans")!;
+    expect([avans.period.monthIndex + 1, avans.period.fromDay, avans.period.toDay]).toEqual([11, 1, 15]);
   });
 });
 
 describe("accruedGrossBetween", () => {
-  const schedule2005 = { avansDay: 20, salaryDay: 5 };
+  const schedule = { avansDay: 20, salaryDay: 5 };
 
-  it("returns zero when the target date equals the window bound", () => {
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 },
-    ];
-    expect(
-      accruedGrossBetween(schedule2005, history, "2026-06-30", {
-        dateIso: "2026-06-30",
-        kind: "salary",
-      }),
-    ).toBe(0);
+  it("returns zero when the target is on or before the window bound", () => {
+    expect(accruedGrossBetween(schedule, flat, "2026-06-30", { dateIso: "2026-06-30", kind: "salary" })).toBe(0);
+    expect(accruedGrossBetween(schedule, flat, "2026-06-30", { dateIso: "2026-01-01", kind: "avans" })).toBe(0);
   });
 
-  it("returns zero when the target date is before the window bound", () => {
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 },
-    ];
-    expect(
-      accruedGrossBetween(schedule2005, history, "2026-06-30", {
-        dateIso: "2026-01-01",
-        kind: "avans",
-      }),
-    ).toBe(0);
+  it("sums the pay periods of every payment strictly inside the window", () => {
+    // After 30 Jun, before the 4 Sep salary: 3 Jul (Jun 16–30), 20 Jul (Jul 1–15),
+    // 5 Aug (Jul 16–31), 20 Aug (Aug 1–15).
+    const total = accruedGrossBetween(schedule, flat, "2026-06-30", { dateIso: "2026-09-04", kind: "salary" });
+    const expected =
+      periodGross({ year: 2026, monthIndex: 5, fromDay: 16, toDay: 30 }, flat) +
+      OKLAD + // all of July
+      periodGross({ year: 2026, monthIndex: 7, fromDay: 1, toDay: 15 }, flat);
+    expect(total).toBe(expected);
   });
 
-  it("accrues exactly July and August's four events (two whole monthly oklads) for a September salary target", () => {
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 },
-    ];
-    const total = accruedGrossBetween(schedule2005, history, "2026-06-30", {
-      dateIso: "2026-09-04",
-      kind: "salary",
-    });
-    expect(total).toBe(1_200_000_00);
+  it("leave reduces the accrued total by exactly the leave's working days", () => {
+    const leaves = leavesFrom([{ startDate: "2026-11-16", endDate: "2026-11-20" }]);
+    const target = { dateIso: "2027-01-01", kind: "avans" as const };
+    const without = accruedGrossBetween(schedule, flat, "2026-10-31", target);
+    const withLeave = accruedGrossBetween(schedule, flat, "2026-10-31", target, leaves);
+    expect(without - withLeave).toBe(25_000_00); // 5 of November's 20 working days
   });
 
-  it("is deterministic and does not mutate or reorder the caller's salary-history array", () => {
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 },
-    ];
-    const historySnapshot = JSON.stringify(history);
+  it("same-resolved-date ordering: a same-day avans accrues into a salary target, never the reverse", () => {
+    // March 2026: avansDay=6 and salaryDay=7 both resolve to 2026-03-06.
+    const collision = { avansDay: 6, salaryDay: 7 };
+    const marchFirstHalf = periodGross({ year: 2026, monthIndex: 2, fromDay: 1, toDay: 15 }, flat);
+    expect(accruedGrossBetween(collision, flat, "2026-03-01", { dateIso: "2026-03-06", kind: "salary" })).toBe(marchFirstHalf);
+    expect(accruedGrossBetween(collision, flat, "2026-03-01", { dateIso: "2026-03-06", kind: "avans" })).toBe(0);
+  });
+
+  it("a full year of payments totals exactly twelve oklads", () => {
+    // Window opens after the Dec 2025 avans and closes before the Jan 2027
+    // avans: salary payments for Dec 2025 16–31 through Dec 2026 16–31 plus
+    // twelve avans halves = Dec 2025 second half + all twelve 2026 months.
+    const total = accruedGrossBetween(schedule, flat, "2025-12-20", { dateIso: "2027-01-20", kind: "avans" });
+    const dec2025SecondHalf = periodGross({ year: 2025, monthIndex: 11, fromDay: 16, toDay: 31 }, flat);
+    expect(total).toBe(dec2025SecondHalf + 12 * OKLAD);
+  });
+
+  it("is deterministic and does not mutate the caller's salary history", () => {
+    const history = [...flat];
+    const snapshot = JSON.stringify(history);
     const target = { dateIso: "2026-09-04", kind: "salary" as const };
-
-    const first = accruedGrossBetween(schedule2005, history, "2026-06-30", target);
-    const second = accruedGrossBetween(schedule2005, history, "2026-06-30", target);
-
-    expect(second).toBe(first);
-    expect(JSON.stringify(history)).toBe(historySnapshot);
-  });
-
-  it("same-resolved-date ordering: an avans event accrues into a same-date salary target", () => {
-    // March 2026: avansDay=6 and salaryDay=7 both resolve to 2026-03-06
-    // (confirmed via throwaway Node check against date-holidays@3.36.0).
-    const collisionSchedule = { avansDay: 6, salaryDay: 7 };
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 400_000_00 },
-    ];
-
-    const total = accruedGrossBetween(collisionSchedule, history, "2026-03-01", {
-      dateIso: "2026-03-06",
-      kind: "salary",
-    });
-
-    expect(total).toBe(halfSplitGross(400_000_00, "avans"));
-  });
-
-  it("same-resolved-date ordering: a salary event does NOT accrue into a same-date avans target", () => {
-    const collisionSchedule = { avansDay: 6, salaryDay: 7 };
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 400_000_00 },
-    ];
-
-    const total = accruedGrossBetween(collisionSchedule, history, "2026-03-01", {
-      dateIso: "2026-03-06",
-      kind: "avans",
-    });
-
-    expect(total).toBe(0);
-  });
-
-  it("an event dated before the earliest salary-history entry contributes zero rather than borrowing a later entry's amount", () => {
-    const cleanSchedule = { avansDay: 15, salaryDay: 28 };
-    // History starts in February; January's two events (2026-01-15,
-    // 2026-01-28) predate it entirely.
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2026-02-01", grossAmountKopecks: 500_000_00 },
-    ];
-
-    const total = accruedGrossBetween(cleanSchedule, history, "2026-01-01", {
-      dateIso: "2026-02-13",
-      kind: "avans",
-    });
-
-    expect(total).toBe(0);
-  });
-});
-
-// Task 2: calendar hardening -- raises inside the window, backdated
-// corrections, the New Year reset boundary, colliding/clamped paydays, and
-// a full twelve-month reconciliation. Schedule avansDay=15/salaryDay=28
-// resolves cleanly within its own nominal month for all of 2026 (no
-// year/month-boundary shifting), confirmed via the same throwaway Node
-// check referenced above -- used here whenever a test does not specifically
-// target boundary-crossing behavior.
-describe("accruedGrossBetween — calendar hardening (Task 2)", () => {
-  const cleanSchedule = { avansDay: 15, salaryDay: 28 };
-
-  it("a mid-window raise: events before the effective date use the old oklad, on/after use the new one", () => {
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-06-01", grossAmountKopecks: 500_000_00 },
-      { effectiveFrom: "2026-04-01", grossAmountKopecks: 700_000_00 },
-    ];
-
-    const total = accruedGrossBetween(cleanSchedule, history, "2026-01-01", {
-      dateIso: "2026-07-15",
-      kind: "avans",
-    });
-
-    // Jan/Feb/Mar (6 events) at the old oklad + Apr/May/Jun (6 events) at
-    // the new oklad -- a hand-summed mixture, not either oklad times the
-    // full six-month event count.
-    const expected = 3 * 500_000_00 + 3 * 700_000_00;
-    expect(total).toBe(expected);
-    expect(total).not.toBe(6 * 500_000_00);
-    expect(total).not.toBe(6 * 700_000_00);
-  });
-
-  it("a backdated correction entry is applied per-event by its own effective date, regardless of array insertion order", () => {
-    // Deliberately unsorted: the raise, the original, then a later-inserted
-    // backdated correction for February.
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2026-04-01", grossAmountKopecks: 700_000_00 },
-      { effectiveFrom: "2025-06-01", grossAmountKopecks: 500_000_00 },
-      { effectiveFrom: "2026-02-01", grossAmountKopecks: 550_000_00 },
-    ];
-    const target = { dateIso: "2026-07-15", kind: "avans" as const };
-
-    const total = accruedGrossBetween(cleanSchedule, history, "2026-01-01", target);
-
-    // Jan at 500k, Feb+Mar at the 550k correction, Apr/May/Jun at the 700k raise.
-    const expected = 1 * 500_000_00 + 2 * 550_000_00 + 3 * 700_000_00;
-    expect(total).toBe(expected);
-
-    // Reordering the same entries must not change the result.
-    const reordered = [history[2], history[0], history[1]] as SalaryHistoryEntry[];
-    expect(accruedGrossBetween(cleanSchedule, reordered, "2026-01-01", target)).toBe(total);
-  });
-
-  it("a New Year payday shifting backwards across 1 January is attributed to the calendar date it actually resolves to", () => {
-    // Schedule avans=20/salary=5: 2026's nominal January salary(5) resolves
-    // to 2025-12-31 (the New Year holiday block shifts it back across the
-    // year boundary), confirmed via the throwaway Node check.
-    const schedule = { avansDay: 20, salaryDay: 5 };
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 },
-    ];
-
-    const total = accruedGrossBetween(schedule, history, "2025-12-30", {
-      dateIso: "2026-01-20",
-      kind: "avans",
-    });
-
-    // Only the New-Year-shifted 2025-12-31 event falls strictly after the
-    // 2025-12-30 bound and strictly before the 2026-01-20 target (2026's own
-    // avans is the target itself). Every other nominal December/January
-    // event resolves on or before the 20th/5th of its own month, well
-    // outside this narrow window.
-    expect(total).toBe(halfSplitGross(600_000_00, "salary"));
-  });
-
-  it("a schedule whose two day-of-month numbers resolve to the same calendar date is asserted in both orderings", () => {
-    // November 2026: avansDay=6 and salaryDay=7 both resolve to 2026-11-06
-    // (confirmed via the throwaway Node check) -- a clamping/shift-produced
-    // collision distinct from Task 1's March example.
-    const collisionSchedule = { avansDay: 6, salaryDay: 7 };
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 450_000_00 },
-    ];
-
-    const intoSalaryTarget = accruedGrossBetween(collisionSchedule, history, "2026-10-15", {
-      dateIso: "2026-11-06",
-      kind: "salary",
-    });
-    expect(intoSalaryTarget).toBe(halfSplitGross(450_000_00, "avans"));
-
-    const intoAvansTarget = accruedGrossBetween(collisionSchedule, history, "2026-10-15", {
-      dateIso: "2026-11-06",
-      kind: "avans",
-    });
-    expect(intoAvansTarget).toBe(0);
-  });
-
-  it("a day-of-month exceeding the month length (D-03 clamp) inside the window still accrues", () => {
-    // avansDay=31 clamps in February 2026 (28 days) to the 28th, which then
-    // shifts earlier to 2026-02-27 (a Saturday); salaryDay=20 needs no
-    // clamp. Both confirmed via the throwaway Node check.
-    const clampingSchedule = { avansDay: 31, salaryDay: 20 };
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 400_000_00 },
-    ];
-
-    const total = accruedGrossBetween(clampingSchedule, history, "2026-01-31", {
-      dateIso: "2026-03-01",
-      kind: "avans",
-    });
-
-    // Only February's clamped avans (2026-02-27) and salary (2026-02-20)
-    // fall in the window -- January's own day-31 avans resolves to
-    // 2026-01-30, on or before the 2026-01-31 bound.
-    expect(total).toBe(400_000_00);
-  });
-
-  it("a full twelve-month window totals exactly twelve whole monthly oklads for a single unchanging salary entry", () => {
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 },
-    ];
-
-    const total = accruedGrossBetween(cleanSchedule, history, "2025-12-31", {
-      dateIso: "2027-01-01",
-      kind: "avans",
-    });
-
-    expect(total).toBe(12 * 600_000_00);
-  });
-
-  it("monotonicity: widening the window by moving the bound earlier never decreases the accrued total", () => {
-    const history: SalaryHistoryEntry[] = [
-      { effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 },
-    ];
-    const target = { dateIso: "2026-07-15", kind: "avans" as const };
-
-    const narrow = accruedGrossBetween(cleanSchedule, history, "2026-06-20", target);
-    const wider = accruedGrossBetween(cleanSchedule, history, "2026-05-01", target);
-    const widest = accruedGrossBetween(cleanSchedule, history, "2026-01-01", target);
-
-    expect(wider).toBeGreaterThanOrEqual(narrow);
-    expect(widest).toBeGreaterThanOrEqual(wider);
-    // Exact hand-derived values, since this schedule/history combination is
-    // fully known: 1 event, 4 events, 12 events respectively.
-    expect(narrow).toBe(300_000_00);
-    expect(wider).toBe(1_200_000_00);
-    expect(widest).toBe(3_600_000_00);
+    expect(accruedGrossBetween(schedule, history, "2026-06-30", target)).toBe(
+      accruedGrossBetween(schedule, history, "2026-06-30", target),
+    );
+    expect(JSON.stringify(history)).toBe(snapshot);
   });
 });

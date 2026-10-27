@@ -53,13 +53,15 @@ import { resolveVacationPaymentDate } from "@/domain/vacation/calculate-average-
 // mutates a raw result in place). Never call a memoized read from a write path.
 
 export type VacationRow = typeof vacations.$inferSelect;
+export type VacationKind = VacationRow["kind"];
 
 export async function createVacation(
   userId: string,
   startDate: string,
   endDate: string,
+  kind: VacationKind = "paid",
 ): Promise<VacationRow> {
-  const inserted = await db.insert(vacations).values({ userId, startDate, endDate }).returning();
+  const inserted = await db.insert(vacations).values({ userId, startDate, endDate, kind }).returning();
   const row = inserted[0];
   if (!row) throw new Error("createVacation: insert into vacations returned no row");
   return row;
@@ -74,10 +76,11 @@ export async function updateVacation(
   vacationId: string,
   startDate: string,
   endDate: string,
+  kind: VacationKind = "paid",
 ): Promise<VacationRow | null> {
   const updated = await db
     .update(vacations)
-    .set({ startDate, endDate, updatedAt: new Date() })
+    .set({ startDate, endDate, kind, updatedAt: new Date() })
     .where(and(eq(vacations.id, vacationId), eq(vacations.userId, userId)))
     .returning();
   return updated[0] ?? null;

@@ -34,11 +34,29 @@ export interface PaymentSchedule {
   salaryDay: number;
 }
 
+/**
+ * The work days a payment pays for, always inside one calendar month: an
+ * avans pays days 1–15 of the month it is paid in, a salary pays day 16 to
+ * the end of the month before the month it is paid in — whatever day of the
+ * month either is scheduled on.
+ */
+export interface PayPeriod {
+  year: number;
+  /** 0-based, like `Date#getMonth()`. */
+  monthIndex: number;
+  fromDay: number;
+  toDay: number;
+}
+
 /** A single resolved, calendar-real payment occurrence. */
 export interface PaymentEvent {
   date: Date;
   kind: PaymentKind;
+  period: PayPeriod;
 }
+
+/** Day 15 closes the avans half of a month; the salary half starts on day 16. */
+export const AVANS_PERIOD_LAST_DAY = 15;
 
 /**
  * Same-date tie-break rank: avans always sorts before salary. Exported as
@@ -66,10 +84,29 @@ function isRuPublicHoliday(date: Date): boolean {
  */
 export function shiftOffWeekendsAndHolidays(date: Date): Date {
   let shifted = date;
-  while (isWeekend(shifted) || isRuPublicHoliday(shifted)) {
+  while (!isWorkingDay(shifted)) {
     shifted = new Date(shifted.getFullYear(), shifted.getMonth(), shifted.getDate() - 1);
   }
   return shifted;
+}
+
+/**
+ * A working day for both payment-date shifting and pro-rata pay: not a
+ * weekend and not an RU public holiday. Shares the v1 limitation in the
+ * header — government weekend-transfer decrees after 2022 are not known.
+ */
+export function isWorkingDay(date: Date): boolean {
+  return !isWeekend(date) && !isRuPublicHoliday(date);
+}
+
+/** Number of working days in a calendar month (the pro-rata denominator). */
+export function workingDaysInMonth(year: number, monthIndex: number): number {
+  const lastDay = lastDayOfMonth(new Date(year, monthIndex, 1)).getDate();
+  let count = 0;
+  for (let day = 1; day <= lastDay; day++) {
+    if (isWorkingDay(new Date(year, monthIndex, day))) count++;
+  }
+  return count;
 }
 
 /**
@@ -87,7 +124,8 @@ export function resolvePaymentDate(year: number, monthIndex: number, dayOfMonth:
 
 /**
  * Generates one avans event and one salary event for each of `monthCount`
- * consecutive months starting at `fromDate`'s month, resolved through
+ * consecutive months starting at `fromDate`'s month (each carrying the
+ * `PayPeriod` it pays for), resolved through
  * `resolvePaymentDate`, sorted ascending by date. When an avans event and a
  * salary event resolve to the same calendar date, avans sorts first,
  * deterministically and stably — it represents the earlier portion of the
@@ -107,8 +145,22 @@ export function generatePaymentEvents(
     const year = startYear + Math.floor(absoluteMonth / 12);
     const monthIndex = ((absoluteMonth % 12) + 12) % 12;
 
-    events.push({ date: resolvePaymentDate(year, monthIndex, schedule.avansDay), kind: "avans" });
-    events.push({ date: resolvePaymentDate(year, monthIndex, schedule.salaryDay), kind: "salary" });
+    const previousMonth = new Date(year, monthIndex - 1, 1);
+    events.push({
+      date: resolvePaymentDate(year, monthIndex, schedule.avansDay),
+      kind: "avans",
+      period: { year, monthIndex, fromDay: 1, toDay: AVANS_PERIOD_LAST_DAY },
+    });
+    events.push({
+      date: resolvePaymentDate(year, monthIndex, schedule.salaryDay),
+      kind: "salary",
+      period: {
+        year: previousMonth.getFullYear(),
+        monthIndex: previousMonth.getMonth(),
+        fromDay: AVANS_PERIOD_LAST_DAY + 1,
+        toDay: lastDayOfMonth(previousMonth).getDate(),
+      },
+    });
   }
 
   return events.sort((a, b) => {
