@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v1.1
 status: Awaiting next milestone
 stopped_at: Completed 260903-k9n quick task (UI/UX design-review pass)
-last_updated: "2026-10-27T21:46:15.170Z"
+last_updated: "2026-10-27T22:12:08.184Z"
 last_activity: 2026-10-28
 last_activity_desc: Milestone v1.1 completed and archived
-state_head: 11bf32bcfac9f089b5a5ca0d38d7e1f017479e52
+state_head: e77fb79e2863c519f29f5ade1bb1cbe3674d7c78
 milestone_name: Полировка MVP
 current_phase: 08
 progress:
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-09-03)
 Phase: Milestone v1.1 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-10-28 - Completed quick task 261028-0jr: Apply Drizzle schema to Neon preview branch during Vercel preview builds
+Last activity: 2026-10-28 - Completed quick task 261028-1b9: Speed up navigation: fra1 region, optimistic proxy auth gate, loading.tsx skeletons, session and read caching
 
 ## Performance Metrics
 
@@ -197,6 +197,7 @@ None yet.
 | 260903-k9n | UI/UX improvements from design review: typography hierarchy, chart token colors, card emphasis, form grouping, desktop layout | 2026-09-03 | 6e5aed3 | [260903-k9n-ui-ux-improvements-from-design-review-ty](./quick/260903-k9n-ui-ux-improvements-from-design-review-ty/) |
 | 261028-0jr | Apply Drizzle schema to Neon preview branch during Vercel preview builds | 2026-10-28 | da6f854 | [261028-0jr-apply-drizzle-schema-to-neon-preview-bra](./quick/261028-0jr-apply-drizzle-schema-to-neon-preview-bra/) |
 | 3 | Fix e2e bonus tests to use Moscow date (00:00-03:00 MSK failure) | 2026-10-28 | 11bf32b | — |
+| 261028-1b9 | Speed up navigation: fra1 region, optimistic proxy auth gate, loading.tsx skeletons, session and read caching | 2026-10-28 | e77fb79 | [261028-1b9-speed-up-navigation-fra1-region-loading-](./quick/261028-1b9-speed-up-navigation-fra1-region-loading-/) |
 
 ## Deferred Items
 
