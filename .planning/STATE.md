@@ -197,6 +197,7 @@ None yet.
 | 260903-k9n | UI/UX improvements from design review: typography hierarchy, chart token colors, card emphasis, form grouping, desktop layout | 2026-09-03 | 6e5aed3 | [260903-k9n-ui-ux-improvements-from-design-review-ty](./quick/260903-k9n-ui-ux-improvements-from-design-review-ty/) |
 | 261028-0jr | Apply Drizzle schema to Neon preview branch during Vercel preview builds | 2026-10-28 | da6f854 | [261028-0jr-apply-drizzle-schema-to-neon-preview-bra](./quick/261028-0jr-apply-drizzle-schema-to-neon-preview-bra/) |
 | 3 | Fix e2e bonus tests to use Moscow date (00:00-03:00 MSK failure) | 2026-10-28 | 11bf32b | — |
+| 4 | Cut graphify token usage: .graphifyignore, .ignore for ripgrep, untrack graphify-out cache | 2026-10-28 | 9da751a | — |
 | 261028-1b9 | Speed up navigation: fra1 region, optimistic proxy auth gate, loading.tsx skeletons, session and read caching | 2026-10-28 | e77fb79 | [261028-1b9-speed-up-navigation-fra1-region-loading-](./quick/261028-1b9-speed-up-navigation-fra1-region-loading-/) |
 
 ## Deferred Items
