@@ -1,20 +1,20 @@
 ---
-gsd_state_version: 1.0
+gsd_state_version: "1.0"
 milestone: v1.1
 status: Awaiting next milestone
 stopped_at: Completed 260903-k9n quick task (UI/UX design-review pass)
-last_updated: "2026-09-03T12:25:31.815Z"
+last_updated: "2026-10-27T21:30:42.563Z"
 last_activity: 2026-09-03
 last_activity_desc: Milestone v1.1 completed and archived
-state_head: 6e5aed3e098c77c2cb3116f6002eb8881b626e35
+state_head: da6f854c64b85ff2207059d6bf42049dcd2ca618
+milestone_name: Полировка MVP
+current_phase: 08
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 17
   completed_plans: 17
   percent: 100
-milestone_name: Полировка MVP
-current_phase: 08
 ---
 
 # Project State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-09-03)
 Phase: Milestone v1.1 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-09-03 — Milestone v1.1 completed and archived
+Last activity: 2026-10-28 - Completed quick task 261028-0jr: Apply Drizzle schema to Neon preview branch during Vercel preview builds
 
 ## Performance Metrics
 
@@ -195,6 +195,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260903-k9n | UI/UX improvements from design review: typography hierarchy, chart token colors, card emphasis, form grouping, desktop layout | 2026-09-03 | 6e5aed3 | [260903-k9n-ui-ux-improvements-from-design-review-ty](./quick/260903-k9n-ui-ux-improvements-from-design-review-ty/) |
+| 261028-0jr | Apply Drizzle schema to Neon preview branch during Vercel preview builds | 2026-10-28 | da6f854 | [261028-0jr-apply-drizzle-schema-to-neon-preview-bra](./quick/261028-0jr-apply-drizzle-schema-to-neon-preview-bra/) |
 
 ## Deferred Items
 
