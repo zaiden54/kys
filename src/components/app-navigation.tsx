@@ -82,16 +82,11 @@ export function AppNavigation() {
   const pathname = usePathname();
   const items = groups.flatMap((group) => group.items);
 
+  // Mobile has no global header: each screen owns its top row (the home
+  // screen's avatar row carries the mobile sign-out). Desktop keeps the
+  // sidebar with its own sign-out.
   return (
     <>
-      <header className="mobile-app-header">
-        <Link href="/" className="brand-lockup" aria-label="НаРуки — главная">
-          <span className="brand-mark" aria-hidden="true">₽</span>
-          <span>НаРуки</span>
-        </Link>
-        <SignOutButton />
-      </header>
-
       <aside className="app-sidebar">
         <Link href="/" className="sidebar-brand brand-lockup" aria-label="НаРуки — главная">
           <span className="brand-mark" aria-hidden="true">₽</span>

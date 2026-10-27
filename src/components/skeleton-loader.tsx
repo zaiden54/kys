@@ -31,7 +31,7 @@ export function SkeletonLoader({
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="skeleton-pulse rounded-[12px] bg-[color:var(--color-tertiary-surface)]"
+          className="skeleton-pulse rounded-[var(--radius-card)] bg-[color:var(--color-tertiary-surface)]"
         >
           {variant === "bonus-row" && (
             <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-2 p-3 sm:grid-cols-[6rem_7rem_minmax(0,1fr)_auto] sm:items-center">
