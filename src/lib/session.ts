@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -22,14 +23,15 @@ export type SessionUser = {
 /**
  * Reads the session strictly from the request cookie via Better Auth's
  * server API — never trusts client-supplied identity. Returns null when
- * there is no active session.
+ * there is no active session. The result is memoized per request (React
+ * cache) so a layout/page/Suspense-child chain performs one lookup.
  */
-export async function getSessionUser(): Promise<SessionUser | null> {
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
   const { id, email, name } = session.user;
   return { id, email, name };
-}
+});
 
 /**
  * The single ownership anchor for every user-scoped query in this app.

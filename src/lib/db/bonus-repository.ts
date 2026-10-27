@@ -5,10 +5,18 @@ if (typeof window !== "undefined") {
 }
 
 /** Ownership-scoped bonus persistence. This module deliberately logs no money data. */
+import { cache } from "react";
 import { and, desc, eq, gt } from "drizzle-orm";
 import { todayIsoInMoscow } from "@/domain/time";
 import { db } from "@/lib/db";
 import { bonuses } from "@/lib/db/schema";
+
+// Request-scoped memoization: the read functions below wrapped in cache()
+// are memoized by React for a single server request/render only, never across
+// requests or users (the userId argument is part of the key). Only READ
+// functions are wrapped. Returned arrays and rows are shared between callers
+// in the same request and must be treated as read-only (no current caller
+// mutates a raw result in place). Never call a memoized read from a write path.
 
 export type BonusRow = typeof bonuses.$inferSelect;
 export type BonusType = "premium" | "compensation";
@@ -26,9 +34,9 @@ export async function createBonus(
   return row;
 }
 
-export async function listBonuses(userId: string): Promise<BonusRow[]> {
+export const listBonuses = cache(async (userId: string): Promise<BonusRow[]> => {
   return db.select().from(bonuses).where(eq(bonuses.userId, userId)).orderBy(desc(bonuses.date));
-}
+});
 
 export async function updateBonus(
   userId: string,

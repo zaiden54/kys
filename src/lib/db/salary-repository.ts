@@ -25,6 +25,7 @@ if (typeof window !== "undefined") {
  * column, never the amount.
  */
 
+import { cache } from "react";
 import { and, desc, eq, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salaryHistory, paymentSchedule, ytdBaseline } from "@/lib/db/schema";
@@ -39,6 +40,13 @@ import {
   toPremiumBonusEntries,
   type PremiumBonusEntry,
 } from "@/domain/vacation/calculate-average-daily-earnings";
+
+// Request-scoped memoization: the read functions below wrapped in cache()
+// are memoized by React for a single server request/render only, never across
+// requests or users (the userId argument is part of the key). Only READ
+// functions are wrapped. Returned arrays and rows are shared between callers
+// in the same request and must be treated as read-only (no current caller
+// mutates a raw result in place). Never call a memoized read from a write path.
 
 export type SalaryHistoryRow = typeof salaryHistory.$inferSelect;
 export type SalaryWriteOutcome =
@@ -90,13 +98,13 @@ export async function findSalaryAt(
 }
 
 /** Returns every salary_history row for `userId`, ordered newest-first. */
-export async function listSalaryHistory(userId: string): Promise<SalaryHistoryRow[]> {
+export const listSalaryHistory = cache(async (userId: string): Promise<SalaryHistoryRow[]> => {
   return db
     .select()
     .from(salaryHistory)
     .where(eq(salaryHistory.userId, userId))
     .orderBy(desc(salaryHistory.effectiveFrom));
-}
+});
 
 /**
  * Implements D-14 (exact-effective-date collision/overwrite, per Task 1's
@@ -184,7 +192,7 @@ export async function replaceSalaryIfUnchanged(
 // ---------------------------------------------------------------------------
 
 /** Returns the user's current avans/salary payment schedule, or null. */
-export async function getSchedule(userId: string): Promise<PaymentScheduleRow | null> {
+export const getSchedule = cache(async (userId: string): Promise<PaymentScheduleRow | null> => {
   const rows = await db
     .select()
     .from(paymentSchedule)
@@ -192,7 +200,7 @@ export async function getSchedule(userId: string): Promise<PaymentScheduleRow | 
     .limit(1);
 
   return rows[0] ?? null;
-}
+});
 
 /**
  * Writes the single current payment_schedule row for `userId` (D-01: no
@@ -248,7 +256,7 @@ function defaultYtdBaseline(userId: string): YtdBaselineRow {
  * there is always a well-defined cumulative-income starting point to fold
  * the tax engine forward from.
  */
-export async function getYtdBaseline(userId: string): Promise<YtdBaselineRow> {
+export const getYtdBaseline = cache(async (userId: string): Promise<YtdBaselineRow> => {
   const rows = await db
     .select()
     .from(ytdBaseline)
@@ -256,7 +264,7 @@ export async function getYtdBaseline(userId: string): Promise<YtdBaselineRow> {
     .limit(1);
 
   return rows[0] ?? defaultYtdBaseline(userId);
-}
+});
 
 /**
  * Writes the single mutable ytd_baseline row for `userId`. D-10: editing
