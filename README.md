@@ -17,6 +17,15 @@ In CI, the same suite runs against a throwaway, isolated Neon branch that is cre
 
 This repo also ships a pre-configured `.mcp.json` for `@playwright/mcp`, so a Claude Code (or other MCP-aware) session can drive/inspect the running dev server directly for interactive test authoring/debugging — start `npm run dev` first, then the Playwright MCP tools become available in-session.
 
+## Vercel deploys and Neon branches
+
+The Vercel project uses the Neon-managed integration:
+
+- Pushes to `main` deploy to production, which uses the Neon branch `production`.
+- Every other git branch gets a Vercel Preview deployment with its own auto-created Neon branch named `preview/<git-branch>`, forked from `production` (with data), and `DATABASE_URL` is injected for that deployment.
+- On preview builds only (`VERCEL_ENV=preview`), the `build` script first runs `scripts/apply-preview-schema.mjs`, which runs `drizzle-kit push --force` against that preview branch so its schema matches the code. If `DATABASE_URL` is missing on a preview build, the build fails on purpose.
+- Production and local/CI builds skip this step (the script logs a skip line and exits 0). Production schema is unchanged and still applied manually with `npm run db:push` against the production database.
+
 ## Getting Started
 
 First, run the development server:
