@@ -1,5 +1,4 @@
-# ripgrep ignore file (also used by Claude Code's Grep/Glob): keeps
-# multi-megabyte generated graph JSON/HTML out of repo-wide search results.
-# GSD reads these files directly by path, which this file does not affect.
-/graphify-out/
-/.planning/graphs/
+# ripgrep ignore file (also used by Claude Code's Grep/Glob): keeps the
+# ~200 archived planning docs out of repo-wide search results. They can
+# still be opened by path when a code comment points to one.
+/.planning/
