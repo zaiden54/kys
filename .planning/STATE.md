@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v1.1
 status: Awaiting next milestone
 stopped_at: Completed 260903-k9n quick task (UI/UX design-review pass)
-last_updated: "2026-10-27T21:46:15.170Z"
+last_updated: "2026-10-27T22:05:24.696Z"
 last_activity: 2026-10-28
 last_activity_desc: Milestone v1.1 completed and archived
-state_head: 11bf32bcfac9f089b5a5ca0d38d7e1f017479e52
+state_head: 9da751a9866bcbd3bdf3ea933d0ae1cc3f4cc395
 milestone_name: Полировка MVP
 current_phase: 08
 progress:
@@ -197,6 +197,7 @@ None yet.
 | 260903-k9n | UI/UX improvements from design review: typography hierarchy, chart token colors, card emphasis, form grouping, desktop layout | 2026-09-03 | 6e5aed3 | [260903-k9n-ui-ux-improvements-from-design-review-ty](./quick/260903-k9n-ui-ux-improvements-from-design-review-ty/) |
 | 261028-0jr | Apply Drizzle schema to Neon preview branch during Vercel preview builds | 2026-10-28 | da6f854 | [261028-0jr-apply-drizzle-schema-to-neon-preview-bra](./quick/261028-0jr-apply-drizzle-schema-to-neon-preview-bra/) |
 | 3 | Fix e2e bonus tests to use Moscow date (00:00-03:00 MSK failure) | 2026-10-28 | 11bf32b | — |
+| 4 | Cut graphify token usage: .graphifyignore, .ignore for ripgrep, untrack graphify-out cache | 2026-10-28 | 9da751a | — |
 
 ## Deferred Items
 

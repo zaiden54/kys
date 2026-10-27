@@ -1,0 +1,15 @@
+# graphify input scope: index application code and config only.
+# .gitignore is honored as well; patterns here can only exclude more.
+
+# GSD planning docs (archived milestones, plans, summaries) — over half of the
+# indexed files, read directly by GSD agents, and every Markdown file costs
+# LLM extraction tokens.
+/.planning/
+
+# graphify's own output and cache
+/graphify-out/
+
+# static assets and editor/agent config
+/public/
+/.claude/
+/.github/
