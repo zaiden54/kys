@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { todayIsoInMoscow } from "@/domain/time";
 
 // E2E-02: bonus create/edit/delete driven through the real /bonuses UI,
 // each mutation verified against both the history list and the home
@@ -31,7 +32,9 @@ async function createBonus(
 
 test.describe("bonus flows (E2E-02)", () => {
   test("creates a bonus and updates the forecast breakdown", async ({ page }) => {
-    const today = new Date().toISOString().slice(0, 10);
+    // Moscow "today", not UTC: the forecast drops bonuses dated before
+    // todayIsoInMoscow(), so a UTC date is "yesterday" from 00:00 to 03:00 MSK.
+    const today = todayIsoInMoscow();
     const note = `e2e-bonus-create-${Date.now()}`;
 
     await createBonus(page, { amountRubles: "12345", date: today, note });
@@ -59,7 +62,7 @@ test.describe("bonus flows (E2E-02)", () => {
   });
 
   test("edits a bonus and reflects the new amount", async ({ page }) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIsoInMoscow();
     const note = `e2e-bonus-edit-${Date.now()}`;
 
     await createBonus(page, { amountRubles: "635210", date: today, note });
