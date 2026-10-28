@@ -27,10 +27,11 @@ export async function saveVacationAction(formData: FormData): Promise<VacationAc
     id: formData.get("id") || undefined,
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
+    kind: formData.get("kind") || undefined,
   });
   if (!parsed.success) return { success: false, fieldErrors: parsed.error.flatten().fieldErrors };
 
-  const { id, startDate, endDate } = parsed.data;
+  const { id, startDate, endDate, kind } = parsed.data;
   try {
     if (id) {
       const overlaps = await checkOverlapVacations(userId, startDate, endDate, id);
@@ -40,7 +41,7 @@ export async function saveVacationAction(formData: FormData): Promise<VacationAc
           fieldErrors: { endDate: ["Даты пересекаются с существующим отпуском"] },
         };
       }
-      const updated = await updateVacation(userId, id, startDate, endDate);
+      const updated = await updateVacation(userId, id, startDate, endDate, kind);
       if (!updated) {
         return { success: false, fieldErrors: { endDate: ["Отпуск не найден"] } };
       }
@@ -52,7 +53,7 @@ export async function saveVacationAction(formData: FormData): Promise<VacationAc
           fieldErrors: { endDate: ["Даты пересекаются с существующим отпуском"] },
         };
       }
-      await createVacation(userId, startDate, endDate);
+      await createVacation(userId, startDate, endDate, kind);
     }
   } catch {
     return {

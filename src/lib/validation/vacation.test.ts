@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { vacationInputSchema } from "@/lib/validation/vacation";
 
 describe("vacationInputSchema", () => {
+  it("defaults the vacation type to paid and accepts unpaid", () => {
+    const paid = vacationInputSchema.safeParse({ startDate: "2026-08-01", endDate: "2026-08-10" });
+    expect(paid.success && paid.data.kind).toBe("paid");
+    const unpaid = vacationInputSchema.safeParse({ startDate: "2026-08-01", endDate: "2026-08-10", kind: "unpaid" });
+    expect(unpaid.success && unpaid.data.kind).toBe("unpaid");
+    expect(vacationInputSchema.safeParse({ startDate: "2026-08-01", endDate: "2026-08-10", kind: "sick" }).success).toBe(false);
+  });
+
   it("accepts a valid date range", () => {
     const result = vacationInputSchema.safeParse({ startDate: "2026-08-01", endDate: "2026-08-10" });
     expect(result.success).toBe(true);

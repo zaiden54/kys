@@ -25,7 +25,7 @@ import {
   upsertYtdBaseline,
 } from "@/lib/db/salary-repository";
 import { generatePaymentEvents, type PaymentKind } from "@/domain/schedule/resolve-payment-date";
-import { halfSplitGross } from "@/domain/pay/payment-accrual";
+import { leavesFrom, periodGross } from "@/domain/pay/payment-accrual";
 import {
   calculateVacationPayGross,
   resolveVacationPaymentDate,
@@ -139,7 +139,11 @@ describe("computeAnnualSummary", () => {
       ...scheduleEventsInYear.map((event) => ({
         dateIso: format(event.date, "yyyy-MM-dd"),
         kind: event.kind,
-        grossKopecks: halfSplitGross(monthlyGrossKopecks, event.kind),
+        grossKopecks: periodGross(
+          event.period,
+          salaryHistoryForOracle,
+          leavesFrom([{ startDate: vacationStart, endDate: vacationEnd }]),
+        ),
       })),
       { dateIso: sameDateIso, kind: "avans" as PaymentKind, grossKopecks: 20_000_00 },
       { dateIso: differentDateIso, kind: "avans" as PaymentKind, grossKopecks: 15_000_00 },
@@ -193,7 +197,9 @@ describe("computeAnnualSummary", () => {
     const eventDetails = scheduleEventsInYear.map((event) => ({
       dateIso: format(event.date, "yyyy-MM-dd"),
       kind: event.kind,
-      grossKopecks: halfSplitGross(monthlyGrossKopecks, event.kind),
+      grossKopecks: periodGross(event.period, [
+        { effectiveFrom: `${TAX_YEAR}-01-01`, grossAmountKopecks: monthlyGrossKopecks },
+      ]),
     }));
     const cumulativeBefores = await Promise.all(
       eventDetails.map((event) => getCumulativeIncomeBeforeDate(userAId, event.dateIso, event.kind)),
@@ -307,11 +313,15 @@ describe("computeAnnualSummary", () => {
     // Every schedule event after Oct 28 that still lands in this year (holiday
     // shifts can pull January's date back into December), all at 13 %.
     const upcomingEvents = generatePaymentEvents({ avansDay: 20, salaryDay: 5 }, new Date(TAX_YEAR - 1, 11, 1), 14)
-      .map((event) => ({ dateIso: format(event.date, "yyyy-MM-dd"), kind: event.kind }))
+      .map((event) => ({ dateIso: format(event.date, "yyyy-MM-dd"), kind: event.kind, period: event.period }))
       .filter((event) => event.dateIso > `${TAX_YEAR}-10-28` && event.dateIso.slice(0, 4) === String(TAX_YEAR));
     expect(upcomingEvents.length).toBeGreaterThan(0);
     expect(summary.upcomingGrossKopecks).toBe(
-      upcomingEvents.reduce((sum, event) => sum + halfSplitGross(monthlyGrossKopecks, event.kind), 0),
+      upcomingEvents.reduce(
+        (sum, event) =>
+          sum + periodGross(event.period, [{ effectiveFrom: `${TAX_YEAR}-01-01`, grossAmountKopecks: monthlyGrossKopecks }]),
+        0,
+      ),
     );
     expect(summary.upcomingTaxKopecks).toBe(Math.round(summary.upcomingGrossKopecks * 0.13));
     expect(summary.upcomingNetKopecks).toBe(summary.upcomingGrossKopecks - summary.upcomingTaxKopecks);

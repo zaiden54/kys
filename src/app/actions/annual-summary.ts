@@ -42,8 +42,8 @@ if (typeof window !== "undefined") {
 import { format } from "date-fns";
 import type { Kopecks } from "@/domain/money";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
-import { generatePaymentEvents, type PaymentKind } from "@/domain/schedule/resolve-payment-date";
-import { halfSplitGross, selectEffectiveEntry, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
+import { generatePaymentEvents } from "@/domain/schedule/resolve-payment-date";
+import { leavesFrom, periodGross, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
 import {
   calculateVacationPayGross,
   resolveVacationPaymentDate,
@@ -126,6 +126,7 @@ export async function computeAnnualSummary(
     effectiveFrom: row.effectiveFrom,
     grossAmountKopecks: row.grossAmountKopecks,
   }));
+  const leaves = leavesFrom(vacationRows);
 
   const events: AnnualEvent[] = [];
 
@@ -141,9 +142,9 @@ export async function computeAnnualSummary(
   for (const event of scheduleEvents) {
     const dateIso = format(event.date, "yyyy-MM-dd");
     if (!(dateIso > windowBoundIso && dateIso.slice(0, 4) === String(taxYear))) continue;
-    const entry = selectEffectiveEntry(salaryHistoryEntries, dateIso);
-    if (!entry) continue;
-    events.push({ dateIso, grossKopecks: halfSplitGross(entry.grossAmountKopecks, event.kind as PaymentKind) });
+    const grossKopecks = periodGross(event.period, salaryHistoryEntries, leaves);
+    if (grossKopecks === 0) continue;
+    events.push({ dateIso, grossKopecks });
   }
 
   // (b) each bonus row individually — per-row events sum to the same total
@@ -160,7 +161,7 @@ export async function computeAnnualSummary(
   // average MUST be the full unfiltered bonusRows (its own 12-month lookback
   // window can reach into the prior year), never year-filtered.
   const premiumBonusEntries = toPremiumBonusEntries(bonusRows);
-  for (const vacation of vacationRows) {
+  for (const vacation of vacationRows.filter((row) => row.kind === "paid")) {
     const paymentDateIso = resolveVacationPaymentDate(vacation.startDate);
     if (!(paymentDateIso > windowBoundIso && paymentDateIso.slice(0, 4) === String(taxYear))) continue;
     const grossKopecks = calculateVacationPayGross(

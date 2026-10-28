@@ -21,6 +21,9 @@ export const vacationInputSchema = z.object({
   id: z.string().uuid("Некорректный идентификатор отпуска").optional(),
   startDate: isoDateString,
   endDate: isoDateString,
+  // "paid" earns vacation pay; "unpaid" (за свой счёт) does not. Both reduce
+  // the worked days of the avans/salary they overlap.
+  kind: z.enum(["paid", "unpaid"]).default("paid"),
 }).refine((data) => data.endDate >= data.startDate, {
   message: "Дата начала должна быть раньше даты окончания",
   path: ["endDate"],

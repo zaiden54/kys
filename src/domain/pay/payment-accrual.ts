@@ -27,14 +27,13 @@
  *    the target date with a strictly lower `PAYMENT_KIND_RANK` than the
  *    target's kind — so a same-day avans sits inside a same-day salary
  *    payment's base, never the reverse.
- * 5. Each counted event contributes
- *    `halfSplitGross(entry.grossAmountKopecks, event.kind)`, where `entry`
- *    is the salary-history row with the greatest `effectiveFrom` not
- *    exceeding the EVENT's own resolved date (never the target's date,
- *    never the array's insertion order) — a mid-window raise or backdated
- *    correction is therefore applied per-event, not per-window. An event
- *    with no applicable entry (dated before the earliest salary-history
- *    row) contributes zero rather than borrowing a later entry's amount.
+ * 5. Each counted event contributes `periodGross(event.period, …)`: the
+ *    pay for the working days of the period it pays for (avans: days 1–15
+ *    of its month; salary: day 16 to month end of the previous month),
+ *    pro rata against the month's working days, skipping leave days. The
+ *    oklad is resolved per working day (greatest `effectiveFrom` not after
+ *    that day), so a mid-period raise splits the period; days before the
+ *    first salary entry earn nothing.
  * 6. The function reads no clock and performs no I/O; identical inputs
  *    always return identical output, and the caller's `salaryHistory` array
  *    is neither mutated nor reordered.
@@ -44,13 +43,14 @@
  * `../schedule/resolve-payment-date.ts`.
  */
 
-import { format } from "date-fns";
 import type { Kopecks } from "../money";
 import {
   generatePaymentEvents,
+  isWorkingDay,
   PAYMENT_KIND_RANK,
   type PaymentKind,
   type PaymentSchedule,
+  type PayPeriod,
 } from "../schedule/resolve-payment-date";
 
 /** One dated salary_history row, as accrual needs it — not the full DB row shape. */
@@ -67,21 +67,75 @@ export interface AccrualTarget {
   kind: PaymentKind;
 }
 
+/** A leave (paid vacation or unpaid leave), inclusive `yyyy-MM-dd` bounds. */
+export interface LeaveRange {
+  startIso: string;
+  endIso: string;
+}
+
+/** Every vacation, paid or unpaid, takes its days out of the worked days. */
+export function leavesFrom(rows: readonly { startDate: string; endDate: string }[]): LeaveRange[] {
+  return rows.map((row) => ({ startIso: row.startDate, endIso: row.endDate }));
+}
+
+const workingDayFlagsCache = new Map<string, boolean[]>();
+
+/** Per-day working flags for a month (index 0 = day 1), memoized: holiday lookups are not free. */
+function workingDayFlags(year: number, monthIndex: number): boolean[] {
+  const key = `${year}-${monthIndex}`;
+  let flags = workingDayFlagsCache.get(key);
+  if (!flags) {
+    const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+    flags = Array.from({ length: lastDay }, (_, i) => isWorkingDay(new Date(year, monthIndex, i + 1)));
+    workingDayFlagsCache.set(key, flags);
+  }
+  return flags;
+}
+
 /**
- * Splits a monthly gross oklad across the avans and salary payments (Task 1
- * decision: half-split, resolved by the human). The avans share is the
- * floor of the half and the salary share is the remainder, so the two
- * always reconcile to exactly the monthly gross regardless of parity — the
- * annual total across twelve months is therefore exactly `oklad * 12`.
- * Rounding each half independently let an odd-kopeck gross produce two
- * halves summing to one kopeck MORE than the gross (WR-02) — the same
- * anti-drift discipline `../tax/calculate-ndfl.ts` applies to tax rounding,
- * applied here to gross. Relocated unchanged from
- * `src/app/actions/forecast.ts`.
+ * Sum of the monthly oklad effective on each working, non-leave day from
+ * day 1 through `throughDay` of the month. Dividing it by the month's
+ * working-day count gives the pay earned so far that month.
  */
-export function halfSplitGross(monthlyGrossKopecks: Kopecks, kind: PaymentKind): Kopecks {
-  const avansShareKopecks = Math.floor(monthlyGrossKopecks / 2);
-  return kind === "avans" ? avansShareKopecks : monthlyGrossKopecks - avansShareKopecks;
+function earnedNumerator(
+  year: number,
+  monthIndex: number,
+  throughDay: number,
+  salaryHistory: readonly SalaryHistoryEntry[],
+  leaves: readonly LeaveRange[],
+): number {
+  const flags = workingDayFlags(year, monthIndex);
+  const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, "0")}-`;
+  let numerator = 0;
+  for (let day = 1; day <= Math.min(throughDay, flags.length); day++) {
+    if (!flags[day - 1]) continue;
+    const dayIso = `${monthPrefix}${String(day).padStart(2, "0")}`;
+    if (leaves.some((leave) => leave.startIso <= dayIso && dayIso <= leave.endIso)) continue;
+    numerator += selectEffectiveEntry(salaryHistory, dayIso)?.grossAmountKopecks ?? 0;
+  }
+  return numerator;
+}
+
+/**
+ * Gross pay for a pay period, pro rata by working days: for each working
+ * day in the period that is not a leave day, the oklad effective that day
+ * divided by the month's working-day count. A day before the first salary
+ * entry earns nothing.
+ *
+ * Rounding happens on the month-to-date total, and the period is the
+ * difference of two such totals — so a full month with no leave pays exactly
+ * the oklad across its avans and salary halves, never a kopeck more or less.
+ */
+export function periodGross(
+  period: PayPeriod,
+  salaryHistory: readonly SalaryHistoryEntry[],
+  leaves: readonly LeaveRange[] = [],
+): Kopecks {
+  const totalWorkingDays = workingDayFlags(period.year, period.monthIndex).filter(Boolean).length;
+  if (totalWorkingDays === 0) return 0;
+  const through = (day: number) =>
+    Math.round(earnedNumerator(period.year, period.monthIndex, day, salaryHistory, leaves) / totalWorkingDays);
+  return through(period.toDay) - through(period.fromDay - 1);
 }
 
 /**
@@ -131,6 +185,7 @@ export function accruedGrossBetween(
   salaryHistory: readonly SalaryHistoryEntry[],
   afterIso: string,
   target: AccrualTarget,
+  leaves: readonly LeaveRange[] = [],
 ): Kopecks {
   const afterDate = parseIsoToLocalMidnight(afterIso);
   const targetDate = parseIsoToLocalMidnight(target.dateIso);
@@ -161,11 +216,7 @@ export function accruedGrossBetween(
       PAYMENT_KIND_RANK[event.kind] < PAYMENT_KIND_RANK[target.kind];
     if (!strictlyBeforeTarget && !sameDateEarlierRank) continue;
 
-    const eventDateIso = format(event.date, "yyyy-MM-dd");
-    const entry = selectEffectiveEntry(salaryHistory, eventDateIso);
-    if (!entry) continue;
-
-    totalKopecks += halfSplitGross(entry.grossAmountKopecks, event.kind);
+    totalKopecks += periodGross(event.period, salaryHistory, leaves);
   }
 
   return totalKopecks;

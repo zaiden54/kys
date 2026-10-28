@@ -120,11 +120,16 @@ export const vacations = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     startDate: date("start_date", { mode: "string" }).notNull(),
     endDate: date("end_date", { mode: "string" }).notNull(),
+    // "paid" earns vacation pay; "unpaid" (за свой счёт) earns nothing. Both
+    // are excluded from the worked days of the salary/avans they overlap.
+    // NOT NULL DEFAULT 'paid' backfills existing rows on drizzle-kit push.
+    kind: text("kind", { enum: ["paid", "unpaid"] }).notNull().default("paid"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => [
     check("vacation_end_on_or_after_start", sql`${table.endDate} >= ${table.startDate}`),
+    check("vacation_kind_valid", sql`${table.kind} IN ('paid', 'unpaid')`),
     index("vacations_user_id_idx").on(table.userId),
   ],
 );

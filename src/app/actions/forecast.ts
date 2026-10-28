@@ -41,7 +41,7 @@ import { format } from "date-fns";
 import type { Kopecks } from "@/domain/money";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
 import { nextPaymentOnOrAfter, type PaymentKind } from "@/domain/schedule/resolve-payment-date";
-import { halfSplitGross, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
+import { leavesFrom, periodGross, type SalaryHistoryEntry } from "@/domain/pay/payment-accrual";
 import { nowInMoscow, todayIsoInMoscow } from "@/domain/time";
 import {
   calculateVacationPayGross,
@@ -137,7 +137,9 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
     .map((bonus) => bonus.date)
     .filter((date) => date >= todayIsoInMoscow())
     .sort();
+  // Only paid vacations produce a vacation-pay event.
   const futureVacationEventsAscending = vacationRows
+    .filter((vacation) => vacation.kind === "paid")
     .map((vacation) => ({
       dateIso: resolveVacationPaymentDate(vacation.startDate),
       vacationId: vacation.id,
@@ -180,9 +182,15 @@ export async function forecastNextPayment(userId: string): Promise<ForecastResul
   if (isVacationOnly && salaryHistoryRows.length === 0) {
     return { configured: false, missing: "salary" };
   }
-  const baseGrossKopecks = isBonusOnly || isVacationOnly
+  // Pro rata for the period this avans/salary pays for (worked days of that
+  // half-month over the month's working days, leave days excluded).
+  const baseGrossKopecks = isBonusOnly || isVacationOnly || !paymentEvent
     ? 0
-    : halfSplitGross(activeSalary!.grossAmountKopecks, resolvedEvent.kind as PaymentKind);
+    : periodGross(
+        paymentEvent.period,
+        salaryHistoryRows.map((row) => ({ effectiveFrom: row.effectiveFrom, grossAmountKopecks: row.grossAmountKopecks })),
+        leavesFrom(vacationRows),
+      );
 
   // A vacation-only event's gross is computed live from full salary history
   // + premium-filtered bonuses, never a stored amount (mirrors the

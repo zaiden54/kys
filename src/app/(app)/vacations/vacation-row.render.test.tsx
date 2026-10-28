@@ -20,6 +20,7 @@ function makeVacation(overrides: Partial<VacationRowData> = {}): VacationRowData
     userId: "user-01",
     startDate: "2026-09-10",
     endDate: "2026-09-16",
+    kind: "paid",
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -39,6 +40,14 @@ function getEndDateInput(container: HTMLElement): HTMLInputElement {
   if (!input) throw new Error("endDate input not found");
   return input as HTMLInputElement;
 }
+
+describe("VacationRow type", () => {
+  it("shows an unpaid leave as such instead of a vacation-pay amount", () => {
+    render(<VacationRow vacation={makeVacation({ kind: "unpaid" })} grossKopecks={grossKopecks} />);
+    expect(screen.getByText("За свой счёт")).not.toBeNull();
+    expect(screen.queryByText(/10s000/)).toBeNull();
+  });
+});
 
 describe("VacationRow edit-form resync (mirrors bonus-row.render.test.tsx, closes 03-REVIEW.md WR-01)", () => {
   it("discards an unsaved edit when the user cancels and reopens edit mode", () => {
