@@ -33,14 +33,14 @@ describe("vacation actions", () => {
   it("creates when id is absent", async () => {
     expect(await saveVacationAction(formData())).toEqual({ success: true });
     expect(mocks.checkOverlapVacations).toHaveBeenCalledWith("user-01", "2026-09-10", "2026-09-15");
-    expect(mocks.createVacation).toHaveBeenCalledWith("user-01", "2026-09-10", "2026-09-15");
+    expect(mocks.createVacation).toHaveBeenCalledWith("user-01", "2026-09-10", "2026-09-15", "paid");
     expect(mocks.updateVacation).not.toHaveBeenCalled();
   });
 
   it("updates when id is present", async () => {
     expect(await saveVacationAction(formData(vacationId))).toEqual({ success: true });
     expect(mocks.checkOverlapVacations).toHaveBeenCalledWith("user-01", "2026-09-10", "2026-09-15", vacationId);
-    expect(mocks.updateVacation).toHaveBeenCalledWith("user-01", vacationId, "2026-09-10", "2026-09-15");
+    expect(mocks.updateVacation).toHaveBeenCalledWith("user-01", vacationId, "2026-09-10", "2026-09-15", "paid");
     expect(mocks.createVacation).not.toHaveBeenCalled();
   });
 

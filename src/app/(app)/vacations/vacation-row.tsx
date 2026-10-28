@@ -11,7 +11,7 @@ import type { VacationRow as VacationRowData } from "@/lib/db/vacation-repositor
 import { vacationInputSchema, type VacationInput } from "@/lib/validation/vacation";
 
 function toDefaults(vacation: VacationRowData): VacationInput {
-  return { id: vacation.id, startDate: vacation.startDate, endDate: vacation.endDate };
+  return { id: vacation.id, startDate: vacation.startDate, endDate: vacation.endDate, kind: vacation.kind };
 }
 
 export function VacationRow({
@@ -44,6 +44,8 @@ export function VacationRow({
       data.set("id", vacation.id);
       data.set("startDate", values.startDate);
       data.set("endDate", values.endDate);
+      // Editing changes dates only; the vacation keeps its type.
+      data.set("kind", vacation.kind);
       const result = await saveVacationAction(data);
       if (editSessionRef.current !== session) return; // superseded — do nothing
       if (result.success) {
@@ -141,7 +143,9 @@ export function VacationRow({
           {calculateVacationDays(vacation.startDate, vacation.endDate)}
         </span>
         <span className="font-semibold text-[color:var(--color-text-primary)] tabular-nums">
-          {grossKopecks === null ? (
+          {vacation.kind === "unpaid" ? (
+            <span className="font-normal text-[color:var(--color-text-secondary)]">За свой счёт</span>
+          ) : grossKopecks === null ? (
             <span className="font-normal text-[color:var(--color-text-secondary)]">Укажите оклад, чтобы увидеть сумму</span>
           ) : (
             formatKopecks(grossKopecks)

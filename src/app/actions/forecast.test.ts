@@ -21,6 +21,7 @@ import {
 } from "@/lib/db/salary-repository";
 import { nextPaymentOnOrAfter } from "@/domain/schedule/resolve-payment-date";
 import { calculateNdfl } from "@/domain/tax/calculate-ndfl";
+import { periodGross } from "@/domain/pay/payment-accrual";
 import { nowInMoscow } from "@/domain/time";
 import { forecastNextPayment, selectNextPaymentEvent } from "@/app/actions/forecast";
 import { createBonus } from "@/lib/db/bonus-repository";
@@ -86,7 +87,10 @@ describe("forecastNextPayment", () => {
       expect(result.forecast.date).toBe(expectedDateIso);
       expect(result.forecast.kind).toBe(expectedEvent!.kind);
 
-      const expectedGrossKopecks = Math.round(100_000_00 / 2);
+      // Pro rata for the half-month this payment pays for.
+      const expectedGrossKopecks = periodGross(expectedEvent!.period, [
+        { effectiveFrom: "2026-01-01", grossAmountKopecks: 100_000_00 },
+      ]);
       const expectedTax = calculateNdfl(0, expectedGrossKopecks, expectedEvent!.date.getFullYear())
         .taxKopecks;
 
@@ -194,7 +198,10 @@ describe("forecastNextPayment", () => {
     expect(result.configured).toBe(true);
     if (!result.configured) throw new Error("expected a configured result");
 
-    expect(result.forecast.grossKopecks).toBe(Math.round(80_000_00 / 2));
+    const nextEvent = nextPaymentOnOrAfter({ avansDay: 10, salaryDay: 25 }, nowInMoscow());
+    expect(result.forecast.grossKopecks).toBe(
+      periodGross(nextEvent!.period, [{ effectiveFrom: "2020-01-01", grossAmountKopecks: 80_000_00 }]),
+    );
   });
 
   it("(7) with the clock frozen inside the 21:00-24:00 UTC gap window, the forecast resolves against the Moscow calendar day, not an unanchored one (closes 01-VERIFICATION.md gap 2 / CR-01)", async () => {
@@ -246,22 +253,10 @@ describe("forecastNextPayment", () => {
     // Baseline: 1,000,000 rub as of 2026-06-30, confirmed (not estimated).
     // Salary: 600,000 rub/month effective 2026-01-01, avans on the 20th,
     // salary on the 5th. Clock frozen to 2026-09-01 (Moscow): the earliest
-    // eligible payment on/after "today" is 2026-09-04's salary (confirmed
-    // via throwaway Node check against date-holidays@3.36.0 — see
-    // 01-10-SUMMARY.md). July and August are therefore fully "interior"
-    // months between the baseline's window bound and the target payment:
-    // both months' avans+salary events are counted in full, and
-    // halfSplitGross's floor+remainder reconciliation guarantees their sum
-    // is exactly two whole monthly oklads regardless of which day within
-    // each month the events actually land on — so this hand-derived
-    // cumulative base is robust to RU calendar specifics, not dependent on
-    // them:
-    //   cumulativeBefore = 1,000,000_00 (baseline)
-    //                     + 600_000_00 * 2 (July + August, fully accrued)
-    //                     = 2,200,000_00
-    // and the payment's own gross (300,000 rub) pushes cumulative income
-    // from 2,200,000 to 2,500,000 rub, crossing the 2,400,000 rub bracket
-    // threshold (ndfl-brackets.ts).
+    // eligible payment on/after "today" is 2026-09-04's salary (pays 16–31
+    // Aug). Every payment between the baseline and it accrues into the
+    // cumulative base, which pushes this payment across the 2,400,000 rub
+    // bracket threshold (ndfl-brackets.ts).
     const frozenInstant = new Date("2026-09-01T09:00:00Z");
     vi.useFakeTimers();
     vi.setSystemTime(frozenInstant);
@@ -276,10 +271,20 @@ describe("forecastNextPayment", () => {
 
       expect(result.forecast.date).toBe("2026-09-04");
       expect(result.forecast.kind).toBe("salary");
-      expect(result.forecast.grossKopecks).toBe(300_000_00);
+      // 4 Sep salary pays 16–31 Aug. Before it, after the 30 Jun baseline:
+      // 3 Jul (16–30 Jun), 20 Jul (1–15 Jul), 5 Aug (16–31 Jul), 20 Aug (1–15 Aug).
+      const history = [{ effectiveFrom: "2026-01-01", grossAmountKopecks: 600_000_00 }];
+      const paymentGross = periodGross({ year: 2026, monthIndex: 7, fromDay: 16, toDay: 31 }, history);
+      expect(result.forecast.grossKopecks).toBe(paymentGross);
 
-      const cumulativeBeforeKopecks = 2_200_000_00;
-      const expected = calculateNdfl(cumulativeBeforeKopecks, 300_000_00, 2026);
+      const cumulativeBeforeKopecks =
+        1_000_000_00 +
+        periodGross({ year: 2026, monthIndex: 5, fromDay: 16, toDay: 30 }, history) +
+        600_000_00 +
+        periodGross({ year: 2026, monthIndex: 7, fromDay: 1, toDay: 15 }, history);
+      // The scenario still crosses the 2,400,000 rub bracket ceiling.
+      expect(cumulativeBeforeKopecks + paymentGross).toBeGreaterThan(2_400_000_00);
+      const expected = calculateNdfl(cumulativeBeforeKopecks, paymentGross, 2026);
       expect(result.forecast.taxKopecks).toBe(expected.taxKopecks);
       expect(result.forecast.netKopecks).toBe(expected.netKopecks);
 
@@ -287,7 +292,7 @@ describe("forecastNextPayment", () => {
       // (which taxed only against the stale 1,000,000 rub baseline): the
       // real, accrual-aware tax is strictly higher than the baseline-only
       // answer would have been.
-      const baselineOnlyTax = calculateNdfl(1_000_000_00, 300_000_00, 2026).taxKopecks;
+      const baselineOnlyTax = calculateNdfl(1_000_000_00, paymentGross, 2026).taxKopecks;
       expect(result.forecast.taxKopecks).toBeGreaterThan(baselineOnlyTax);
     } finally {
       vi.useRealTimers();
@@ -322,10 +327,13 @@ describe("forecastNextPayment", () => {
       const result = await forecastNextPayment(userAId);
       expect(result.configured).toBe(true);
       if (!result.configured) throw new Error("expected configured combined forecast");
+      const salaryPart = periodGross({ year: 2026, monthIndex: 7, fromDay: 16, toDay: 31 }, [
+        { effectiveFrom: "2026-01-01", grossAmountKopecks: 600_000_00 },
+      ]);
       expect(result.forecast.breakdown).toEqual({
-        salaryOrAvansKopecks: 300_000_00, bonusKopecks: 50_000_00,
+        salaryOrAvansKopecks: salaryPart, bonusKopecks: 50_000_00,
       });
-      expect(result.forecast.grossKopecks).toBe(350_000_00);
+      expect(result.forecast.grossKopecks).toBe(salaryPart + 50_000_00);
     } finally { vi.useRealTimers(); }
   });
 

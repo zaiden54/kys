@@ -41,6 +41,14 @@ function getEndDateInput(container: HTMLElement): HTMLInputElement {
   return input as HTMLInputElement;
 }
 
+describe("VacationRow type", () => {
+  it("shows an unpaid leave as such instead of a vacation-pay amount", () => {
+    render(<VacationRow vacation={makeVacation({ kind: "unpaid" })} grossKopecks={grossKopecks} />);
+    expect(screen.getByText("За свой счёт")).not.toBeNull();
+    expect(screen.queryByText(/10s000/)).toBeNull();
+  });
+});
+
 describe("VacationRow edit-form resync (mirrors bonus-row.render.test.tsx, closes 03-REVIEW.md WR-01)", () => {
   it("discards an unsaved edit when the user cancels and reopens edit mode", () => {
     const vacationFixture = makeVacation();

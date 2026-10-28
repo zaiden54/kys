@@ -17,6 +17,7 @@ import { db } from "@/lib/db";
 import { user } from "@/lib/db/auth-schema";
 import { createBonus, updateBonus } from "@/lib/db/bonus-repository";
 import { createVacation } from "@/lib/db/vacation-repository";
+import { periodGross } from "@/domain/pay/payment-accrual";
 import { calculateVacationPayGross, resolveVacationPaymentDate } from "@/domain/vacation/calculate-average-daily-earnings";
 import {
   findSalaryAt,
@@ -288,9 +289,14 @@ describe("salary-repository", () => {
 
     // 2026's baseline no longer applies once the target is in 2027: the
     // window opens at 2026-12-31 instead, and only 2027's own January
-    // avans+salary events (one full month) accrue before 2027-02-13.
+    // payments accrue before 2027-02-13: the 15 Jan avans (1–15 Jan) and
+    // the 28 Jan salary (16–31 Dec 2026).
+    const history = [{ effectiveFrom: "2025-01-01", grossAmountKopecks: 600_000_00 }];
     const nextYear = await getCumulativeIncomeBeforeDate(userAId, "2027-02-13", "avans");
-    expect(nextYear).toBe(600_000_00);
+    expect(nextYear).toBe(
+      periodGross({ year: 2027, monthIndex: 0, fromDay: 1, toDay: 15 }, history) +
+        periodGross({ year: 2026, monthIndex: 11, fromDay: 16, toDay: 31 }, history),
+    );
   });
 
   it("a baseline with no payment schedule still returns exactly the baseline amount (deliberate regression coverage)", async () => {
@@ -371,6 +377,37 @@ describe("salary-repository", () => {
     // date exactly equal to the vacation's own payment date does not yet
     // include it.
     expect(afterPaymentDate - onPaymentDate).toBe(expectedGross);
+  });
+
+  it("an unpaid leave earns no vacation pay but takes its working days out of the salary it overlaps", async () => {
+    await replaceSalaryAt(userAId, 100_000_00, "2025-01-01");
+    await upsertSchedule(userAId, 20, 5);
+    // Inside 2026, so the year opened by the default 1 January baseline applies.
+    const target = "2026-12-31";
+    const withoutLeave = await getCumulativeIncomeBeforeDate(userAId, target, "avans");
+
+    // 16–20 November 2026: five of the month's 20 working days.
+    await createVacation(userAId, "2026-11-16", "2026-11-20", "unpaid");
+    const withUnpaidLeave = await getCumulativeIncomeBeforeDate(userAId, target, "avans");
+    expect(withoutLeave - withUnpaidLeave).toBe(25_000_00);
+  });
+
+  it("a paid vacation also takes its working days out of salary, and adds its vacation pay instead", async () => {
+    await replaceSalaryAt(userAId, 100_000_00, "2025-01-01");
+    await upsertSchedule(userAId, 20, 5);
+    // Inside 2026, so the year opened by the default 1 January baseline applies.
+    const target = "2026-12-31";
+    const withoutLeave = await getCumulativeIncomeBeforeDate(userAId, target, "avans");
+
+    await createVacation(userAId, "2026-11-16", "2026-11-20", "paid");
+    const withPaidLeave = await getCumulativeIncomeBeforeDate(userAId, target, "avans");
+    const vacationPay = calculateVacationPayGross(
+      "2026-11-16",
+      "2026-11-20",
+      [{ effectiveFrom: "2025-01-01", grossAmountKopecks: 100_000_00 }],
+      [],
+    ).grossKopecks;
+    expect(withPaidLeave - withoutLeave).toBe(vacationPay - 25_000_00);
   });
 
   it("VAC-02: a 'compensation'-typed bonus inside the vacation's own lookback window does not inflate its computed contribution", async () => {

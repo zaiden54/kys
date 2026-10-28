@@ -43,13 +43,11 @@
  * `../schedule/resolve-payment-date.ts`.
  */
 
-import { format } from "date-fns";
 import type { Kopecks } from "../money";
 import {
   generatePaymentEvents,
   isWorkingDay,
   PAYMENT_KIND_RANK,
-  workingDaysInMonth,
   type PaymentKind,
   type PaymentSchedule,
   type PayPeriod,
@@ -107,10 +105,11 @@ function earnedNumerator(
   leaves: readonly LeaveRange[],
 ): number {
   const flags = workingDayFlags(year, monthIndex);
+  const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, "0")}-`;
   let numerator = 0;
   for (let day = 1; day <= Math.min(throughDay, flags.length); day++) {
     if (!flags[day - 1]) continue;
-    const dayIso = format(new Date(year, monthIndex, day), "yyyy-MM-dd");
+    const dayIso = `${monthPrefix}${String(day).padStart(2, "0")}`;
     if (leaves.some((leave) => leave.startIso <= dayIso && dayIso <= leave.endIso)) continue;
     numerator += selectEffectiveEntry(salaryHistory, dayIso)?.grossAmountKopecks ?? 0;
   }
@@ -132,7 +131,7 @@ export function periodGross(
   salaryHistory: readonly SalaryHistoryEntry[],
   leaves: readonly LeaveRange[] = [],
 ): Kopecks {
-  const totalWorkingDays = workingDaysInMonth(period.year, period.monthIndex);
+  const totalWorkingDays = workingDayFlags(period.year, period.monthIndex).filter(Boolean).length;
   if (totalWorkingDays === 0) return 0;
   const through = (day: number) =>
     Math.round(earnedNumerator(period.year, period.monthIndex, day, salaryHistory, leaves) / totalWorkingDays);
