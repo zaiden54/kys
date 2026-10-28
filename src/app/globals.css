@@ -172,6 +172,7 @@ body {
 }
 
 .quick-action:focus-visible,
+.profile-link:focus-visible,
 .link-card:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 3px;
@@ -185,6 +186,13 @@ body {
   background: linear-gradient(135deg, #ffb547, #ff6a3d);
   color: #fff;
   font-weight: 800;
+  overflow: hidden;
+}
+
+.user-avatar-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* ---------- App shell ---------- */

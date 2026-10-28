@@ -18,6 +18,7 @@ export type SessionUser = {
   id: string;
   email: string;
   name: string;
+  image: string | null;
 };
 
 /**
@@ -29,8 +30,8 @@ export type SessionUser = {
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
-  const { id, email, name } = session.user;
-  return { id, email, name };
+  const { id, email, name, image } = session.user;
+  return { id, email, name, image: image ?? null };
 });
 
 /**

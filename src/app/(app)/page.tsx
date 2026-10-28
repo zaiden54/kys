@@ -51,8 +51,8 @@ const ICONS = {
 const QUICK_ACTIONS = [
   { href: "/bonuses", label: "Бонус", icon: ICONS.bonus },
   { href: "/vacations", label: "Отпуск", icon: ICONS.vacation },
-  { href: "/settings/salary", label: "Оклад", icon: ICONS.salary },
-  { href: "/settings/salary", label: "График", icon: ICONS.schedule },
+  { href: "/profile#pay", label: "Оклад", icon: ICONS.salary },
+  { href: "/profile#pay", label: "График", icon: ICONS.schedule },
 ] as const;
 
 function LinkCard({
@@ -122,8 +122,10 @@ export default async function HomePage() {
 
   const topRow = (
     <div className="flex items-center gap-3">
-      <UserAvatar name={user?.name ?? ""} />
-      <p className="min-w-0 flex-1 truncate text-[17px] font-bold">{user?.name}</p>
+      <Link href="/profile" className="profile-link flex min-w-0 flex-1 items-center gap-3" aria-label="Профиль">
+        <UserAvatar name={user?.name ?? ""} image={user?.image} />
+        <span className="min-w-0 truncate text-[17px] font-bold">{user?.name}</span>
+      </Link>
       <span className="mobile-only">
         <SignOutButton />
       </span>
@@ -221,7 +223,7 @@ export default async function HomePage() {
           tint="rgba(46, 120, 255, 0.16)"
         />
         <LinkCard
-          href="/settings/salary"
+          href="/profile#pay"
           title="Оклад и график"
           description={[
             currentSalary ? formatKopecks(currentSalary.grossAmountKopecks) : null,

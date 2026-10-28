@@ -38,7 +38,7 @@ import {
   type SalaryReplacementClaim,
 } from "@/lib/salary-confirmation-token";
 
-const PAY_SETUP_PATHS = ["/", "/onboarding", "/settings/salary"] as const;
+const PAY_SETUP_PATHS = ["/", "/onboarding", "/profile"] as const;
 
 function revalidatePaySetupPaths() {
   for (const path of PAY_SETUP_PATHS) {
