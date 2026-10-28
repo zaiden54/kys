@@ -11,6 +11,15 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false, // D-06
   },
+  user: {
+    // No email is ever verified (D-06, no mail sender), so the profile page
+    // changes the address in place. Better Auth answers "ok" without
+    // changing anything when the address is taken (anti-enumeration).
+    changeEmail: {
+      enabled: true,
+      updateEmailWithoutVerification: true,
+    },
+  },
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days, D-07
     updateAge: 60 * 60 * 24 * 7, // refresh weekly on use

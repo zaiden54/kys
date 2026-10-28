@@ -48,7 +48,7 @@ export function AnnualSummaryCard({ summary, taxYear }: { summary: AnnualSummary
             Сводка появится, как только будет учтена первая выплата в этом году — аванс, зарплата, бонус или отпускные.
           </p>
           <Link
-            href="/settings/salary"
+            href="/profile#pay"
             className="mt-1 rounded-full bg-[color:var(--color-accent-button)] px-4 py-2 text-sm font-semibold text-white"
           >
             Настроить оклад
@@ -79,7 +79,7 @@ export function AnnualSummaryCard({ summary, taxYear }: { summary: AnnualSummary
           ) : (
             <p className="mt-3 text-[13px] text-[color:var(--color-text-secondary)]">
               Доход с начала года не указан — налог может быть посчитан неточно.{" "}
-              <Link href="/settings/salary" className="font-semibold text-[color:var(--color-accent)]">
+              <Link href="/profile#pay" className="font-semibold text-[color:var(--color-accent)]">
                 Указать
               </Link>
             </p>

@@ -133,3 +133,22 @@ export const vacations = pgTable(
     index("vacations_user_id_idx").on(table.userId),
   ],
 );
+
+// user_avatar: the profile photo, kept out of Better Auth's `user.image` on
+// purpose — that column rides in the signed session cookie cache, so it only
+// stores the short `/api/avatar?v=…` URL that points here. The browser
+// downscales the photo before upload, so `data` (base64) stays a few dozen KB.
+export const userAvatar = pgTable(
+  "user_avatar",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    contentType: text("content_type").notNull(),
+    data: text("data").notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    check("user_avatar_content_type_valid", sql`${table.contentType} IN ('image/jpeg', 'image/png', 'image/webp')`),
+  ],
+);

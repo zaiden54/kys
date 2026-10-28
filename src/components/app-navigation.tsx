@@ -42,12 +42,11 @@ function VacationIcon({ className }: IconProps) {
   );
 }
 
-function SettingsIcon({ className }: IconProps) {
+function ProfileIcon({ className }: IconProps) {
   return (
     <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none">
-      <path d="M4 7h16M4 17h16M8 4v6M16 14v6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      <circle cx="8" cy="7" r="2" fill="var(--color-secondary)" stroke="currentColor" strokeWidth="1.7" />
-      <circle cx="16" cy="17" r="2" fill="var(--color-secondary)" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="12" cy="8.5" r="3.5" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }
@@ -64,12 +63,7 @@ const groups: readonly NavGroup[] = [
   {
     label: "Параметры",
     items: [
-      {
-        href: "/settings/salary",
-        label: "Оклад и выплаты",
-        shortLabel: "Выплаты",
-        icon: SettingsIcon,
-      },
+      { href: "/profile", label: "Профиль и выплаты", shortLabel: "Профиль", icon: ProfileIcon },
     ],
   },
 ];

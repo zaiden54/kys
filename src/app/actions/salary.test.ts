@@ -76,7 +76,7 @@ describe("saveSalaryAction", () => {
     expect(mocks.revalidatePath.mock.calls).toEqual([
       ["/"],
       ["/onboarding"],
-      ["/settings/salary"],
+      ["/profile"],
     ]);
   });
 

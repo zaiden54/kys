@@ -1,6 +1,6 @@
 /**
- * Round avatar with the user's initials. A photo upload replaces the
- * initials once profiles land; until then this is the only avatar source.
+ * Round avatar: the uploaded profile photo when there is one, otherwise the
+ * user's initials.
  */
 
 export function initialsOf(name: string): string {
@@ -9,14 +9,28 @@ export function initialsOf(name: string): string {
   return letters.toUpperCase() || "?";
 }
 
-export function UserAvatar({ name, size = 40 }: { name: string; size?: number }) {
+export function UserAvatar({
+  name,
+  image,
+  size = 40,
+}: {
+  name: string;
+  image?: string | null;
+  size?: number;
+}) {
   return (
     <span
       className="user-avatar"
       style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}
       aria-hidden="true"
     >
-      {initialsOf(name)}
+      {image ? (
+        // Our own same-origin, already-downscaled photo: next/image adds nothing here.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" width={size} height={size} className="user-avatar-photo" />
+      ) : (
+        initialsOf(name)
+      )}
     </span>
   );
 }

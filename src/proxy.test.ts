@@ -41,6 +41,7 @@ describe("proxy (optimistic auth gate)", () => {
       "/bonuses/:path*",
       "/vacations/:path*",
       "/settings/:path*",
+      "/profile/:path*",
       "/onboarding/:path*",
     ]);
   });

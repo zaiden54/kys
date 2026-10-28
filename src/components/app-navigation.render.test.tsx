@@ -30,7 +30,7 @@ describe("AppNavigation", () => {
       ["Главная", "/"],
       ["Бонусы", "/bonuses"],
       ["Отпуска", "/vacations"],
-      ["Выплаты", "/settings/salary"],
+      ["Профиль", "/profile"],
     ] as const;
 
     for (const [name, href] of routes) {
@@ -40,7 +40,7 @@ describe("AppNavigation", () => {
   });
 
   it("marks the matching route active in desktop and mobile navigation", () => {
-    pathname = "/settings/salary";
+    pathname = "/profile";
     render(<AppNavigation />);
 
     const activeLinks = screen
@@ -48,7 +48,7 @@ describe("AppNavigation", () => {
       .filter((link) => link.getAttribute("aria-current") === "page");
 
     expect(activeLinks).toHaveLength(2);
-    expect(activeLinks.every((link) => link.getAttribute("href") === "/settings/salary")).toBe(true);
+    expect(activeLinks.every((link) => link.getAttribute("href") === "/profile")).toBe(true);
   });
 
   it("keeps sign out as an action rather than a navigation link", () => {
