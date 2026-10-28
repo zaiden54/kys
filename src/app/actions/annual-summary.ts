@@ -25,6 +25,14 @@ if (typeof window !== "undefined") {
  * `computeCumulativeIncome` so the two can never independently drift apart —
  * see 04-01-PLAN.md's "key_links").
  *
+ * The baseline itself is taxed as one opening lump from zero: the employer
+ * already withheld НДФЛ on that income, so leaving it out would report the
+ * whole baseline as take-home and understate the year's tax.
+ *
+ * The year is also split at `todayIso` into what has already been accrued
+ * (the baseline plus every event on or before today) and what is still
+ * ahead, so the UI can show "earned so far" separately from the forecast.
+ *
  * This module contains no logging calls, so no salary or tax amount can
  * reach a log line (mirrors T-01-04). `UnsupportedTaxYearError` is
  * intentionally NOT caught here; it must propagate as a visible failure
@@ -41,6 +49,7 @@ import {
   resolveVacationPaymentDate,
   toPremiumBonusEntries,
 } from "@/domain/vacation/calculate-average-daily-earnings";
+import { todayIsoInMoscow } from "@/domain/time";
 import { listBonuses } from "@/lib/db/bonus-repository";
 import { listVacations } from "@/lib/db/vacation-repository";
 import {
@@ -55,6 +64,14 @@ export interface AnnualSummary {
   grossKopecks: Kopecks;
   taxKopecks: Kopecks;
   netKopecks: Kopecks;
+  /** Gross accrued so far: the applicable baseline plus every event dated on or before `todayIso`. */
+  earnedGrossKopecks: Kopecks;
+  /** Gross/tax/net of the events still ahead (dated after `todayIso`). */
+  upcomingGrossKopecks: Kopecks;
+  upcomingTaxKopecks: Kopecks;
+  upcomingNetKopecks: Kopecks;
+  /** The applicable baseline's own date, or null when no baseline applies to this year. */
+  baselineAsOfDate: string | null;
   /** True while the applicable YTD baseline is a synthesized/unconfirmed figure — mirrors NextPaymentForecast's own field. */
   baselineIsEstimated: boolean;
 }
@@ -82,6 +99,7 @@ interface AnnualEvent {
 export async function computeAnnualSummary(
   userId: string,
   taxYear: number,
+  todayIso: string = todayIsoInMoscow(),
 ): Promise<AnnualSummaryResult> {
   const [schedule, salaryHistoryRows, bonusRows, vacationRows, ytdBaseline] = await Promise.all([
     getSchedule(userId),
@@ -160,12 +178,22 @@ export async function computeAnnualSummary(
 
   let cumulativeYtdKopecks = baselineAmountKopecks;
   let totalGrossKopecks = baselineAmountKopecks;
-  let totalTaxKopecks = 0;
+  let totalTaxKopecks =
+    baselineAmountKopecks > 0 ? calculateNdfl(0, baselineAmountKopecks, taxYear).taxKopecks : 0;
+  let earnedGrossKopecks = baselineAmountKopecks;
+  let upcomingGrossKopecks = 0;
+  let upcomingTaxKopecks = 0;
   for (const event of events) {
     const { taxKopecks } = calculateNdfl(cumulativeYtdKopecks, event.grossKopecks, taxYear);
     totalGrossKopecks += event.grossKopecks;
     totalTaxKopecks += taxKopecks;
     cumulativeYtdKopecks += event.grossKopecks;
+    if (event.dateIso > todayIso) {
+      upcomingGrossKopecks += event.grossKopecks;
+      upcomingTaxKopecks += taxKopecks;
+    } else {
+      earnedGrossKopecks += event.grossKopecks;
+    }
   }
 
   return {
@@ -174,6 +202,11 @@ export async function computeAnnualSummary(
       grossKopecks: totalGrossKopecks,
       taxKopecks: totalTaxKopecks,
       netKopecks: totalGrossKopecks - totalTaxKopecks,
+      earnedGrossKopecks,
+      upcomingGrossKopecks,
+      upcomingTaxKopecks,
+      upcomingNetKopecks: upcomingGrossKopecks - upcomingTaxKopecks,
+      baselineAsOfDate: baselineApplies ? ytdBaseline.asOfDate : null,
       baselineIsEstimated: !baselineApplies || ytdBaseline.isEstimated,
     },
   };

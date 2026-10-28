@@ -120,3 +120,20 @@ export function formatIsoDateRu(isoDate: string): string {
     year: "numeric",
   }).format(date);
 }
+
+/** Formats a `yyyy-MM-dd` string as day and month only, e.g. "20 ноября". */
+export function formatIsoDayMonthRu(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(
+    new Date(year, month - 1, day),
+  );
+}
+
+/** Whole calendar days from `fromIso` to `toIso` (negative when `toIso` is earlier). */
+export function daysBetweenIso(fromIso: string, toIso: string): number {
+  const toUtcDays = (iso: string) => {
+    const [year, month, day] = iso.split("-").map(Number);
+    return Date.UTC(year, month - 1, day) / 86_400_000;
+  };
+  return toUtcDays(toIso) - toUtcDays(fromIso);
+}

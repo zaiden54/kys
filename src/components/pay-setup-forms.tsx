@@ -405,7 +405,7 @@ export function YtdForm({ defaultAmountRubles, defaultAsOfDate, isEstimated }: Y
           htmlFor="amountRubles"
           className="text-[length:var(--font-size-label)] font-[number:var(--font-weight-label)] text-[color:var(--color-text-primary)]"
         >
-          Сумма дохода с 1 января, ₽
+          Начислено с 1 января до вычета НДФЛ, ₽
         </label>
         <input
           id="amountRubles"

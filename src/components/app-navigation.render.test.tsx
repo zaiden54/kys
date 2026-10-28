@@ -54,7 +54,8 @@ describe("AppNavigation", () => {
   it("keeps sign out as an action rather than a navigation link", () => {
     render(<AppNavigation />);
 
-    expect(screen.getAllByRole("button", { name: "Выйти" })).toHaveLength(2);
+    // Only the desktop sidebar carries it; on mobile the home screen does.
+    expect(screen.getAllByRole("button", { name: "Выйти" })).toHaveLength(1);
     expect(screen.queryByRole("link", { name: "Выйти" })).toBeNull();
   });
 });

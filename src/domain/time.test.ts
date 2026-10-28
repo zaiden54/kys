@@ -16,7 +16,20 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { nowInMoscow, todayIsoInMoscow } from "./time";
+import { daysBetweenIso, formatIsoDayMonthRu, nowInMoscow, todayIsoInMoscow } from "./time";
+
+describe("date helpers", () => {
+  it("formats day and month without the year", () => {
+    expect(formatIsoDayMonthRu("2026-11-20")).toBe("20 ноября");
+  });
+
+  it("counts calendar days across month and year boundaries", () => {
+    expect(daysBetweenIso("2026-10-28", "2026-10-28")).toBe(0);
+    expect(daysBetweenIso("2026-10-28", "2026-11-05")).toBe(8);
+    expect(daysBetweenIso("2026-12-30", "2027-01-02")).toBe(3);
+    expect(daysBetweenIso("2026-11-05", "2026-10-28")).toBe(-8);
+  });
+});
 
 describe("time (Moscow anchoring)", () => {
   beforeEach(() => {

@@ -6,8 +6,8 @@ describe("manifest()", () => {
     const result = manifest();
 
     expect(result.display).toBe("standalone");
-    expect(result.theme_color).toBe("#1a1a1a");
-    expect(result.background_color).toBe("#1a1a1a");
+    expect(result.theme_color).toBe("#f2f3f5");
+    expect(result.background_color).toBe("#f2f3f5");
     expect(result.short_name).toBe("НаРуки");
 
     const icons = result.icons ?? [];

@@ -8,8 +8,8 @@
  * created in `beforeEach` and deleted (cascade) in `afterEach`.
  *
  * No frozen clock anywhere in this file: computeAnnualSummary takes
- * `taxYear` as an explicit parameter and never calls
- * nowInMoscow()/todayIsoInMoscow(), unlike forecastNextPayment.
+ * `taxYear` and (where a test depends on it) `todayIso` as explicit
+ * parameters; year totals never depend on today.
  */
 
 import { randomUUID } from "node:crypto";
@@ -153,7 +153,7 @@ describe("computeAnnualSummary", () => {
       oracleEvents.map((event) => getCumulativeIncomeBeforeDate(userAId, event.dateIso, event.kind)),
     );
     let oracleGrossKopecks = 100_000_00; // baseline, dateless, counted exactly once
-    let oracleTaxKopecks = 0;
+    let oracleTaxKopecks = calculateNdfl(0, 100_000_00, TAX_YEAR).taxKopecks; // tax already withheld on it
     oracleEvents.forEach((event, index) => {
       const { taxKopecks } = calculateNdfl(cumulativeBefores[index], event.grossKopecks, TAX_YEAR);
       oracleGrossKopecks += event.grossKopecks;
@@ -166,7 +166,7 @@ describe("computeAnnualSummary", () => {
     expect(result.summary.baselineIsEstimated).toBe(false);
   });
 
-  it("(4) an applicable confirmed baseline crossing into a higher bracket is added into grossKopecks exactly once, as a dateless opening amount, never itself taxed as an event", async () => {
+  it("(4) an applicable confirmed baseline crossing into a higher bracket is added into grossKopecks exactly once, as a dateless opening amount taxed once from zero", async () => {
     // Only schedule events here (no bonus/vacation), each on a distinct
     // day-of-month (10 and 25 never collide), so there are NO same-date
     // ties at all — the per-event oracle below is therefore exact
@@ -199,7 +199,7 @@ describe("computeAnnualSummary", () => {
       eventDetails.map((event) => getCumulativeIncomeBeforeDate(userAId, event.dateIso, event.kind)),
     );
     let oracleGrossKopecks = 2_300_000_00; // baseline, counted exactly once
-    let oracleTaxKopecks = 0;
+    let oracleTaxKopecks = calculateNdfl(0, 2_300_000_00, TAX_YEAR).taxKopecks;
     eventDetails.forEach((event, index) => {
       const { taxKopecks } = calculateNdfl(cumulativeBefores[index], event.grossKopecks, TAX_YEAR);
       oracleGrossKopecks += event.grossKopecks;
@@ -275,7 +275,7 @@ describe("computeAnnualSummary", () => {
     expect(userBResult.summary.grossKopecks).toBeGreaterThan(afterResult.summary.grossKopecks);
   });
 
-  it("(7) a YTD baseline dated exactly Dec 31 of taxYear excludes every dated event from the year's walk, so grossKopecks equals exactly the baseline and taxKopecks is exactly 0", async () => {
+  it("(7) a YTD baseline dated exactly Dec 31 of taxYear excludes every dated event from the year's walk, so the year is exactly the baseline and its own tax", async () => {
     // windowBoundIso becomes the baseline's own asOfDate (Dec 31): no event
     // date within taxYear can be strictly greater than Dec 31 of that same
     // year, so every avans/salary occurrence (schedule is configured, so
@@ -288,9 +288,43 @@ describe("computeAnnualSummary", () => {
     expect(result.configured).toBe(true);
     if (!result.configured) throw new Error("expected a configured result");
     expect(result.summary.grossKopecks).toBe(500_000_00);
-    expect(result.summary.taxKopecks).toBe(0);
-    expect(result.summary.netKopecks).toBe(500_000_00);
+    expect(result.summary.taxKopecks).toBe(65_000_00);
+    expect(result.summary.netKopecks).toBe(435_000_00);
     expect(result.summary.baselineIsEstimated).toBe(false);
+  });
+
+  it("(9) splits the year at todayIso: the baseline and past events are earned, later events are upcoming with their own tax", async () => {
+    const monthlyGrossKopecks = 100_000_00;
+    await replaceSalaryAt(userAId, monthlyGrossKopecks, `${TAX_YEAR}-01-01`);
+    await upsertSchedule(userAId, 20, 5);
+    await upsertYtdBaseline(userAId, 1_000_000_00, `${TAX_YEAR}-10-28`, false);
+
+    const result = await computeAnnualSummary(userAId, TAX_YEAR, `${TAX_YEAR}-10-28`);
+    expect(result.configured).toBe(true);
+    if (!result.configured) throw new Error("expected a configured result");
+    const summary = result.summary;
+
+    // Every schedule event after Oct 28 that still lands in this year (holiday
+    // shifts can pull January's date back into December), all at 13 %.
+    const upcomingEvents = generatePaymentEvents({ avansDay: 20, salaryDay: 5 }, new Date(TAX_YEAR - 1, 11, 1), 14)
+      .map((event) => ({ dateIso: format(event.date, "yyyy-MM-dd"), kind: event.kind }))
+      .filter((event) => event.dateIso > `${TAX_YEAR}-10-28` && event.dateIso.slice(0, 4) === String(TAX_YEAR));
+    expect(upcomingEvents.length).toBeGreaterThan(0);
+    expect(summary.upcomingGrossKopecks).toBe(
+      upcomingEvents.reduce((sum, event) => sum + halfSplitGross(monthlyGrossKopecks, event.kind), 0),
+    );
+    expect(summary.upcomingTaxKopecks).toBe(Math.round(summary.upcomingGrossKopecks * 0.13));
+    expect(summary.upcomingNetKopecks).toBe(summary.upcomingGrossKopecks - summary.upcomingTaxKopecks);
+    expect(summary.earnedGrossKopecks).toBe(1_000_000_00);
+    expect(summary.earnedGrossKopecks + summary.upcomingGrossKopecks).toBe(summary.grossKopecks);
+    expect(summary.taxKopecks).toBe(130_000_00 + summary.upcomingTaxKopecks);
+    expect(summary.baselineAsOfDate).toBe(`${TAX_YEAR}-10-28`);
+
+    // A baseline from another year never applies, so there is no as-of date.
+    await upsertYtdBaseline(userAId, 1_000_000_00, `${TAX_YEAR - 1}-10-28`, false);
+    const otherYear = await computeAnnualSummary(userAId, TAX_YEAR, `${TAX_YEAR}-10-28`);
+    if (!otherYear.configured) throw new Error("expected a configured result");
+    expect(otherYear.summary.baselineAsOfDate).toBeNull();
   });
 
   it("(8) userA's bonus/vacation amounts never appear in userB's own summary total, even when both users share the same configured salary/schedule shape", async () => {
